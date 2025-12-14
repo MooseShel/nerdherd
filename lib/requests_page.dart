@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/logger_service.dart';
 import 'services/profile_service.dart';
-import 'widgets/skeleton_loader.dart';
+
 import 'services/haptic_service.dart';
 
 class RequestsPage extends StatefulWidget {
@@ -14,7 +14,8 @@ class RequestsPage extends StatefulWidget {
 
 class _RequestsPageState extends State<RequestsPage> {
   bool _isLoading = true;
-  List<Map<String, dynamic>> _requests = [];
+  List<Map<String, dynamic>> _pendingRequests = [];
+  List<Map<String, dynamic>> _historyRequests = [];
   final supabase = Supabase.instance.client;
 
   @override
@@ -30,11 +31,12 @@ class _RequestsPageState extends State<RequestsPage> {
     setState(() => _isLoading = true);
     try {
       // Fetch both Incoming (received by me) and Outgoing (sent by me) requests
+      // Fetch ALL requests (pending/accepted/rejected)
       final requestsData = await supabase
           .from('collab_requests')
           .select('*')
           .or('receiver_id.eq.$myId,sender_id.eq.$myId')
-          .eq('status', 'pending');
+          .order('created_at', ascending: false);
 
       // Fetch all unique user IDs from requests
       final userIds = <String>{};
@@ -62,7 +64,10 @@ class _RequestsPageState extends State<RequestsPage> {
       }).toList();
 
       setState(() {
-        _requests = enrichedRequests;
+        _pendingRequests =
+            enrichedRequests.where((r) => r['status'] == 'pending').toList();
+        _historyRequests =
+            enrichedRequests.where((r) => r['status'] != 'pending').toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -86,8 +91,8 @@ class _RequestsPageState extends State<RequestsPage> {
         // 1. Insert Connection
         // We need to know who the other person is.
         // We can find the request object in our list to get the IDs.
-        final req =
-            _requests.firstWhere((r) => r['id'] == requestId, orElse: () => {});
+        final req = _pendingRequests.firstWhere((r) => r['id'] == requestId,
+            orElse: () => {});
         if (req.isEmpty) {
           logger.warning("Request $requestId not found in local list");
           return;
@@ -95,13 +100,22 @@ class _RequestsPageState extends State<RequestsPage> {
         final u1 = req['sender_id'];
         final u2 = req['receiver_id'];
 
-        await supabase.from('connections').insert({
-          'user_id_1': u1,
-          'user_id_2': u2,
-        });
+        try {
+          await supabase.from('connections').insert({
+            'user_id_1': u1,
+            'user_id_2': u2,
+          });
+        } catch (e) {
+          // Flattening error handling:
+          // If connection fails (likely duplicate), we log it but PROCEED to accept the request.
+          // This ensures the UI doesn't get stuck.
+          logger.info("Ignored connection insert error (likely duplicate): $e");
+        }
 
-        // 2. Delete Request (Cleanup)
-        await supabase.from('collab_requests').delete().eq('id', requestId);
+        // 2. Update Status to Accepted (Preserve History)
+        await supabase.from('collab_requests').update({
+          'status': 'accepted',
+        }).eq('id', requestId);
       } else {
         // Reject: Update status to rejected (or delete if prefer)
         await supabase.from('collab_requests').update({
@@ -110,8 +124,13 @@ class _RequestsPageState extends State<RequestsPage> {
       }
 
       // 3. Update UI
+      // Move from Pending to History locally
       setState(() {
-        _requests.removeWhere((r) => r['id'] == requestId);
+        final req = _pendingRequests.firstWhere((r) => r['id'] == requestId);
+        _pendingRequests.removeWhere((r) => r['id'] == requestId);
+
+        req['status'] = accept ? 'accepted' : 'rejected';
+        _historyRequests.insert(0, req);
       });
 
       if (mounted) {
@@ -134,61 +153,68 @@ class _RequestsPageState extends State<RequestsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F111A), // Dark Cyber Blue
-      appBar: AppBar(
-        title: const Text("Manage Requests"),
-        backgroundColor: const Color(0xFF0F111A),
-        foregroundColor: Colors.white,
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: const Color(0xFF0F111A), // Dark Cyber Blue
+        appBar: AppBar(
+          title: const Text("Notification Hub"),
+          backgroundColor: const Color(0xFF0F111A),
+          foregroundColor: Colors.white,
+          bottom: const TabBar(
+            indicatorColor: Colors.cyanAccent,
+            labelColor: Colors.cyanAccent,
+            unselectedLabelColor: Colors.white54,
+            tabs: [
+              Tab(text: "PENDING"),
+              Tab(text: "HISTORY"),
+            ],
+          ),
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : TabBarView(
+                children: [
+                  _buildList(_pendingRequests, isHistory: false),
+                  _buildList(_historyRequests, isHistory: true),
+                ],
+              ),
       ),
-      body: _isLoading
-          ? ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: 5,
-              itemBuilder: (context, index) => const SkeletonListTile(),
-            )
-          : _requests.isEmpty
-              ? const Center(
-                  child: Text(
-                    "No pending requests",
-                    style: TextStyle(color: Colors.white54),
-                  ),
-                )
-              : LayoutBuilder(
-                  builder: (context, constraints) {
-                    if (constraints.maxWidth > 600) {
-                      // Tablet/Desktop: Grid View
-                      return GridView.builder(
-                        padding: const EdgeInsets.all(16),
-                        gridDelegate:
-                            const SliverGridDelegateWithMaxCrossAxisExtent(
-                          maxCrossAxisExtent: 400,
-                          childAspectRatio: 2.5, // Wider cards
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                        ),
-                        itemCount: _requests.length,
-                        itemBuilder: (context, index) =>
-                            _buildRequestCard(context, index),
-                      );
-                    } else {
-                      // Mobile: List View
-                      return ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _requests.length,
-                        itemBuilder: (context, index) =>
-                            _buildRequestCard(context, index),
-                      );
-                    }
-                  },
-                ),
     );
   }
 
-  Widget _buildRequestCard(BuildContext context, int index) {
+  Widget _buildList(List<Map<String, dynamic>> items,
+      {required bool isHistory}) {
+    if (items.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(isHistory ? Icons.history : Icons.notifications_none,
+                size: 60, color: Colors.white24),
+            const SizedBox(height: 16),
+            Text(
+              isHistory ? "No past notifications" : "No pending requests",
+              style: const TextStyle(color: Colors.white54),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: items.length,
+      itemBuilder: (context, index) =>
+          _buildRequestCard(context, items[index], isHistory),
+    );
+  }
+
+  Widget _buildRequestCard(
+      BuildContext context, Map<String, dynamic> req, bool isHistory) {
     final myId = supabase.auth.currentUser?.id;
-    final req = _requests[index];
     final isIncoming = req['receiver_id'] == myId;
+    final status = req['status'] ?? 'pending';
 
     // Data setup
     final sender = req['sender'] ?? {};
@@ -239,38 +265,67 @@ class _RequestsPageState extends State<RequestsPage> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          trailing: isIncoming
-              ? Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.redAccent),
-                      onPressed: () {
-                        hapticService.lightImpact();
-                        _respondToRequest(req['id'], req['sender_id'], false);
-                      },
+          trailing: isHistory
+              ? Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: status == 'accepted'
+                        ? Colors.green.withOpacity(0.2)
+                        : Colors.red.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                        color: status == 'accepted'
+                            ? Colors.green
+                            : Colors.redAccent),
+                  ),
+                  child: Text(
+                    status.toUpperCase(),
+                    style: TextStyle(
+                      color: status == 'accepted'
+                          ? Colors.green
+                          : Colors.redAccent,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.check, color: Colors.greenAccent),
+                  ),
+                )
+              : isIncoming
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon:
+                              const Icon(Icons.close, color: Colors.redAccent),
+                          onPressed: () {
+                            hapticService.lightImpact();
+                            _respondToRequest(
+                                req['id'], req['sender_id'], false);
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.check,
+                              color: Colors.greenAccent),
+                          onPressed: () {
+                            hapticService.mediumImpact();
+                            _respondToRequest(
+                                req['id'], req['sender_id'], true);
+                          },
+                        ),
+                      ],
+                    )
+                  : ElevatedButton(
                       onPressed: () {
                         hapticService.mediumImpact();
                         _respondToRequest(req['id'], req['sender_id'], true);
                       },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent.withOpacity(0.2),
+                        foregroundColor: Colors.blueAccent,
+                        side: const BorderSide(color: Colors.blueAccent),
+                      ),
+                      child: const Text("Force Accept"),
                     ),
-                  ],
-                )
-              : ElevatedButton(
-                  onPressed: () {
-                    hapticService.mediumImpact();
-                    _respondToRequest(req['id'], req['sender_id'], true);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent.withOpacity(0.2),
-                    foregroundColor: Colors.blueAccent,
-                    side: const BorderSide(color: Colors.blueAccent),
-                  ),
-                  child: const Text("Force Accept"),
-                ),
         ),
       ),
     );

@@ -11,6 +11,7 @@ import 'services/logger_service.dart';
 import 'services/haptic_service.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'widgets/map_filter_widget.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -31,7 +32,9 @@ class _MapPageState extends State<MapPage> {
   StreamSubscription? _locationSubscription;
   Timer? _broadcastTimer;
   LatLng? _currentLocation;
+
   final Set<String> _seenRequests = {}; // Track shown requests
+  MapFilters _filters = MapFilters(); // NEW: Filter State
 
   // Optimization: Smart Broadcast
   LatLng? _lastBroadcastLocation;
@@ -369,6 +372,20 @@ class _MapPageState extends State<MapPage> {
         if (peer.userId == supabase.auth.currentUser?.id) {
           continue;
         }
+
+        // --- FILTER LOGIC ---
+        if (peer.isTutor && !_filters.showTutors) continue;
+        if (!peer.isTutor && !_filters.showStudents) continue;
+
+        if (_filters.selectedSubjects.isNotEmpty) {
+          // Case insensitive check
+          final peerClasses =
+              peer.currentClasses.map((e) => e.toLowerCase()).toList();
+          final hasSubject = _filters.selectedSubjects
+              .any((s) => peerClasses.contains(s.toLowerCase()));
+          if (!hasSubject) continue;
+        }
+        // --------------------
 
         try {
           logger.debug("Drawing marker at ${peer.location}");
@@ -742,7 +759,20 @@ class _MapPageState extends State<MapPage> {
                   _isStudyMode ? Colors.cyanAccent : Colors.grey[800],
               foregroundColor: _isStudyMode ? Colors.black : Colors.white,
             ),
-          )
+          ),
+          // Filter Widget
+          Positioned(
+            top: 120,
+            right: 20,
+            child: MapFilterWidget(
+              currentFilters: _filters,
+              onFilterChanged: (newFilters) {
+                setState(() => _filters = newFilters);
+                hapticService.mediumImpact();
+                _updateMapMarkers();
+              },
+            ),
+          ),
         ],
       ),
     );

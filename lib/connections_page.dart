@@ -20,6 +20,8 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
   List<UserProfile> _connections = [];
   Map<String, String> _connectionIds = {}; // Map<OtherUserId, ConnectionRowId>
   List<UserProfile> _filteredConnections = [];
+  Map<String, Map<String, dynamic>> _lastMessages =
+      {}; // NEW: Map<PeerId, MessageData>
   bool _isLoading = true;
   int _unreadRequestCount = 0;
   String _filter = 'all'; // 'all', 'students', 'tutors'
@@ -76,12 +78,25 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
           .select()
           .inFilter('user_id', otherUserIds);
 
-      setState(() {
-        _connections = profiles.map((p) => UserProfile.fromJson(p)).toList();
-        _connectionIds = newConnectionMap;
-        _applyFilter();
-        _isLoading = false;
-      });
+      // Fetch recent messages for previews
+      final messages = await supabase
+          .from('messages')
+          .select('id, sender_id, receiver_id, content, created_at, read_at')
+          .or('sender_id.eq.$myId,receiver_id.eq.$myId')
+          .order('created_at', ascending: false)
+          .limit(200);
+
+      final newLastMessages = <String, Map<String, dynamic>>{};
+      for (final msg in messages) {
+        final otherId =
+            (msg['sender_id'] == myId) ? msg['receiver_id'] : msg['sender_id'];
+
+        // Only store the FIRST (latest) message encountered for each peer
+        if (!newLastMessages.containsKey(otherId) &&
+            otherUserIds.contains(otherId)) {
+          newLastMessages[otherId] = msg;
+        }
+      }
 
       // Fetch unread requests count
       final requestsCount = await supabase
@@ -92,6 +107,24 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
 
       if (mounted) {
         setState(() {
+          _connections = profiles.map((p) => UserProfile.fromJson(p)).toList();
+          _connectionIds = newConnectionMap;
+          _lastMessages = newLastMessages;
+
+          // Sort by Last Message Time (Recent first)
+          _connections.sort((a, b) {
+            final timeAStr = _lastMessages[a.userId]?['created_at'];
+            final timeBStr = _lastMessages[b.userId]?['created_at'];
+            if (timeAStr == null && timeBStr == null) return 0;
+            if (timeAStr == null) {
+              return 1; // B has message, A doesn't -> B first
+            }
+            if (timeBStr == null) return -1;
+            return DateTime.parse(timeBStr).compareTo(DateTime.parse(timeAStr));
+          });
+
+          _applyFilter();
+          _isLoading = false;
           _unreadRequestCount = requestsCount;
         });
       }
@@ -412,44 +445,75 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    conn.intentTag ?? 'No status',
-                    style: const TextStyle(
-                      color: Colors.white54,
-                      fontSize: 13,
+                  // Message Preview
+                  if (_lastMessages.containsKey(conn.userId)) ...[
+                    Text(
+                      _lastMessages[conn.userId]!['content'] ?? 'Sent an image',
+                      style: TextStyle(
+                        color: _isUnread(_lastMessages[conn.userId]!)
+                            ? Colors.white
+                            : Colors.white54,
+                        fontSize: 13,
+                        fontWeight: _isUnread(_lastMessages[conn.userId]!)
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  ] else ...[
+                    Text(
+                      conn.intentTag ?? 'No status',
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 13,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ],
               ),
             ),
 
-            // Actions
-            Row(
-              mainAxisSize: MainAxisSize.min,
+            // Time & Actions
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                // Chat button
-                IconButton(
-                  icon: const Icon(Icons.chat_bubble, color: Colors.cyanAccent),
-                  onPressed: () {
-                    hapticService.lightImpact();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ChatPage(otherUser: conn),
-                      ),
-                    );
-                  },
-                ),
-                // Remove button
-                IconButton(
-                  icon:
-                      const Icon(Icons.person_remove, color: Colors.redAccent),
-                  onPressed: () {
-                    hapticService.mediumImpact();
-                    _removeConnection(conn);
-                  },
+                if (_lastMessages.containsKey(conn.userId))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8, right: 8),
+                    child: Text(
+                      _formatTime(_lastMessages[conn.userId]!['created_at']),
+                      style:
+                          const TextStyle(color: Colors.white38, fontSize: 10),
+                    ),
+                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chat_bubble,
+                          color: Colors.cyanAccent),
+                      onPressed: () {
+                        hapticService.lightImpact();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ChatPage(otherUser: conn),
+                          ),
+                        ).then((_) => _fetchConnections()); // Refresh on return
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.person_remove,
+                          color: Colors.redAccent),
+                      onPressed: () {
+                        hapticService.mediumImpact();
+                        _removeConnection(conn);
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -457,6 +521,23 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
         ),
       ),
     );
+  }
+
+  bool _isUnread(Map<String, dynamic> msg) {
+    final myId = supabase.auth.currentUser?.id;
+    return msg['receiver_id'] == myId && msg['read_at'] == null;
+  }
+
+  String _formatTime(String isoString) {
+    final date = DateTime.parse(isoString).toLocal();
+    final now = DateTime.now();
+    final diff = now.difference(date);
+
+    if (diff.inSeconds < 60) return 'now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays < 7) return '${diff.inDays}d';
+    return '${date.month}/${date.day}';
   }
 
   Widget _buildEmptyState() {

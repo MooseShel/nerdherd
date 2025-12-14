@@ -41,7 +41,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E1E),
         title: const Text('Change Password',
             style: TextStyle(color: Colors.white)),
@@ -59,20 +59,22 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () async {
               final newPass = passwordController.text.trim();
               if (newPass.length < 6) {
+                // Using context (from State) here is safe because we haven't done async yet?
+                // Actually this is synchronous so fine.
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                       content: Text('Password must be at least 6 characters')),
                 );
                 return;
               }
-              Navigator.pop(context); // Close dialog first
+              Navigator.pop(dialogContext); // Close dialog first
 
               try {
                 await supabase.auth
