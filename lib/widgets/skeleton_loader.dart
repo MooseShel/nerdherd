@@ -75,19 +75,19 @@ class SkeletonListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      child: Row(
+      child: const Row(
         children: [
           // Avatar
-          const SkeletonLoader(width: 50, height: 50, borderRadius: 25),
-          const SizedBox(width: 16),
+          SkeletonLoader(width: 50, height: 50, borderRadius: 25),
+          SizedBox(width: 16),
           // Text Content
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SkeletonLoader(width: 140, height: 16),
-                const SizedBox(height: 8),
-                const SkeletonLoader(width: 100, height: 12),
+                SkeletonLoader(width: 140, height: 16),
+                SizedBox(height: 8),
+                SkeletonLoader(width: 100, height: 12),
               ],
             ),
           ),
