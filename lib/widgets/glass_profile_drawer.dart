@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'rating_dialog.dart';
+import 'booking_dialog.dart';
 import '../models/user_profile.dart';
 import '../profile_page.dart';
 import '../chat_page.dart';
@@ -20,6 +22,7 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
   bool _isLoading = false;
   bool _requestSent = false;
   bool _isConnected = false;
+  bool _canRate = false; // New: Verified session exists
   String? _incomingRequestId;
 
   final supabase = Supabase.instance.client;
@@ -46,9 +49,18 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
           .maybeSingle();
 
       if (connection != null) {
+        // Connected! Now check if I can rate (i.e. if I am a student and they are a tutor AND a session exists)
+        final session = await supabase
+            .from('sessions')
+            .select()
+            .eq('tutor_id', widget.profile.userId)
+            .eq('student_id', currentUser!.id)
+            .maybeSingle();
+
         if (mounted) {
           setState(() {
             _isConnected = true;
+            _canRate = session != null;
             _isLoading = false;
           });
         }
@@ -111,6 +123,9 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
         'rated_id': widget.profile.userId,
         'rating': rating,
         'comment': comment,
+        // 'session_id': ... Ideally track which session, but for 'any valid session' check, this is fine for MVP.
+        // We verified a session EXISTS in _checkStatus. RLS will verify it again.
+        // To be strict, RLS needs to find ANY valid session. My RLS policy does check `EXISTS (select 1 from public.sessions ...)` so it works.
       });
 
       if (mounted) {
@@ -119,7 +134,12 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
               content: Text("Review submitted!"),
               backgroundColor: Colors.green),
         );
-        Navigator.pop(context); // Close dialog
+        // RatingDialog handles close via onSubmit if we want, or here.
+        // But RatingDialog doesn't pop itself. I need to ensure it pops.
+        // Usually dialogs are popped by the caller or the dialog itself.
+        // My RatingDialog calls `widget.onSubmit`. It does NOT pop.
+        // So I must pop here:
+        Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
@@ -135,66 +155,18 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
   }
 
   void _showRatingDialog() {
-    int selectedRating = 5;
-    final commentController = TextEditingController();
-
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            backgroundColor: const Color(0xFF1E1E1E),
-            title:
-                const Text("Rate User", style: TextStyle(color: Colors.white)),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(5, (index) {
-                    return IconButton(
-                      onPressed: () =>
-                          setDialogState(() => selectedRating = index + 1),
-                      icon: Icon(
-                        index < selectedRating ? Icons.star : Icons.star_border,
-                        color: Colors.amber,
-                        size: 32,
-                      ),
-                    );
-                  }),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: commentController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    hintText: "Write a review (optional)",
-                    hintStyle: TextStyle(color: Colors.white54),
-                    filled: true,
-                    fillColor: Colors.black26,
-                  ),
-                  maxLines: 3,
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child:
-                    const Text("Cancel", style: TextStyle(color: Colors.grey)),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  _submitRating(selectedRating, commentController.text);
-                  Navigator.pop(ctx);
-                },
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.cyanAccent,
-                    foregroundColor: Colors.black),
-                child: const Text("Submit"),
-              ),
-            ],
-          );
+      builder: (ctx) => RatingDialog(
+        tutorName: widget.profile.fullName ?? "this tutor",
+        onSubmit: (rating, comment) {
+          // Note: ctx is the dialog context
+          _submitRating(rating, comment);
+          // Navigator pop is in _submitRating?
+          // _submitRating is async. It pops 'context'.
+          // If I pass 'ctx' to _submitRating it would be cleaner, but 'context' works if strict.
+          // Wait, _submitRating uses 'context' which is the Page context.
+          // `Navigator.pop(context)` pops the top route = Dialog. Correct.
         },
       ),
     );
@@ -413,6 +385,18 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                   fontStyle: FontStyle.italic,
                                 ),
                               ),
+                              if (widget.profile.isTutor &&
+                                  widget.profile.hourlyRate != null) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  "\$${widget.profile.hourlyRate}/hr",
+                                  style: const TextStyle(
+                                    color: Colors.greenAccent,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                               if (widget.profile.averageRating != null) ...[
                                 const SizedBox(height: 4),
                                 Row(
@@ -433,6 +417,28 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                         )
                       ],
                     ),
+
+                    if (widget.profile.bio?.isNotEmpty == true) ...[
+                      const SizedBox(height: 24),
+                      const Text(
+                        "ABOUT",
+                        style: TextStyle(
+                          color: Colors.white54,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        widget.profile.bio!,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
 
                     const SizedBox(height: 24),
 
@@ -629,11 +635,42 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                                 ),
                                         ),
                         ),
+                        if (!isMe && widget.profile.isTutor) ...[
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                hapticService.mediumImpact();
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => BookingDialog(
+                                    tutorId: widget.profile.userId,
+                                    tutorName:
+                                        widget.profile.fullName ?? "Tutor",
+                                  ),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.amber,
+                                foregroundColor: Colors.black,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: const Text(
+                                "Book Session",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
 
-                    // Separated Rate User Button
-                    if (!isMe && _isConnected) ...[
+                    // Separated Rate User Button (Only if verified session exists)
+                    if (!isMe && _isConnected && _canRate) ...[
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,

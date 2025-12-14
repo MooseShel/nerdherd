@@ -5,6 +5,7 @@ import 'models/user_profile.dart'; // Ensure this matches your project structure
 import 'requests_page.dart';
 import 'connections_page.dart';
 import 'settings_page.dart';
+import 'schedule_page.dart';
 import 'services/logger_service.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -19,6 +20,8 @@ class _ProfilePageState extends State<ProfilePage> {
   final _intentController = TextEditingController();
   final _classesController = TextEditingController(); // Comma separated
   final _avatarController = TextEditingController();
+  final _hourlyRateController = TextEditingController();
+  final _bioController = TextEditingController();
   bool _isTutor = false;
   bool _isLoading = true;
   int _connectionCount = 0;
@@ -52,6 +55,8 @@ class _ProfilePageState extends State<ProfilePage> {
         _intentController.text = profile.intentTag ?? '';
         _classesController.text = profile.currentClasses.join(', ');
         _avatarController.text = profile.avatarUrl ?? '';
+        _hourlyRateController.text = profile.hourlyRate?.toString() ?? '';
+        _bioController.text = profile.bio ?? '';
         setState(() {
           _isTutor = profile.isTutor;
         });
@@ -152,6 +157,10 @@ class _ProfilePageState extends State<ProfilePage> {
         'current_classes': classesList,
         'is_tutor': _isTutor,
         'avatar_url': avatarUrl,
+        'bio': _bioController.text.trim(),
+        'hourly_rate': _isTutor && _hourlyRateController.text.isNotEmpty
+            ? int.tryParse(_hourlyRateController.text.trim())
+            : null,
         'last_updated': DateTime.now().toIso8601String(),
       });
 
@@ -350,6 +359,27 @@ class _ProfilePageState extends State<ProfilePage> {
                     ],
                   ),
 
+                  if (_isTutor) ...[
+                    const SizedBox(height: 20),
+                    _buildLabel('Hourly Rate (\$/hr)'),
+                    TextField(
+                      controller: _hourlyRateController,
+                      decoration: _inputDecoration('e.g. 25'),
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ],
+
+                  const SizedBox(height: 20),
+                  _buildLabel('Bio / About Me'),
+                  TextField(
+                    controller: _bioController,
+                    decoration:
+                        _inputDecoration('Tell others about yourself...'),
+                    style: const TextStyle(color: Colors.white),
+                    maxLines: 4,
+                  ),
+
                   const SizedBox(height: 16),
 
                   // My Connections Button
@@ -453,6 +483,31 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
 
                   const SizedBox(height: 24),
+
+                  // My Schedule Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const SchedulePage()),
+                        );
+                      },
+                      icon: const Icon(Icons.calendar_today),
+                      label: const Text("My Schedule"),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white24),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
 
                   // Save Button
                   SizedBox(

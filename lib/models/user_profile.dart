@@ -27,12 +27,21 @@ class UserProfile {
   /// Last known location (lat/lng).
   ///
   /// Note: This is derived from the PostGIS `location_geom` column in the database.
+  /// Last known location (lat/lng).
+  ///
+  /// Note: This is derived from the PostGIS `location_geom` column in the database.
   final LatLng? location; // Derived from location_geom
   /// Average rating from reviews (1.0 - 5.0).
   final double? averageRating;
 
   /// Total number of ratings/reviews received.
   final int? reviewCount;
+
+  /// Hourly rate for tutors (in dollars).
+  final int? hourlyRate;
+
+  /// Short biography.
+  final String? bio;
 
   /// Timestamp of the last profile update.
   final DateTime? lastUpdated;
@@ -49,6 +58,8 @@ class UserProfile {
     this.location,
     this.averageRating,
     this.reviewCount,
+    this.hourlyRate,
+    this.bio,
     this.lastUpdated,
   });
 
@@ -76,6 +87,8 @@ class UserProfile {
           ? (json['average_rating'] as num).toDouble()
           : null,
       reviewCount: json['review_count'],
+      hourlyRate: json['hourly_rate'],
+      bio: json['bio'],
       lastUpdated: json['last_updated'] != null
           ? DateTime.parse(json['last_updated'])
           : null,
@@ -94,6 +107,8 @@ class UserProfile {
       'avatar_url': avatarUrl,
       'average_rating': averageRating,
       'review_count': reviewCount,
+      'hourly_rate': hourlyRate,
+      'bio': bio,
       if (location != null) 'lat': location!.latitude,
       if (location != null) 'long': location!.longitude,
       'last_updated': DateTime.now().toIso8601String(), // Auto-update timestamp

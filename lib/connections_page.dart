@@ -492,6 +492,14 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Log Session Button (Only relevant if I am a tutor and they are a student)
+                    // For MVP: Show if they are a student. RLS will block if I'm not a tutor.
+                    if (!conn.isTutor)
+                      IconButton(
+                        icon: const Icon(Icons.class_, color: Colors.amber),
+                        tooltip: "Log Session",
+                        onPressed: () => _logSession(conn),
+                      ),
                     IconButton(
                       icon: const Icon(Icons.chat_bubble,
                           color: Colors.cyanAccent),
@@ -538,6 +546,56 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
     if (diff.inHours < 24) return '${diff.inHours}h';
     if (diff.inDays < 7) return '${diff.inDays}d';
     return '${date.month}/${date.day}';
+  }
+
+  Future<void> _logSession(UserProfile student) async {
+    final myId = supabase.auth.currentUser?.id;
+    if (myId == null) return;
+
+    hapticService.mediumImpact();
+
+    // Optimistic UI / Confirmation
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1D2E),
+        title:
+            const Text('Log Session?', style: TextStyle(color: Colors.white)),
+        content: Text(
+          'Confirm that you have completed a session with ${student.fullName ?? "this student"}.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.cyanAccent),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await supabase.from('sessions').insert({
+        'tutor_id': myId,
+        'student_id': student.userId,
+        'source': 'manual',
+      });
+
+      if (mounted) {
+        showSuccessSnackBar(context, 'Session logged successfully!');
+      }
+    } catch (e) {
+      if (mounted) {
+        showErrorSnackBar(context, 'Failed to log session: $e');
+      }
+    }
   }
 
   Widget _buildEmptyState() {
