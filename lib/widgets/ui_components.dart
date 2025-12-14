@@ -293,7 +293,7 @@ class _SuccessAnimationState extends State<SuccessAnimation>
           child: Container(
             width: 80,
             height: 80,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: Colors.green,
               shape: BoxShape.circle,
             ),
