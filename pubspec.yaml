@@ -1,0 +1,53 @@
+name: nerd_herd
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  supabase_flutter: ^2.6.0
+  maplibre_gl: ^0.19.0 # Compatible with Dart 3.5
+  geolocator: ^10.1.0
+  google_fonts: ^6.1.0 # For the "modern typography" requirement
+  image_picker: ^1.0.4
+  logger: ^2.0.0
+  flutter_dotenv: ^5.1.0
+  flutter_local_notifications: ^18.0.1
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+  shared_preferences: ^2.5.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  mockito: ^5.4.4
+  build_runner: ^2.4.0
+  riverpod_generator: ^2.6.3
+  integration_test:
+    sdk: flutter
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.4
+
+flutter:
+  uses-material-design: true
+  assets:
+    - .env
+    - assets/images/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/icon.jpg"
+
+flutter_native_splash:
+  color: "#0F111A"
+  image: "assets/images/icon.jpg"
+  android_12:
+    color: "#0F111A"
+    image: "assets/images/icon.jpg"
+
