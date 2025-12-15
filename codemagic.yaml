@@ -15,7 +15,6 @@ workflows:
       app_store_connect: codemagic-api-key
     signing:
       ios:
-        app_store_connect: codemagic
         distribution_type: app_store
         bundle_identifier: com.nerdherd.app
     scripts:
