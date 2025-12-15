@@ -12,7 +12,7 @@ workflows:
       vars:
         APP_ID: "com.nerdherd.app"
     integrations:
-      app_store_connect: codemagic-api-key
+      app_store_connect: codemagic
     scripts:
       - name: Set up keychain to be used for codesigning using Codemagic CLI 'keychain' command
         script: |
