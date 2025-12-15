@@ -13,20 +13,12 @@ workflows:
         APP_ID: "com.nerdherd.app"
     integrations:
       app_store_connect: codemagic-api-key
+    signing:
+      ios:
+        app_store_connect: codemagic
+        distribution_type: app_store
+        bundle_identifier: com.nerdherd.app
     scripts:
-      - name: Set up keychain to be used for codesigning using Codemagic CLI 'keychain' command
-        script: |
-          keychain initialize
-      - name: Fetch signing files
-        script: |
-          app-store-connect certificates list
-          app-store-connect fetch-signing-files "$APP_ID" --type IOS_APP_STORE --create
-      - name: Set up signing certificate
-        script: |
-          keychain add-certificates
-      - name: Set up code signing settings on Xcode project
-        script: |
-          xcode-project use-profiles
       - name: Get Flutter packages
         script: |
           flutter packages get
