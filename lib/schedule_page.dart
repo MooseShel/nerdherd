@@ -18,6 +18,7 @@ class _SchedulePageState extends State<SchedulePage> {
   final supabase = Supabase.instance.client;
   List<Appointment> _appointments = [];
   Map<String, UserProfile> _profiles = {}; // Cache for profiles
+  Set<String> _reviewedAppointmentIds = {};
   bool _isLoading = true;
   String _filter = 'all'; // all, pending, confirmed
 
@@ -68,9 +69,22 @@ class _SchedulePageState extends State<SchedulePage> {
         }
       }
 
-      setState(() {
-        _appointments = loaded;
-      });
+      // Fetch reviews by this user to check which appointments are already reviewed
+      final reviewsData = await supabase
+          .from('reviews')
+          .select('appointment_id')
+          .eq('reviewer_id', user.id);
+
+      final reviewedIds = (reviewsData as List)
+          .map((r) => r['appointment_id'] as String)
+          .toSet();
+
+      if (mounted) {
+        setState(() {
+          _appointments = loaded;
+          _reviewedAppointmentIds = reviewedIds;
+        });
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -219,6 +233,12 @@ class _SchedulePageState extends State<SchedulePage> {
           'comment': comment,
         });
 
+        if (mounted) {
+          setState(() {
+            _reviewedAppointmentIds.add(appt.id);
+          });
+        }
+
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -289,7 +309,7 @@ class _SchedulePageState extends State<SchedulePage> {
                         child: EmptyStateWidget(
                           icon: Icons.calendar_today_outlined,
                           title: "No appointments",
-                          subtitle: _filter == 'all'
+                          description: _filter == 'all'
                               ? "You haven't booked any sessions yet."
                               : "No $_filter sessions found.",
                           actionLabel: _filter == 'all' ? "Find a Tutor" : null,
@@ -623,13 +643,18 @@ class _SchedulePageState extends State<SchedulePage> {
                 style: TextStyle(fontStyle: FontStyle.italic)));
       }
     } else if (appt.status == 'completed') {
+      final isReviewed = _reviewedAppointmentIds.contains(appt.id);
       return SizedBox(
         width: double.infinity,
         child: FilledButton.icon(
-          onPressed: () => _showReviewDialog(appt, null),
-          icon: const Icon(Icons.star, size: 16),
-          label: const Text("Review"),
-          style: FilledButton.styleFrom(backgroundColor: Colors.amber[700]),
+          onPressed: isReviewed ? null : () => _showReviewDialog(appt, null),
+          icon: Icon(isReviewed ? Icons.check : Icons.star, size: 16),
+          label: Text(isReviewed ? "Reviewed" : "Review"),
+          style: FilledButton.styleFrom(
+            backgroundColor: isReviewed ? Colors.grey : Colors.amber[700],
+            disabledBackgroundColor: Colors.grey.withOpacity(0.2),
+            disabledForegroundColor: Colors.grey,
+          ),
         ),
       );
     } else if (['cancelled', 'declined', 'disputed'].contains(appt.status)) {

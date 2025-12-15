@@ -197,7 +197,7 @@ class _RequestsPageState extends State<RequestsPage> {
         child: EmptyStateWidget(
           icon: isHistory ? Icons.history : Icons.notifications_none,
           title: isHistory ? "No past notifications" : "No pending requests",
-          subtitle: isHistory
+          description: isHistory
               ? "Your request history will appear here."
               : "When people want to connect, you'll see it here.",
           actionLabel: isHistory ? null : "Find Peers",

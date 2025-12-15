@@ -26,7 +26,8 @@ void main() {
 
   testWidgets('App smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const ProviderScope(child: NerdHerdApp()));
+    await tester.pumpWidget(
+        const ProviderScope(child: NerdHerdApp(hasSeenOnboarding: true)));
 
     // Verify that the app builds.
     // Since Supabase is not initialized in tests, AuthGate catches the error and shows AuthPage.

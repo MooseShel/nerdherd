@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class EmptyStateWidget extends StatelessWidget {
   final IconData icon;
   final String title;
-  final String subtitle;
+  final String description;
   final String? actionLabel;
   final VoidCallback? onAction;
 
@@ -11,7 +11,7 @@ class EmptyStateWidget extends StatelessWidget {
     super.key,
     required this.icon,
     required this.title,
-    required this.subtitle,
+    required this.description,
     this.actionLabel,
     this.onAction,
   });
@@ -24,10 +24,18 @@ class EmptyStateWidget extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 80,
-              color: Colors.white10,
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white.withOpacity(0.1)),
+              ),
+              child: Icon(
+                icon,
+                size: 48,
+                color: Colors.cyanAccent.withOpacity(0.8),
+              ),
             ),
             const SizedBox(height: 24),
             Text(
@@ -35,29 +43,27 @@ class EmptyStateWidget extends StatelessWidget {
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 20,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Text(
-              subtitle,
+              description,
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.white54,
                 fontSize: 14,
+                height: 1.5,
               ),
             ),
             if (actionLabel != null && onAction != null) ...[
-              const SizedBox(height: 32),
-              OutlinedButton(
+              const SizedBox(height: 24),
+              FilledButton.tonal(
                 onPressed: onAction,
-                style: OutlinedButton.styleFrom(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.cyanAccent.withOpacity(0.1),
                   foregroundColor: Colors.cyanAccent,
-                  side: const BorderSide(color: Colors.cyanAccent),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
                   padding:
                       const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 ),

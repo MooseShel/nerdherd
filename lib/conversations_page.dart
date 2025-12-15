@@ -115,7 +115,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
                   child: EmptyStateWidget(
                     icon: Icons.chat_bubble_outline,
                     title: "No conversations yet",
-                    subtitle:
+                    description:
                         "Connect with people on the map to start chatting!",
                     actionLabel: "Find Peers",
                     onAction: () => Navigator.of(context)

@@ -5,6 +5,7 @@ import 'services/haptic_service.dart';
 import 'widgets/ui_components.dart';
 import 'pay/wallet_page.dart';
 import 'admin/admin_dashboard.dart';
+import 'reviews/reviews_history_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -241,6 +242,17 @@ class _SettingsPageState extends State<SettingsPage> {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const WalletPage()),
+              );
+            },
+          ),
+          SettingsTile(
+            icon: Icons.history_edu,
+            title: 'My Reviews',
+            iconColor: Colors.amber,
+            onTap: () {
+              // Navigation to review history
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ReviewsHistoryPage()),
               );
             },
           ),

@@ -243,7 +243,7 @@ class _WalletPageState extends State<WalletPage> {
                     EmptyStateWidget(
                       icon: Icons.receipt_long,
                       title: 'No Transactions',
-                      message: 'Your transaction history will appear here.',
+                      description: 'Your transaction history will appear here.',
                     )
                   else
                     ...transactions.map((t) => _buildTransactionItem(theme, t)),

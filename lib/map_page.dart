@@ -196,8 +196,9 @@ class _MapPageState extends State<MapPage> {
 
       // Fallback: Try to get fresh location if stream hasn't fired yet
       try {
+        // Increased timeout to 5s to avoid frequent timeouts on emulators/slow devices
         final position = await Geolocator.getCurrentPosition(
-            timeLimit: const Duration(seconds: 2));
+            timeLimit: const Duration(seconds: 5));
         logger.debug("📍 Got fresh position: $position");
         if (mapController != null && mounted) {
           await mapController!.animateCamera(
@@ -209,7 +210,25 @@ class _MapPageState extends State<MapPage> {
           );
         }
       } catch (e) {
-        logger.warning("⚠️ Location check timed out or failed", error: e);
+        logger.warning(
+            "⚠️ Location check timed out or failed, trying last known position...",
+            error: e);
+        // Fallback to last known position
+        try {
+          final position = await Geolocator.getLastKnownPosition();
+          if (position != null && mapController != null && mounted) {
+            logger.debug("📍 Using last known position: $position");
+            await mapController!.animateCamera(
+              CameraUpdate.newLatLngZoom(
+                LatLng(position.latitude, position.longitude),
+                15,
+              ),
+              duration: const Duration(milliseconds: 800),
+            );
+          }
+        } catch (e2) {
+          logger.error("❌ Could not get any location", error: e2);
+        }
       }
     }
   }

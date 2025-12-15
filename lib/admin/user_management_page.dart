@@ -76,7 +76,6 @@ class _UserManagementPageState extends State<UserManagementPage> {
     // Filter locally for MVP
     final filteredUsers = _users.where((user) {
       final name = user.fullName?.toLowerCase() ?? '';
-      // final email = ''; // unused
       return name.contains(_searchQuery.toLowerCase());
     }).toList();
 

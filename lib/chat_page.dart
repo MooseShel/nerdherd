@@ -447,10 +447,12 @@ class _ChatPageState extends State<ChatPage> {
                                 Expanded(
                                   child: _messages.isEmpty
                                       ? const Center(
-                                          child: Text(
-                                            "No messages yet. Say hi! 👋",
-                                            style: TextStyle(
-                                                color: Colors.white54),
+                                          child: EmptyStateWidget(
+                                            icon: Icons
+                                                .chat_bubble_outline_rounded,
+                                            title: "No messages yet",
+                                            description:
+                                                "Say hi and start the conversation! 👋",
                                           ),
                                         )
                                       : ListView.builder(
