@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import 'auth/auth_page.dart';
 import 'map_page.dart';
 import 'config/app_config.dart';
@@ -13,6 +13,7 @@ import 'providers/auth_provider.dart';
 
 // ... imports ...
 import 'config/navigation.dart';
+import 'config/theme.dart';
 
 Future<void> main() async {
   runZonedGuarded<Future<void>>(() async {
@@ -57,29 +58,9 @@ class NerdHerdApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Nerd Herd',
-      themeMode: ThemeMode.dark,
-      theme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        colorScheme: const ColorScheme.dark(
-          primary: Colors.cyanAccent,
-          secondary: Colors.amberAccent, // Deep dark blue
-          surface: Color(0xFF111328),
-        ),
-        textTheme: GoogleFonts.outfitTextTheme(
-          Theme.of(context).textTheme.apply(
-                bodyColor: Colors.white,
-                displayColor: Colors.white,
-              ),
-        ),
-        // Add smooth page transitions
-        pageTransitionsTheme: const PageTransitionsTheme(
-          builders: {
-            TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-          },
-        ),
-      ),
+      themeMode: ThemeMode.dark, // Default to dark for now
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
       home: const AuthGate(),
       navigatorKey: navigatorKey,
     );

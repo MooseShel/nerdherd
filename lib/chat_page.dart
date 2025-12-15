@@ -159,36 +159,56 @@ class _ChatPageState extends State<ChatPage> {
     _channel = supabase
         .channel('messages:${widget.otherUser.userId}')
         .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
+          event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'messages',
           callback: (payload) {
-            final senderId = payload.newRecord['sender_id'];
-            final receiverId = payload.newRecord['receiver_id'];
-
-            // Only add messages relevant to this chat
-            if ((senderId == myId && receiverId == widget.otherUser.userId) ||
-                (senderId == widget.otherUser.userId && receiverId == myId)) {
-              if (mounted) {
-                setState(() {
-                  _messages.add(payload.newRecord);
-                });
-                _markAsRead();
-                // Auto-scroll to bottom
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (_scrollController.hasClients) {
-                    _scrollController.animateTo(
-                      _scrollController.position.maxScrollExtent,
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeOut,
-                    );
-                  }
-                });
+            // Handle INSERT
+            if (payload.eventType == PostgresChangeEvent.insert) {
+              final senderId = payload.newRecord['sender_id'];
+              final receiverId = payload.newRecord['receiver_id'];
+              if ((senderId == myId && receiverId == widget.otherUser.userId) ||
+                  (senderId == widget.otherUser.userId && receiverId == myId)) {
+                if (mounted) {
+                  setState(() {
+                    _messages.add(payload.newRecord);
+                  });
+                  _markAsRead();
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (_scrollController.hasClients) {
+                      _scrollController.animateTo(
+                        _scrollController.position.maxScrollExtent,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOut,
+                      );
+                    }
+                  });
+                }
               }
+            }
+            // Handle UPDATE (Read Receipts)
+            else if (payload.eventType == PostgresChangeEvent.update) {
+              final newRecord = payload.newRecord;
+              final id = newRecord['id'];
+              setState(() {
+                final index = _messages.indexWhere((m) => m['id'] == id);
+                if (index != -1) {
+                  _messages[index] = newRecord;
+                }
+              });
             }
           },
         )
-        .subscribe();
+        .subscribe((status, error) {
+      if (status == RealtimeSubscribeStatus.subscribed) {
+        logger
+            .debug("✅ Chat: Subscribed to messages:${widget.otherUser.userId}");
+      } else if (status == RealtimeSubscribeStatus.closed) {
+        logger.debug("❌ Chat: Channel closed");
+      } else if (error != null) {
+        logger.error("🔴 Chat: Subscription error", error: error);
+      }
+    });
   }
 
   void _subscribeToTypingStatus() {

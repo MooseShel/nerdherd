@@ -7,6 +7,8 @@ class Appointment {
   final String status;
   final String? message;
   final DateTime createdAt;
+  final double price;
+  final bool isPaid;
 
   Appointment({
     required this.id,
@@ -17,6 +19,8 @@ class Appointment {
     required this.status,
     this.message,
     required this.createdAt,
+    this.price = 0.0,
+    this.isPaid = false,
   });
 
   factory Appointment.fromJson(Map<String, dynamic> json) {
@@ -29,6 +33,8 @@ class Appointment {
       status: json['status'],
       message: json['message'],
       createdAt: DateTime.parse(json['created_at']),
+      price: (json['price'] as num?)?.toDouble() ?? 0.0,
+      isPaid: json['is_paid'] ?? false,
     );
   }
 
@@ -42,6 +48,8 @@ class Appointment {
       'status': status,
       'message': message,
       'created_at': createdAt.toIso8601String(),
+      'price': price,
+      'is_paid': isPaid,
     };
   }
 }

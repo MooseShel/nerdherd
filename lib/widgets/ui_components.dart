@@ -6,12 +6,13 @@ class SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 8),
       child: Text(
         title.toUpperCase(),
-        style: TextStyle(
-          color: Colors.cyanAccent.withOpacity(0.7),
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.primaryColor.withOpacity(0.7),
           fontSize: 12,
           fontWeight: FontWeight.bold,
           letterSpacing: 1.2,
@@ -43,27 +44,35 @@ class SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: theme.cardTheme.color,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
       ),
       child: ListTile(
         onTap: onTap,
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: (iconColor ?? Colors.cyanAccent).withOpacity(0.1),
+            color: (iconColor ?? theme.primaryColor).withOpacity(0.1),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, color: iconColor ?? Colors.cyanAccent, size: 20),
+          child: Icon(icon, color: iconColor ?? theme.primaryColor, size: 20),
         ),
         title: Text(
           title,
-          style: TextStyle(
-            color: titleColor ?? Colors.white,
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: titleColor ?? theme.textTheme.titleMedium?.color,
             fontWeight: FontWeight.bold,
             fontSize: 15,
           ),
@@ -71,12 +80,15 @@ class SettingsTile extends StatelessWidget {
         subtitle: subtitle != null
             ? Text(
                 subtitle!,
-                style: const TextStyle(color: Colors.white54, fontSize: 13),
+                style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                    fontSize: 13),
               )
             : null,
         trailing: trailing ??
             (onTap != null
-                ? const Icon(Icons.chevron_right, color: Colors.white24)
+                ? Icon(Icons.chevron_right,
+                    color: theme.iconTheme.color?.withOpacity(0.3))
                 : null),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
@@ -177,6 +189,7 @@ class EmptyStateWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32.0),
@@ -186,24 +199,22 @@ class EmptyStateWidget extends StatelessWidget {
             Icon(
               icon,
               size: 80,
-              color: Colors.white24,
+              color: theme.iconTheme.color?.withOpacity(0.2),
             ),
             const SizedBox(height: 24),
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 24,
+              style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: theme.textTheme.titleLarge?.color,
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             Text(
               message,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.white60,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
               ),
               textAlign: TextAlign.center,
             ),
@@ -212,8 +223,8 @@ class EmptyStateWidget extends StatelessWidget {
               ElevatedButton(
                 onPressed: onAction,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.cyanAccent,
-                  foregroundColor: Colors.black,
+                  backgroundColor: theme.primaryColor,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 32,
                     vertical: 16,

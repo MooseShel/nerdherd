@@ -46,6 +46,15 @@ class UserProfile {
   /// Timestamp of the last profile update.
   final DateTime? lastUpdated;
 
+  /// Whether the user has admin privileges.
+  final bool isAdmin;
+
+  /// Whether the user is banned.
+  final bool isBanned;
+
+  /// Wallet balance of the user.
+  final double walletBalance;
+
   UserProfile({
     required this.userId,
     this.universityId,
@@ -61,6 +70,9 @@ class UserProfile {
     this.hourlyRate,
     this.bio,
     this.lastUpdated,
+    this.isAdmin = false,
+    this.isBanned = false,
+    this.walletBalance = 0.0,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -92,6 +104,9 @@ class UserProfile {
       lastUpdated: json['last_updated'] != null
           ? DateTime.parse(json['last_updated'])
           : null,
+      isAdmin: json['is_admin'] ?? false,
+      isBanned: json['is_banned'] ?? false,
+      walletBalance: (json['wallet_balance'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -109,6 +124,9 @@ class UserProfile {
       'review_count': reviewCount,
       'hourly_rate': hourlyRate,
       'bio': bio,
+      'is_admin': isAdmin,
+      'is_banned': isBanned,
+      'wallet_balance': walletBalance,
       if (location != null) 'lat': location!.latitude,
       if (location != null) 'long': location!.longitude,
       'last_updated': DateTime.now().toIso8601String(), // Auto-update timestamp

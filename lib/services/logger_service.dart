@@ -14,18 +14,25 @@ class LoggerService {
   ///
   /// Uses [ProductionFilter] to log even in release mode (can be adjusted).
   /// Uses [PrettyPrinter] for formatted output.
-  void initialize() {
+  void initialize({
+    LogFilter? filter,
+    LogPrinter? printer,
+    LogOutput? output,
+    Level? level,
+  }) {
     _logger = Logger(
-      filter: ProductionFilter(),
-      printer: PrettyPrinter(
-        methodCount: 0, // Don't include stack trace
-        errorMethodCount: 5, // Include stack trace for errors
-        lineLength: 80,
-        colors: true,
-        printEmojis: true,
-        dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart,
-      ),
-      level: kDebugMode ? Level.debug : Level.info,
+      filter: filter ?? ProductionFilter(),
+      printer: printer ??
+          PrettyPrinter(
+            methodCount: 0, // Don't include stack trace
+            errorMethodCount: 5, // Include stack trace for errors
+            lineLength: 80,
+            colors: true,
+            printEmojis: true,
+            dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart,
+          ),
+      output: output,
+      level: level ?? (kDebugMode ? Level.debug : Level.info),
     );
   }
 

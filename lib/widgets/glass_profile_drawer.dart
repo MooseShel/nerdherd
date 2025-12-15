@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'rating_dialog.dart';
 import 'booking_dialog.dart';
+import 'reviews_list_dialog.dart';
 import '../models/user_profile.dart';
 import '../profile_page.dart';
 import '../chat_page.dart';
@@ -225,28 +226,30 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
   @override
   Widget build(BuildContext context) {
     final isMe = currentUser?.id == widget.profile.userId;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // Modern glass effect colors
+    final glassColor = theme.cardTheme.color?.withOpacity(0.85) ??
+        (isDark
+            ? const Color(0xFF1C1C1E).withOpacity(0.85)
+            : const Color(0xFFF2F2F7).withOpacity(0.85));
+
+    final borderColor = theme.dividerColor.withOpacity(0.1);
 
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF0F111A).withOpacity(0.85),
+            color: glassColor,
             border: Border(
-              top: BorderSide(
-                color: widget.profile.isTutor
-                    ? Colors.amberAccent.withOpacity(0.5)
-                    : Colors.cyanAccent.withOpacity(0.5),
-                width: 2,
-              ),
+              top: BorderSide(color: borderColor, width: 0.5),
             ),
             boxShadow: [
               BoxShadow(
-                color: (widget.profile.isTutor
-                        ? Colors.amberAccent
-                        : Colors.cyanAccent)
-                    .withOpacity(0.15),
+                color: Colors.black.withOpacity(0.1),
                 blurRadius: 30,
                 spreadRadius: 1,
                 offset: const Offset(0, -5),
@@ -257,8 +260,8 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 600),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 30),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -267,11 +270,11 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                     Center(
                       child: Container(
                         width: 40,
-                        height: 4,
+                        height: 5,
                         margin: const EdgeInsets.only(bottom: 24),
                         decoration: BoxDecoration(
-                          color: Colors.white24,
-                          borderRadius: BorderRadius.circular(2),
+                          color: isDark ? Colors.white30 : Colors.black26,
+                          borderRadius: BorderRadius.circular(2.5),
                         ),
                       ),
                     ),
@@ -279,30 +282,32 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Avatar
+                        // Avatar with premium glow
                         Container(
                           decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: widget.profile.isTutor
-                                    ? Colors.amber
-                                    : Colors.cyanAccent,
-                                width: 2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: (widget.profile.isTutor
-                                          ? Colors.amber
-                                          : Colors.cyanAccent)
-                                      .withOpacity(0.3),
-                                  blurRadius: 12,
-                                )
-                              ]),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: widget.profile.isTutor
+                                  ? Colors.amber.withOpacity(0.8)
+                                  : theme.primaryColor.withOpacity(0.8),
+                              width: 2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: (widget.profile.isTutor
+                                        ? Colors.amber
+                                        : theme.primaryColor)
+                                    .withOpacity(0.2),
+                                blurRadius: 15,
+                                spreadRadius: -2,
+                              )
+                            ],
+                          ),
                           child: Hero(
                             tag: 'avatar_${widget.profile.userId}',
                             child: CircleAvatar(
-                              radius: 28,
-                              backgroundColor: Colors.black87,
+                              radius: 32,
+                              backgroundColor: theme.scaffoldBackgroundColor,
                               backgroundImage: widget.profile.avatarUrl != null
                                   ? (widget.profile.avatarUrl!
                                           .startsWith('assets/')
@@ -317,8 +322,8 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                           : Icons.person,
                                       color: widget.profile.isTutor
                                           ? Colors.amber
-                                          : Colors.cyanAccent,
-                                      size: 28,
+                                          : theme.primaryColor,
+                                      size: 32,
                                     )
                                   : null,
                             ),
@@ -333,84 +338,110 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                             children: [
                               Row(
                                 children: [
-                                  Text(
-                                    widget.profile.fullName?.isNotEmpty == true
-                                        ? widget.profile.fullName!
-                                        : (widget.profile.isTutor
-                                            ? "Verified Tutor"
-                                            : "Student Peer"),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleLarge
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                          letterSpacing: 0.5,
-                                          fontFamily: 'Roboto',
-                                        ),
-                                  ),
-                                  if (widget.profile.fullName?.isNotEmpty ==
-                                      true)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 4),
-                                      child: Text(
-                                        isMe
-                                            ? (widget.profile.isTutor
-                                                ? "Me (Tutor)"
-                                                : "Me (Student)")
-                                            : (widget.profile.isTutor
-                                                ? "Verified Tutor"
-                                                : "Student Peer"),
-                                        style: const TextStyle(
-                                          color: Colors.greenAccent,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                  Flexible(
+                                    child: Text(
+                                      widget.profile.fullName?.isNotEmpty ==
+                                              true
+                                          ? widget.profile.fullName!
+                                          : (widget.profile.isTutor
+                                              ? "Verified Tutor"
+                                              : "Student Peer"),
+                                      style:
+                                          theme.textTheme.titleLarge?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: -0.5,
                                       ),
                                     ),
+                                  ),
                                   if (widget.profile.isTutor)
                                     const Padding(
-                                      padding: EdgeInsets.only(left: 8),
+                                      padding: EdgeInsets.only(left: 6),
                                       child: Icon(Icons.verified,
                                           color: Colors.amber, size: 20),
-                                    )
+                                    ),
                                 ],
                               ),
                               const SizedBox(height: 4),
-                              Text(
-                                widget.profile.intentTag ?? "Hanging out",
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 14,
-                                  fontStyle: FontStyle.italic,
+                              if (isMe)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: theme.primaryColor.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    "This is You",
+                                    style: TextStyle(
+                                      color: theme.primaryColor,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                )
+                              else
+                                Text(
+                                  widget.profile.intentTag ?? "Hanging out",
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: theme.textTheme.bodyMedium?.color
+                                        ?.withOpacity(0.7),
+                                  ),
                                 ),
-                              ),
                               if (widget.profile.isTutor &&
                                   widget.profile.hourlyRate != null) ...[
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 6),
                                 Text(
                                   "\$${widget.profile.hourlyRate}/hr",
-                                  style: const TextStyle(
-                                    color: Colors.greenAccent,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
+                                  style: TextStyle(
+                                    color: Colors.greenAccent[
+                                        400], // Keep generic green for money
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ],
                               if (widget.profile.averageRating != null) ...[
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.star,
-                                        color: Colors.amber, size: 16),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      "${widget.profile.averageRating!.toStringAsFixed(1)} (${widget.profile.reviewCount ?? 0})",
-                                      style: const TextStyle(
-                                          color: Colors.white, fontSize: 13),
+                                const SizedBox(height: 6),
+                                InkWell(
+                                  onTap: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (_) => ReviewsListDialog(
+                                        userId: widget.profile.userId,
+                                        userName:
+                                            widget.profile.fullName ?? "User",
+                                      ),
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Padding(
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 2),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.star_rounded,
+                                            color: Colors.amber, size: 18),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          "${widget.profile.averageRating!.toStringAsFixed(1)} ",
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                        Text(
+                                          "(${widget.profile.reviewCount ?? 0} reviews)",
+                                          style: TextStyle(
+                                            color: theme
+                                                .textTheme.bodySmall?.color
+                                                ?.withOpacity(0.6),
+                                            fontSize: 13,
+                                            decoration:
+                                                TextDecoration.underline,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                )
+                                  ),
+                                ),
                               ],
                             ],
                           ),
@@ -420,38 +451,40 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
 
                     if (widget.profile.bio?.isNotEmpty == true) ...[
                       const SizedBox(height: 24),
-                      const Text(
+                      Text(
                         "ABOUT",
-                        style: TextStyle(
-                          color: Colors.white54,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.textTheme.labelSmall?.color
+                              ?.withOpacity(0.5),
                           letterSpacing: 1.2,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         widget.profile.bio!,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          height: 1.4,
-                        ),
+                        style:
+                            theme.textTheme.bodyMedium?.copyWith(height: 1.5),
                       ),
                     ],
 
                     const SizedBox(height: 24),
 
-                    const Text(
+                    Text(
                       "CURRENT CLASSES",
-                      style: TextStyle(
-                        color: Colors.white54,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color:
+                            theme.textTheme.labelSmall?.color?.withOpacity(0.5),
                         letterSpacing: 1.2,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 12),
+
+                    if (widget.profile.currentClasses.isEmpty)
+                      Text("No classes listed",
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(fontStyle: FontStyle.italic)),
 
                     Wrap(
                       spacing: 8,
@@ -460,16 +493,26 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                           widget.profile.currentClasses.map<Widget>((cls) {
                         return Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
+                              horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.05),
-                            border: Border.all(color: Colors.white24),
+                            color: theme.cardColor,
                             borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: theme.dividerColor.withOpacity(0.1),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.03),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              )
+                            ],
                           ),
                           child: Text(
                             cls,
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 13),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         );
                       }).toList(),
@@ -477,6 +520,7 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
 
                     const SizedBox(height: 32),
 
+                    // Action Buttons
                     Row(
                       children: [
                         Expanded(
@@ -493,13 +537,18 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                     );
                                   },
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white24,
-                                    foregroundColor: Colors.white,
+                                    backgroundColor: theme.cardColor,
+                                    foregroundColor:
+                                        theme.textTheme.bodyMedium?.color,
+                                    elevation: 0,
                                     padding: const EdgeInsets.symmetric(
                                         vertical: 16),
                                     shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12)),
+                                      borderRadius: BorderRadius.circular(16),
+                                      side: BorderSide(
+                                          color: theme.dividerColor
+                                              .withOpacity(0.2)),
+                                    ),
                                   ),
                                   child: const Text("Edit Profile"),
                                 )
@@ -507,7 +556,7 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                   ? ElevatedButton.icon(
                                       onPressed: () {
                                         hapticService.lightImpact();
-                                        Navigator.pop(context); // Close drawer
+                                        Navigator.pop(context);
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
@@ -521,13 +570,15 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                           const Icon(Icons.chat_bubble_outline),
                                       label: const Text("Message"),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.greenAccent,
-                                        foregroundColor: Colors.black,
+                                        backgroundColor:
+                                            theme.primaryColor, // Electric Blue
+                                        foregroundColor: Colors.white,
+                                        elevation: 4,
                                         padding: const EdgeInsets.symmetric(
                                             vertical: 16),
                                         shape: RoundedRectangleBorder(
                                             borderRadius:
-                                                BorderRadius.circular(12)),
+                                                BorderRadius.circular(16)),
                                       ),
                                     )
                                   : _incomingRequestId != null
@@ -539,9 +590,16 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                                         "Check your Map Notifications!")));
                                           },
                                           style: ElevatedButton.styleFrom(
-                                              backgroundColor:
-                                                  Colors.orangeAccent,
-                                              foregroundColor: Colors.black),
+                                            backgroundColor:
+                                                Colors.orangeAccent,
+                                            foregroundColor: Colors.white,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 16),
+                                          ),
                                           child:
                                               const Text("Incoming Request!"),
                                         )
@@ -550,24 +608,16 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                                   _requestSent)
                                               ? null
                                               : () {
+                                                  // Connect Confirmation
                                                   hapticService.lightImpact();
                                                   showDialog(
                                                     context: context,
                                                     builder: (ctx) =>
                                                         AlertDialog(
-                                                      backgroundColor:
-                                                          const Color(
-                                                              0xFF1E1E1E),
                                                       title: const Text(
-                                                          "Connect?",
-                                                          style: TextStyle(
-                                                              color: Colors
-                                                                  .white)),
+                                                          "Connect?"),
                                                       content: Text(
-                                                        "Send a connection request to ${widget.profile.fullName ?? widget.profile.intentTag ?? 'this peer'}?",
-                                                        style: const TextStyle(
-                                                            color:
-                                                                Colors.white70),
+                                                        "Send a connection request to ${widget.profile.fullName ?? 'this peer'}?",
                                                       ),
                                                       actions: [
                                                         TextButton(
@@ -575,22 +625,13 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                                               Navigator.pop(
                                                                   ctx),
                                                           child: const Text(
-                                                              "Cancel",
-                                                              style: TextStyle(
-                                                                  color: Colors
-                                                                      .grey)),
+                                                              "Cancel"),
                                                         ),
-                                                        ElevatedButton(
+                                                        FilledButton(
                                                           onPressed: () {
                                                             Navigator.pop(ctx);
                                                             _sendRequest();
                                                           },
-                                                          style: ElevatedButton.styleFrom(
-                                                              backgroundColor:
-                                                                  Colors
-                                                                      .cyanAccent,
-                                                              foregroundColor:
-                                                                  Colors.black),
                                                           child: const Text(
                                                               "Send"),
                                                         ),
@@ -599,21 +640,14 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                                   );
                                                 },
                                           style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                widget.profile.isTutor
-                                                    ? Colors.amber
-                                                    : Colors.cyanAccent,
-                                            foregroundColor: Colors.black,
-                                            disabledBackgroundColor:
-                                                Colors.grey[800],
-                                            disabledForegroundColor:
-                                                Colors.white54,
-                                            padding: const EdgeInsets.symmetric(
-                                                vertical: 16),
+                                            backgroundColor: theme.primaryColor,
+                                            foregroundColor: Colors.white,
                                             elevation: 0,
                                             shape: RoundedRectangleBorder(
                                                 borderRadius:
-                                                    BorderRadius.circular(12)),
+                                                    BorderRadius.circular(16)),
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 16),
                                           ),
                                           child: _isLoading
                                               ? const SizedBox(
@@ -631,12 +665,12 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                                       : "Connect",
                                                   style: const TextStyle(
                                                       fontWeight:
-                                                          FontWeight.bold),
+                                                          FontWeight.w600),
                                                 ),
                                         ),
                         ),
                         if (!isMe && widget.profile.isTutor) ...[
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: ElevatedButton(
                               onPressed: () {
@@ -647,21 +681,24 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                     tutorId: widget.profile.userId,
                                     tutorName:
                                         widget.profile.fullName ?? "Tutor",
+                                    hourlyRate: (widget.profile.hourlyRate ?? 0)
+                                        .toDouble(),
                                   ),
                                 );
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.amber,
-                                foregroundColor: Colors.black,
+                                foregroundColor: Colors.black, // Contrast
                                 padding:
                                     const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12)),
+                                    borderRadius: BorderRadius.circular(16)),
+                                elevation: 4,
                               ),
                               child: const Text(
                                 "Book Session",
                                 textAlign: TextAlign.center,
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                                style: TextStyle(fontWeight: FontWeight.w700),
                               ),
                             ),
                           ),
@@ -671,7 +708,7 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
 
                     // Separated Rate User Button (Only if verified session exists)
                     if (!isMe && _isConnected && _canRate) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
@@ -679,15 +716,16 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                             hapticService.lightImpact();
                             _showRatingDialog();
                           },
-                          icon:
-                              const Icon(Icons.star_rate, color: Colors.amber),
-                          label: const Text("Rate User",
-                              style: TextStyle(color: Colors.amber)),
+                          icon: const Icon(Icons.star_rate_rounded,
+                              color: Colors.amber),
+                          label: const Text("Rate User"),
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.amber),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            foregroundColor: Colors.amber,
+                            side: const BorderSide(
+                                color: Colors.amber, width: 1.5),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
+                                borderRadius: BorderRadius.circular(16)),
                           ),
                         ),
                       ),

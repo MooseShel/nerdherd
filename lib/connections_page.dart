@@ -216,20 +216,24 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0F111A),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('My Connections'),
-        backgroundColor: const Color(0xFF0F111A),
-        foregroundColor: Colors.white,
+        title: Text('My Connections',
+            style: theme.textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.bold)),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        foregroundColor: theme.textTheme.bodyLarge?.color,
         actions: [
           // Requests Icon (New)
           Stack(
             alignment: Alignment.center,
             children: [
               IconButton(
-                icon: const Icon(Icons.notifications_outlined,
-                    color: Colors.cyanAccent),
+                icon: Icon(Icons.notifications_outlined,
+                    color: theme.primaryColor),
                 onPressed: () async {
                   hapticService.mediumImpact();
                   await Navigator.push(
@@ -267,14 +271,14 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.cyanAccent.withOpacity(0.2),
+                  color: theme.primaryColor.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.cyanAccent),
+                  border: Border.all(color: theme.primaryColor),
                 ),
                 child: Text(
                   '${_connections.length}',
-                  style: const TextStyle(
-                    color: Colors.cyanAccent,
+                  style: TextStyle(
+                    color: theme.primaryColor,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -290,16 +294,22 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
             padding: const EdgeInsets.all(16),
             child: TextField(
               controller: _searchController,
-              style: const TextStyle(color: Colors.white),
+              style: theme.textTheme.bodyMedium,
               decoration: InputDecoration(
                 hintText: 'Search connections...',
-                hintStyle: const TextStyle(color: Colors.white38),
-                prefixIcon: const Icon(Icons.search, color: Colors.cyanAccent),
+                hintStyle: TextStyle(
+                    color: theme.textTheme.bodyMedium?.color?.withOpacity(0.5)),
+                prefixIcon: Icon(Icons.search, color: theme.primaryColor),
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.05),
+                fillColor: theme.cardTheme.color,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide:
+                      BorderSide(color: theme.dividerColor.withOpacity(0.1)),
                 ),
               ),
               onChanged: (_) => _applyFilter(),
@@ -311,11 +321,11 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                _buildFilterChip('All', 'all'),
+                _buildFilterChip(context, 'All', 'all'),
                 const SizedBox(width: 8),
-                _buildFilterChip('Students', 'students'),
+                _buildFilterChip(context, 'Students', 'students'),
                 const SizedBox(width: 8),
-                _buildFilterChip('Tutors', 'tutors'),
+                _buildFilterChip(context, 'Tutors', 'tutors'),
               ],
             ),
           ),
@@ -339,7 +349,7 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                           itemCount: _filteredConnections.length,
                           itemBuilder: (context, index) {
                             final conn = _filteredConnections[index];
-                            return _buildConnectionCard(conn);
+                            return _buildConnectionCard(context, conn);
                           },
                         ),
                       ),
@@ -349,35 +359,54 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
     );
   }
 
-  Widget _buildFilterChip(String label, String value) {
+  Widget _buildFilterChip(BuildContext context, String label, String value) {
+    final theme = Theme.of(context);
     final isSelected = _filter == value;
-    return FilterChip(
+    return ChoiceChip(
       label: Text(label),
       selected: isSelected,
       onSelected: (selected) {
-        hapticService.lightImpact();
-        setState(() {
-          _filter = value;
-          _applyFilter();
-        });
+        if (selected) {
+          hapticService.lightImpact();
+          setState(() {
+            _filter = value;
+            _applyFilter();
+          });
+        }
       },
-      backgroundColor: Colors.white.withOpacity(0.05),
-      selectedColor: Colors.cyanAccent.withOpacity(0.2),
+      backgroundColor: theme.cardTheme.color,
+      selectedColor: theme.primaryColor.withOpacity(0.2),
       labelStyle: TextStyle(
-        color: isSelected ? Colors.cyanAccent : Colors.white70,
+        color: isSelected
+            ? theme.primaryColor
+            : theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
       ),
       side: BorderSide(
-        color: isSelected ? Colors.cyanAccent : Colors.white24,
+        color: isSelected
+            ? theme.primaryColor
+            : theme.dividerColor.withOpacity(0.1),
       ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     );
   }
 
-  Widget _buildConnectionCard(UserProfile conn) {
-    return Card(
-      color: Colors.white.withOpacity(0.05),
+  Widget _buildConnectionCard(BuildContext context, UserProfile conn) {
+    final theme = Theme.of(context);
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -387,7 +416,7 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
               tag: 'avatar_${conn.userId}',
               child: CircleAvatar(
                 radius: 30,
-                backgroundColor: Colors.black54,
+                backgroundColor: theme.dividerColor.withOpacity(0.1),
                 backgroundImage: conn.avatarUrl != null
                     ? (conn.avatarUrl!.startsWith('assets/')
                         ? AssetImage(conn.avatarUrl!) as ImageProvider
@@ -396,7 +425,7 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                 child: conn.avatarUrl == null
                     ? Icon(
                         conn.isTutor ? Icons.school : Icons.person,
-                        color: conn.isTutor ? Colors.amber : Colors.cyanAccent,
+                        color: conn.isTutor ? Colors.amber : theme.primaryColor,
                         size: 30,
                       )
                     : null,
@@ -414,9 +443,7 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                       Flexible(
                         child: Text(
                           conn.fullName ?? conn.intentTag ?? 'Unknown User',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
+                          style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -429,14 +456,15 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                         decoration: BoxDecoration(
                           color: conn.isTutor
                               ? Colors.amber.withOpacity(0.2)
-                              : Colors.cyanAccent.withOpacity(0.2),
+                              : theme.primaryColor.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           conn.isTutor ? 'TUTOR' : 'STUDENT',
                           style: TextStyle(
-                            color:
-                                conn.isTutor ? Colors.amber : Colors.cyanAccent,
+                            color: conn.isTutor
+                                ? Colors.amber
+                                : theme.primaryColor,
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                           ),
@@ -449,10 +477,11 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                   if (_lastMessages.containsKey(conn.userId)) ...[
                     Text(
                       _lastMessages[conn.userId]!['content'] ?? 'Sent an image',
-                      style: TextStyle(
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         color: _isUnread(_lastMessages[conn.userId]!)
-                            ? Colors.white
-                            : Colors.white54,
+                            ? theme.textTheme.bodyMedium?.color
+                            : theme.textTheme.bodyMedium?.color
+                                ?.withOpacity(0.7),
                         fontSize: 13,
                         fontWeight: _isUnread(_lastMessages[conn.userId]!)
                             ? FontWeight.bold
@@ -464,9 +493,9 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                   ] else ...[
                     Text(
                       conn.intentTag ?? 'No status',
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 13,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color:
+                            theme.textTheme.bodySmall?.color?.withOpacity(0.7),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -485,15 +514,16 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                     padding: const EdgeInsets.only(bottom: 8, right: 8),
                     child: Text(
                       _formatTime(_lastMessages[conn.userId]!['created_at']),
-                      style:
-                          const TextStyle(color: Colors.white38, fontSize: 10),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.textTheme.bodySmall?.color
+                              ?.withOpacity(0.5),
+                          fontSize: 10),
                     ),
                   ),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Log Session Button (Only relevant if I am a tutor and they are a student)
-                    // For MVP: Show if they are a student. RLS will block if I'm not a tutor.
+                    // Log Session Button
                     if (!conn.isTutor)
                       IconButton(
                         icon: const Icon(Icons.class_, color: Colors.amber),
@@ -501,8 +531,7 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                         onPressed: () => _logSession(conn),
                       ),
                     IconButton(
-                      icon: const Icon(Icons.chat_bubble,
-                          color: Colors.cyanAccent),
+                      icon: Icon(Icons.chat_bubble, color: theme.primaryColor),
                       onPressed: () {
                         hapticService.lightImpact();
                         Navigator.push(
@@ -514,8 +543,8 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                       },
                     ),
                     IconButton(
-                      icon: const Icon(Icons.person_remove,
-                          color: Colors.redAccent),
+                      icon: Icon(Icons.person_remove,
+                          color: theme.colorScheme.error),
                       onPressed: () {
                         hapticService.mediumImpact();
                         _removeConnection(conn);
@@ -549,6 +578,7 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
   }
 
   Future<void> _logSession(UserProfile student) async {
+    final theme = Theme.of(context);
     final myId = supabase.auth.currentUser?.id;
     if (myId == null) return;
 
@@ -558,21 +588,20 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1D2E),
-        title:
-            const Text('Log Session?', style: TextStyle(color: Colors.white)),
+        backgroundColor: theme.cardTheme.color,
+        title: Text('Log Session?', style: theme.textTheme.titleLarge),
         content: Text(
           'Confirm that you have completed a session with ${student.fullName ?? "this student"}.',
-          style: const TextStyle(color: Colors.white70),
+          style: theme.textTheme.bodyMedium,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text('Cancel', style: TextStyle(color: theme.disabledColor)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.cyanAccent),
+            style: TextButton.styleFrom(foregroundColor: theme.primaryColor),
             child: const Text('Confirm'),
           ),
         ],
@@ -599,6 +628,7 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
   }
 
   Widget _buildEmptyState() {
+    final theme = Theme.of(context);
     String message;
     if (_searchController.text.isNotEmpty) {
       message = 'No connections match your search';
@@ -617,22 +647,20 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
           Icon(
             Icons.people_outline,
             size: 80,
-            color: Colors.white.withOpacity(0.2),
+            color: theme.iconTheme.color?.withOpacity(0.2),
           ),
           const SizedBox(height: 16),
           Text(
             message,
-            style: const TextStyle(
-              color: Colors.white54,
-              fontSize: 16,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: theme.textTheme.bodyLarge?.color?.withOpacity(0.6),
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Send collaboration requests to build your network!',
-            style: TextStyle(
-              color: Colors.white38,
-              fontSize: 13,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.textTheme.bodySmall?.color?.withOpacity(0.4),
             ),
             textAlign: TextAlign.center,
           ),

@@ -1,11 +1,17 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logger/logger.dart';
 import 'package:nerd_herd/services/logger_service.dart';
+
+class SilentOutput extends LogOutput {
+  @override
+  void output(OutputEvent event) {}
+}
 
 void main() {
   group('LoggerService', () {
     setUpAll(() {
-      // Initialize logger once for all tests
-      logger.initialize();
+      // Initialize logger with silent output to prevent test failures from stderr
+      logger.initialize(output: SilentOutput());
     });
 
     test('is a singleton', () {

@@ -1,4 +1,6 @@
-import 'dart:math';
+// ignore: unused_import
+import 'dart:math'; // For random offset
+import 'dart:ui'; // For ImageFilter
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
@@ -12,6 +14,9 @@ import 'services/haptic_service.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'widgets/map_filter_widget.dart';
+import 'notifications_page.dart';
+import 'models/study_spot.dart'; // NEW
+import 'widgets/study_spot_details_sheet.dart'; // NEW
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -24,7 +29,8 @@ class _MapPageState extends State<MapPage> {
   MaplibreMapController? mapController;
   final supabase = Supabase.instance.client;
   bool _isStudyMode = false;
-  bool _botsSpawned = false; // Track if we've auto-spawned bots
+
+  // bool _botsSpawned = false; // REMOVED
 
   Map<String, UserProfile> _peers = {};
   StreamSubscription? _peersSubscription;
@@ -39,6 +45,8 @@ class _MapPageState extends State<MapPage> {
   // Optimization: Smart Broadcast
   LatLng? _lastBroadcastLocation;
   DateTime? _lastBroadcastTime;
+  int _unreadCount = 0; // Unread notifications
+  RealtimeChannel? _notificationsChannel;
 
   // Cyber/Dark Style - Using CartoDB Dark Matter (free, widely available, very dark/cyber)
   static const String _mapStyle =
@@ -48,43 +56,90 @@ class _MapPageState extends State<MapPage> {
   void initState() {
     super.initState();
     _loadSettings();
+
     _checkLocationPermissions();
     _startLocationUpdates();
     _subscribeToPeers();
     _subscribeToRequests();
+    _subscribeToNotifications();
+    _fetchStudySpots(); // NEW
+  }
+
+  List<StudySpot> _studySpots = []; // NEW
+
+  Future<void> _fetchStudySpots() async {
+    try {
+      final data = await supabase
+          .from('study_spots')
+          .select(); // Fetches all columns including lat/long
+
+      final spots = (data as List).map((e) => StudySpot.fromJson(e)).toList();
+      setState(() {
+        _studySpots = spots;
+      });
+      _updateMapMarkers(); // Refresh map
+    } catch (e) {
+      logger.error("Error fetching study spots", error: e);
+    }
+  }
+
+  Future<void> _subscribeToNotifications() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    // Initial fetch
+    final count = await supabase
+        .from('notifications')
+        .count(CountOption.exact)
+        .eq('user_id', user.id)
+        .eq('read', false);
+
+    if (mounted) setState(() => _unreadCount = count);
+
+    // Listen
+    _notificationsChannel = supabase
+        .channel('public:notifications:${user.id}') // Unique channel per user
+        .onPostgresChanges(
+            event: PostgresChangeEvent.all, // Insert or Update
+            schema: 'public',
+            table: 'notifications',
+            // Reliance on RLS for primary filtering, plus client-side check
+            callback: (payload) async {
+              final newRecord = payload.newRecord;
+              if (newRecord['user_id'] != user.id) return;
+
+              logger.debug("🔔 Notification received: ${payload.eventType}");
+
+              // Refresh count on any change
+              final newCount = await supabase
+                  .from('notifications')
+                  .count(CountOption.exact)
+                  .eq('user_id', user.id)
+                  .eq('read', false);
+              if (mounted) setState(() => _unreadCount = newCount);
+            })
+        .subscribe();
   }
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _isStudyMode = prefs.getBool('ghost_mode') ?? false;
-    });
-    // If we loaded as TRUE (Study Mode ON => Hidden), we actually need to decide if "Study Mode" means VISIBLE or HIDDEN.
-    // In previous code: _isStudyMode ON ("LIVE") => VISIBLE (startBroadcast). OFF => HIDDEN.
-    // In settings: "Ghost Mode" ON => HIDDEN.
-    // SO: _isStudyMode = !_ghostMode.
-    // Wait, let's align names. "Ghost Mode" = Hidden. "Study Mode" = Visible/Live.
-    // So if GhostMode is TRUE, StudyMode should be FALSE.
-    if (prefs.getBool('ghost_mode') == true) {
-      _isStudyMode = false;
-    } else {
-      // Default logic: start as ghost? or start as previous?
-      // Let's assume default is OFF (Ghost Mode OFF -> Visible).
-      // Actually, default safely should be Hidden.
-    }
+    if (!mounted) return;
 
-    // CORRECTION:
     // Settings: "Ghost Mode" (Toggle). True = Hidden.
     // Map: "_isStudyMode" (Toggle). True = Live/Visible.
     // So: _isStudyMode = !ghostMode.
-    final ghostMode = prefs.getBool('ghost_mode') ??
-        false; // Default false (Visible) ? OR Default true (Hidden)?
-    // User requested "Default Ghost Mode toggle" in plan.
+    final ghostMode = prefs.getBool('ghost_mode') ?? false;
 
-    _isStudyMode = !ghostMode;
+    setState(() {
+      _isStudyMode = !ghostMode;
+    });
 
     if (_isStudyMode) {
       _startBroadcast();
+    } else {
+      _stopBroadcast(); // Ensure timer is stopped
+      // Ensure we are hidden on startup if Ghost Mode is active
+      _goGhost();
     }
   }
 
@@ -96,6 +151,7 @@ class _MapPageState extends State<MapPage> {
     _peersSubscription?.cancel();
     _requestsSubscription?.cancel();
     _locationSubscription?.cancel();
+    _notificationsChannel?.unsubscribe();
     _stopBroadcast();
     _stopSimulation();
     super.dispose();
@@ -182,11 +238,7 @@ class _MapPageState extends State<MapPage> {
         });
         _updateMapMarkers();
 
-        // Auto-Spawn Bots (Once)
-        if (!_botsSpawned) {
-          _botsSpawned = true;
-          _simulateBot(LatLng(position.latitude, position.longitude));
-        }
+        // Auto-Spawn Bots Logic Removed
       }
     });
   }
@@ -362,9 +414,32 @@ class _MapPageState extends State<MapPage> {
         logger.debug("⚠️ clearCircles failed (ignoring)", error: e);
       }
 
+      // 0. Draw Study Spots (Bottom Layer)
+      for (var spot in _studySpots) {
+        try {
+          await mapController?.addCircle(
+            CircleOptions(
+              geometry: LatLng(spot.latitude, spot.longitude),
+              circleColor: '#FFA500', // Orange
+              circleRadius: 8,
+              circleStrokeWidth: 2,
+              circleStrokeColor: '#FFFFFF',
+              circleOpacity: 0.9,
+            ),
+            {
+              'is_study_spot': true,
+              'spot_id': spot.id,
+            },
+          );
+        } catch (e) {
+          logger.warning("Failed to draw study spot ${spot.name}");
+        }
+      }
+
       for (var peer in _peers.values) {
-        if (peer.location == null) {
-          logger.debug("Peer ${peer.userId} has null location");
+        final geometry = peer.location;
+        if (geometry == null) {
+          // logger.debug("Peer ${peer.userId} has null location"); // Keep valid noise down
           continue;
         }
 
@@ -374,8 +449,14 @@ class _MapPageState extends State<MapPage> {
         }
 
         // --- FILTER LOGIC ---
-        if (peer.isTutor && !_filters.showTutors) continue;
-        if (!peer.isTutor && !_filters.showStudents) continue;
+        if (peer.isTutor && !_filters.showTutors) {
+          logger.debug("Active Filtering: Skipping Tutor ${peer.fullName}");
+          continue;
+        }
+        if (!peer.isTutor && !_filters.showStudents) {
+          logger.debug("Active Filtering: Skipping Student ${peer.fullName}");
+          continue;
+        }
 
         if (_filters.selectedSubjects.isNotEmpty) {
           // Case insensitive check
@@ -383,15 +464,19 @@ class _MapPageState extends State<MapPage> {
               peer.currentClasses.map((e) => e.toLowerCase()).toList();
           final hasSubject = _filters.selectedSubjects
               .any((s) => peerClasses.contains(s.toLowerCase()));
-          if (!hasSubject) continue;
+          if (!hasSubject) {
+            logger.debug(
+                "Active Filtering: Skipping Subject Match for ${peer.fullName}");
+            continue;
+          }
         }
         // --------------------
 
         try {
-          logger.debug("Drawing marker at ${peer.location}");
+          // logger.debug("Drawing marker at $geometry"); // Reduced noise
           await mapController?.addCircle(
             CircleOptions(
-              geometry: peer.location!,
+              geometry: geometry, // Safe local variable
               circleColor: peer.isTutor ? '#FFD700' : '#00FFFF',
               circleRadius: 10,
               circleStrokeWidth: 2,
@@ -401,8 +486,7 @@ class _MapPageState extends State<MapPage> {
             peer.toJson(),
           );
         } catch (e) {
-          logger.warning("⚠️ Failed to add circle for peer ${peer.userId}",
-              error: e);
+          logger.warning("⚠️ Failed to add circle: ${e.toString()}", error: e);
         }
       }
 
@@ -452,7 +536,13 @@ class _MapPageState extends State<MapPage> {
   void _startBroadcast() {
     _broadcastTimer?.cancel();
     // Check more frequently (e.g. 5s) but only WRITE if threshold met
-    _broadcastTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+    _broadcastTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      // SAFETY CHECK: Stop this timer if we are in Ghost Mode or widget disposed
+      if (!mounted || !_isStudyMode) {
+        timer.cancel();
+        return;
+      }
+
       final pos = await Geolocator.getCurrentPosition();
       final user = supabase.auth.currentUser;
       if (user == null) return;
@@ -484,20 +574,26 @@ class _MapPageState extends State<MapPage> {
       }
 
       if (shouldUpdate) {
-        logger.debug("📍 Broadcasting location update (Smart)");
-        await supabase.from('profiles').upsert({
-          'user_id': user.id,
-          'lat': pos.latitude,
-          'long': pos.longitude,
-          'last_updated': DateTime.now().toIso8601String(),
-        });
-        _lastBroadcastLocation = currentLatLng;
-        _lastBroadcastTime = now;
+        logger.debug(
+            "📍 Broadcaster: Upserting location ${pos.latitude}, ${pos.longitude}");
+        try {
+          await supabase.from('profiles').upsert({
+            'user_id': user.id,
+            'lat': pos.latitude,
+            'long': pos.longitude,
+            'last_updated': DateTime.now().toIso8601String(),
+          });
+          _lastBroadcastLocation = currentLatLng;
+          _lastBroadcastTime = now;
+        } catch (e) {
+          logger.error("❌ Broadcaster: Upsert failed", error: e);
+        }
       }
     });
   }
 
   void _stopBroadcast() {
+    logger.debug("🛑 Broadcaster: Stopped");
     _broadcastTimer?.cancel();
   }
 
@@ -505,6 +601,16 @@ class _MapPageState extends State<MapPage> {
     hapticService.selectionClick();
     if (circle.data != null) {
       final data = Map<String, dynamic>.from(circle.data as Map);
+
+      // Check for Study Spot
+      if (data['is_study_spot'] == true) {
+        final spotId = data['spot_id'];
+        final spot = _studySpots.firstWhere((s) => s.id == spotId,
+            orElse: () => _studySpots.first); // fallback safe
+        _showStudySpotDetails(spot);
+        return;
+      }
+
       if (data['is_me'] == true) {
         final myId = supabase.auth.currentUser?.id;
         if (myId != null && _peers.containsKey(myId)) {
@@ -518,6 +624,15 @@ class _MapPageState extends State<MapPage> {
       }
       _showProfileDrawer(data);
     }
+  }
+
+  void _showStudySpotDetails(StudySpot spot) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => StudySpotDetailsSheet(spot: spot),
+    );
   }
 
   void _showProfileDrawer(Map<String, dynamic> data) {
@@ -536,114 +651,123 @@ class _MapPageState extends State<MapPage> {
     );
   }
 
-  // Bot Simulation Logic
-  void _simulateBot(LatLng userPos) async {
-    logger.info(
-        "🤖 Spawning 4 bots around ${userPos.latitude}, ${userPos.longitude}");
+  Future<void> _summonPeers() async {
+    if (_currentLocation == null) return;
+
+    setState(() {}); // Re-use loading flag logic if needed, or just plain.
+    hapticService.mediumImpact();
 
     try {
+      final user = supabase.auth.currentUser;
+      if (user == null) return;
+
+      // 1. Get all other profiles (real users)
+      // We can't filter by email effectively without Admin, so we just grab everyone who isn't me.
+      final response = await supabase
+          .from('profiles')
+          .select('user_id')
+          .neq('user_id', user.id);
+
+      final List<dynamic> others = response as List<dynamic>;
+
+      logger.info("🪄 Summoning ${others.length} peers to your location...");
+
       final random = Random();
-      final newBots = <String, UserProfile>{};
+      int movedCount = 0;
 
-      // Helper to get random offset within ~50 meters to ~500 meters
-      // 500 meters ≈ 0.0045 degrees latitude
-      double getRandomOffset() {
-        const minOffset = 0.0005; // ~50m (avoid stacking on user)
-        const maxOffset = 0.0045; // ~500m
-        const range = maxOffset - minOffset;
-        final offset = minOffset + (random.nextDouble() * range);
-        // Randomly make it positive or negative
-        return random.nextBool() ? offset : -offset;
-      }
+      for (var other in others) {
+        final uid = other['user_id'] as String;
 
-      // UPSERT Tutors to Database
-      for (int i = 0; i < 2; i++) {
-        // Deterministic UUIDs for Tutors (starts with 1 or 2)
-        // Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-        final id = "00000000-0000-4000-a000-00000000000${i + 1}";
-        final offsetLat = getRandomOffset();
-        final offsetLong = getRandomOffset();
+        // Random offset within ~300m (approx 0.003 degrees)
+        final double latOffset = (random.nextDouble() * 0.006) - 0.003;
+        final double lngOffset = (random.nextDouble() * 0.006) - 0.003;
 
-        final botProfile = UserProfile(
-          userId: id,
-          isTutor: true,
-          intentTag: 'Tutor Bot ${i + 1}',
-          fullName: 'Tutor ${String.fromCharCode(65 + i)}.',
-          currentClasses: ['Calculus', 'Physics'],
-          avatarUrl: 'assets/images/bot.jpg',
-          location: LatLng(
-              userPos.latitude + offsetLat, userPos.longitude + offsetLong),
-        );
+        final newLat = _currentLocation!.latitude + latOffset;
+        final newLng = _currentLocation!.longitude + lngOffset;
 
-        newBots[id] = botProfile;
-
-        await supabase.from('profiles').upsert({
-          'user_id': id,
-          'is_tutor': true,
-          'intent_tag': 'Tutor Bot ${i + 1}',
-          'full_name': 'Tutor ${String.fromCharCode(65 + i)}.',
-          'current_classes': ['Calculus', 'Physics'],
-          'lat': botProfile.location!.latitude,
-          'long': botProfile.location!.longitude,
-          'avatar_url': 'assets/images/bot.jpg',
+        await supabase.from('profiles').update({
+          'lat': newLat,
+          'long': newLng,
           'last_updated': DateTime.now().toIso8601String(),
-        });
-      }
+        }).eq('user_id', uid);
 
-      // UPSERT Students to Database
-      for (int i = 0; i < 2; i++) {
-        // Deterministic UUIDs for Students (starts with 3 or 4)
-        final id = "00000000-0000-4000-b000-00000000000${i + 1}";
-        final offsetLat = getRandomOffset();
-        final offsetLong = getRandomOffset();
-
-        final botProfile = UserProfile(
-          userId: id,
-          isTutor: false,
-          intentTag: 'Student Bot ${i + 1}',
-          fullName: 'Student ${i + 1}',
-          currentClasses: ['History', 'Art'],
-          avatarUrl: 'assets/images/bot.jpg',
-          location: LatLng(
-              userPos.latitude + offsetLat, userPos.longitude + offsetLong),
-        );
-
-        newBots[id] = botProfile;
-
-        await supabase.from('profiles').upsert({
-          'user_id': id,
-          'is_tutor': false,
-          'intent_tag': 'Student Bot ${i + 1}',
-          'full_name': 'Student ${i + 1}',
-          'current_classes': ['History', 'Art'],
-          'lat': botProfile.location!.latitude,
-          'long': botProfile.location!.longitude,
-          'avatar_url': 'assets/images/bot.jpg',
-          'last_updated': DateTime.now().toIso8601String(),
-        });
+        movedCount++;
       }
 
       if (mounted) {
-        setState(() {
-          _peers.addAll(newBots);
-        });
-        _updateMapMarkers(); // Force draw
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Spawned 4 Bots (DB & Local)!"),
-            backgroundColor: Colors.amber,
+          SnackBar(
+            content: Text("Summoned $movedCount peers to your vicinity!"),
+            backgroundColor: Colors.purpleAccent,
           ),
         );
       }
     } catch (e) {
-      logger.error("⚠️ Simulation error", error: e);
+      logger.error("Summon failed", error: e);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Sim Error: $e"), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text("Summon failed: $e"), backgroundColor: Colors.red),
         );
       }
     }
   }
+
+  Future<void> _summonStudySpots() async {
+    if (_currentLocation == null) return;
+
+    hapticService.mediumImpact();
+
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) return;
+
+      // 1. Get all study spots
+      final response = await supabase.from('study_spots').select();
+      final List<dynamic> spots = response as List<dynamic>;
+
+      logger.info("🪄 Transporting ${spots.length} study spots to you...");
+
+      final random = Random();
+      int movedCount = 0;
+
+      for (var spot in spots) {
+        final spotId = spot['id'] as String;
+
+        // Random offset within ~500m (approx 0.005 degrees)
+        final double latOffset = (random.nextDouble() * 0.008) - 0.004;
+        final double lngOffset = (random.nextDouble() * 0.008) - 0.004;
+
+        final newLat = _currentLocation!.latitude + latOffset;
+        final newLng = _currentLocation!.longitude + lngOffset;
+
+        // Update with both separate columns and PostGIS geometry
+        await supabase.from('study_spots').update({
+          'lat': newLat,
+          'long': newLng,
+          // 'location': ... generated column updates automatically?
+          // WAIT: Created as "generated always stored". We cannot update it directly.
+          // Correct, we just update lat/long and the DB handles 'location'.
+        }).eq('id', spotId);
+
+        movedCount++;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Transported $movedCount Study Spots! ☕"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        _fetchStudySpots(); // Refresh local list
+      }
+    } catch (e) {
+      logger.error("Summon Spots failed", error: e);
+    }
+  }
+
+  // Bot simulation logic removed
 
   void _stopSimulation() {
     _simulationTimer?.cancel();
@@ -651,14 +775,71 @@ class _MapPageState extends State<MapPage> {
     // _botClient = null;
   }
 
+  Future<void> _goGhost() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+    try {
+      logger.debug("👻 Going Ghost: Clearing location from DB...");
+      await supabase.from('profiles').update({
+        'lat': null,
+        'long': null,
+        'last_updated': DateTime.now().toIso8601String(),
+      }).eq('user_id', user.id);
+    } catch (e) {
+      logger.error("Failed to go ghost", error: e);
+    }
+  }
+
+  Widget _buildGlassControl({
+    required VoidCallback onPressed,
+    required Widget child,
+    String? tooltip,
+    bool isMini = false,
+    Color? activeColor,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final size = isMini ? 44.0 : 56.0;
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: ClipOval(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Material(
+            color: (activeColor ?? (isDark ? Colors.black : Colors.white))
+                .withOpacity(0.7),
+            child: InkWell(
+              onTap: onPressed,
+              child: Center(child: child),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       body: Stack(
         children: [
           // ... MapLibreMap ...
           MaplibreMap(
-            // ... existing config ...
             onMapCreated: _onMapCreated,
             initialCameraPosition: const CameraPosition(
               target: LatLng(40.7128, -74.0060),
@@ -666,30 +847,29 @@ class _MapPageState extends State<MapPage> {
             ),
             styleString: _mapStyle,
             myLocationEnabled: false,
+            trackCameraPosition: true,
           ),
 
           // "Recenter" Button (Bottom Right)
           Positioned(
             bottom: 40,
             right: 20,
-            child: FloatingActionButton(
-              heroTag: "recenter",
+            child: _buildGlassControl(
               onPressed: _checkLocationPermissions,
-              backgroundColor: Colors.black87,
-              foregroundColor: Colors.cyanAccent,
-              child: const Icon(Icons.my_location),
+              child: Icon(Icons.my_location,
+                  color: isDark ? Colors.white : Colors.black87),
+              tooltip: "Recenter",
             ),
           ),
 
           // "Simulate Bot" Button (Top Left - DEV ONLY)
           Positioned(
-            top: 50,
+            top: 60,
             left: 20,
             child: Column(
               children: [
-                FloatingActionButton(
-                  heroTag: "profile",
-                  mini: true,
+                _buildGlassControl(
+                  isMini: true,
                   onPressed: () {
                     hapticService.lightImpact();
                     Navigator.push(
@@ -698,8 +878,6 @@ class _MapPageState extends State<MapPage> {
                           builder: (context) => const ProfilePage()),
                     ).then((_) => _loadSettings());
                   },
-                  backgroundColor: const Color(0xFF0F111A),
-                  foregroundColor: Colors.white,
                   child:
                       (_peers[supabase.auth.currentUser?.id]?.avatarUrl != null)
                           ? CircleAvatar(
@@ -713,27 +891,91 @@ class _MapPageState extends State<MapPage> {
                                       : NetworkImage(
                                           _peers[supabase.auth.currentUser!.id]!
                                               .avatarUrl!),
-                              radius: 20, // Matches mini FAB size (40x40)
+                              radius: 18,
                             )
-                          : const Icon(Icons.person),
+                          : Icon(Icons.person,
+                              color: isDark ? Colors.white : Colors.black87),
+                ),
+                const SizedBox(height: 12),
+                // Summon Button (Testing)
+                _buildGlassControl(
+                  isMini: true,
+                  onPressed: _summonPeers,
+                  activeColor: Colors.purple.withOpacity(0.5),
+                  child: const Icon(Icons.group_add, color: Colors.white),
+                  tooltip: "Summon Peers (Test)",
+                ),
+                const SizedBox(height: 12),
+                // Summon Spots Button (Testing)
+                _buildGlassControl(
+                  isMini: true,
+                  onPressed: _summonStudySpots,
+                  activeColor: Colors.orange.withOpacity(0.5),
+                  child: const Icon(Icons.coffee, color: Colors.white),
+                  tooltip: "Summon Study Spots (Test)",
+                ),
+                const SizedBox(height: 12),
+                // Notifications Bell
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    _buildGlassControl(
+                      isMini: true,
+                      onPressed: () {
+                        hapticService.lightImpact();
+                        Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const NotificationsPage()))
+                            .then((_) {
+                          // Refresh count on return
+                          _subscribeToNotifications();
+                        });
+                      },
+                      child: Icon(Icons.notifications,
+                          color: isDark ? Colors.white : Colors.black87),
+                    ),
+                    if (_unreadCount > 0)
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 18,
+                            minHeight: 18,
+                          ),
+                          child: Text(
+                            '$_unreadCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),
           ),
 
           // Floating "Study Mode" Toggle (Top Right)
-          // ...
           Positioned(
-            top: 50,
+            top: 60,
             right: 20,
-            child: FloatingActionButton.extended(
-              heroTag: "studymode",
-              onPressed: () {
+            child: GestureDetector(
+              onTap: () {
                 setState(() {
                   _isStudyMode = !_isStudyMode;
                 });
                 hapticService.mediumImpact();
-                // Save "Ghost Mode" preference (Inverse of Study Mode)
                 SharedPreferences.getInstance().then((prefs) {
                   prefs.setBool('ghost_mode', !_isStudyMode);
                 });
@@ -742,27 +984,64 @@ class _MapPageState extends State<MapPage> {
                   _startBroadcast();
                 } else {
                   _stopBroadcast();
+                  _goGhost();
                 }
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(_isStudyMode
-                        ? "Study Mode ON: You are visible"
-                        : "Study Mode OFF: You are hidden"),
-                    backgroundColor: _isStudyMode ? Colors.cyan : Colors.grey,
-                  ),
-                );
               },
-              label: Text(_isStudyMode ? "LIVE" : "GHOST"),
-              icon:
-                  Icon(_isStudyMode ? Icons.visibility : Icons.visibility_off),
-              backgroundColor:
-                  _isStudyMode ? Colors.cyanAccent : Colors.grey[800],
-              foregroundColor: _isStudyMode ? Colors.black : Colors.white,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(30),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: (_isStudyMode
+                              ? theme.primaryColor
+                              : (isDark ? Colors.black : Colors.white))
+                          .withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _isStudyMode
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                          color: _isStudyMode
+                              ? Colors.white
+                              : (isDark ? Colors.white60 : Colors.black54),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _isStudyMode ? "LIVE" : "GHOST",
+                          style: TextStyle(
+                            color: _isStudyMode
+                                ? Colors.white
+                                : (isDark ? Colors.white60 : Colors.black54),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
+
           // Filter Widget
           Positioned(
-            top: 120,
+            top: 130,
             right: 20,
             child: MapFilterWidget(
               currentFilters: _filters,

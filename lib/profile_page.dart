@@ -7,6 +7,7 @@ import 'connections_page.dart';
 import 'settings_page.dart';
 import 'schedule_page.dart';
 import 'services/logger_service.dart';
+import 'conversations_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -35,7 +36,34 @@ class _ProfilePageState extends State<ProfilePage> {
     super.initState();
     _loadProfile();
     _fetchConnectionCount();
-    _fetchPendingRequestCount();
+    _fetchReviewStats();
+  }
+
+  double _averageRating = 0.0;
+  int _reviewCount = 0;
+
+  Future<void> _fetchReviewStats() async {
+    final myId = supabase.auth.currentUser?.id;
+    if (myId == null) return;
+
+    try {
+      final data = await supabase
+          .from('reviews')
+          .select('rating')
+          .eq('reviewee_id', myId);
+
+      if (data.isNotEmpty) {
+        final List<dynamic> ratings = data.map((e) => e['rating']).toList();
+        final sum =
+            ratings.fold(0, (previous, current) => previous + (current as int));
+        setState(() {
+          _averageRating = sum / ratings.length;
+          _reviewCount = ratings.length;
+        });
+      }
+    } catch (e) {
+      logger.error("Error fetching review stats", error: e);
+    }
   }
 
   Future<void> _loadProfile() async {
@@ -227,15 +255,19 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0F111A), // Matches drawer theme
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Edit Profile'),
+        title: Text('Edit Profile',
+            style: theme.textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings, color: Colors.white70),
+            icon: Icon(Icons.settings, color: theme.iconTheme.color),
             onPressed: () {
               Navigator.push(
                 context,
@@ -256,16 +288,33 @@ class _ProfilePageState extends State<ProfilePage> {
                   Center(
                     child: Stack(
                       children: [
-                        CircleAvatar(
-                          radius: 60,
-                          backgroundColor: Colors.white10,
-                          backgroundImage: _avatarController.text.isNotEmpty
-                              ? NetworkImage(_avatarController.text)
-                              : null,
-                          child: _avatarController.text.isEmpty
-                              ? const Icon(Icons.person,
-                                  size: 60, color: Colors.white54)
-                              : null,
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: (_isTutor
+                                        ? Colors.amber
+                                        : theme.primaryColor)
+                                    .withOpacity(0.2),
+                                blurRadius: 20,
+                                spreadRadius: 5,
+                              )
+                            ],
+                          ),
+                          child: CircleAvatar(
+                            radius: 60,
+                            backgroundColor: theme.cardTheme.color,
+                            backgroundImage: _avatarController.text.isNotEmpty
+                                ? NetworkImage(_avatarController.text)
+                                : null,
+                            child: _avatarController.text.isEmpty
+                                ? Icon(Icons.person,
+                                    size: 60,
+                                    color:
+                                        theme.iconTheme.color?.withOpacity(0.5))
+                                : null,
+                          ),
                         ),
                         Positioned(
                           bottom: 0,
@@ -274,13 +323,16 @@ class _ProfilePageState extends State<ProfilePage> {
                             onTap: _pickImage,
                             child: Container(
                               padding: const EdgeInsets.all(8),
-                              decoration: const BoxDecoration(
-                                color: Colors.cyanAccent,
+                              decoration: BoxDecoration(
+                                color: theme.primaryColor,
                                 shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: theme.scaffoldBackgroundColor,
+                                    width: 2),
                               ),
                               child: const Icon(
                                 Icons.camera_alt,
-                                color: Colors.black,
+                                color: Colors.white,
                                 size: 20,
                               ),
                             ),
@@ -293,47 +345,74 @@ class _ProfilePageState extends State<ProfilePage> {
                   Center(
                     child: TextButton(
                       onPressed: _pickImage,
-                      child: const Text("Change Photo",
-                          style: TextStyle(color: Colors.cyanAccent)),
+                      child: Text("Change Photo",
+                          style: TextStyle(color: theme.primaryColor)),
                     ),
                   ),
+                  if (_reviewCount > 0) ...[
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border:
+                              Border.all(color: Colors.amber.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star,
+                                color: Colors.amber, size: 16),
+                            const SizedBox(width: 4),
+                            Text(
+                              _averageRating.toStringAsFixed(1),
+                              style: const TextStyle(
+                                  color: Colors.amber,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              "($_reviewCount Reviews)",
+                              style: TextStyle(
+                                  color: theme.textTheme.bodySmall?.color,
+                                  fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 24),
 
-                  _buildLabel('Full Name'),
-                  TextField(
-                    controller: _nameController,
-                    decoration: _inputDecoration('e.g. John Doe'),
-                    style: const TextStyle(color: Colors.white),
-                  ),
+                  _buildLabel(context, 'Full Name'),
+                  _buildTextField(context,
+                      controller: _nameController, hint: 'e.g. John Doe'),
                   const SizedBox(height: 20),
 
-                  _buildLabel('Status / Intent'),
-                  TextField(
-                    controller: _intentController,
-                    decoration: _inputDecoration('e.g. Studying Calculus'),
-                    style: const TextStyle(color: Colors.white),
-                  ),
+                  _buildLabel(context, 'Status / Intent'),
+                  _buildTextField(context,
+                      controller: _intentController,
+                      hint: 'e.g. Studying Calculus'),
                   const SizedBox(height: 20),
 
-                  _buildLabel('Current Classes (comma separated)'),
-                  TextField(
-                    controller: _classesController,
-                    decoration: _inputDecoration('e.g. CS101, MATH200'),
-                    style: const TextStyle(color: Colors.white),
-                  ),
+                  _buildLabel(context, 'Current Classes (comma separated)'),
+                  _buildTextField(context,
+                      controller: _classesController,
+                      hint: 'e.g. CS101, MATH200'),
                   const SizedBox(height: 20),
 
                   // Avatar URL (Hidden or Optional Manual Input)
                   ExpansionTile(
-                    title: const Text("Advanced: Manual Avatar URL",
-                        style: TextStyle(color: Colors.white54, fontSize: 12)),
+                    title: Text("Advanced: Manual Avatar URL",
+                        style: theme.textTheme.bodySmall),
                     children: [
-                      TextField(
-                        controller: _avatarController,
-                        decoration: _inputDecoration('https://...'),
-                        style: const TextStyle(color: Colors.white),
-                        onChanged: (val) => setState(() {}),
-                      ),
+                      _buildTextField(context,
+                          controller: _avatarController,
+                          hint: 'https://...',
+                          onChanged: (val) => setState(() {})),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -341,185 +420,118 @@ class _ProfilePageState extends State<ProfilePage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'I am a Tutor',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold),
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       Switch(
                         value: _isTutor,
                         onChanged: (val) => setState(() => _isTutor = val),
                         activeColor: Colors.amber,
-                        activeTrackColor: Colors.amberAccent.withOpacity(0.5),
-                        inactiveThumbColor: Colors.grey,
-                        inactiveTrackColor: Colors.white12,
                       ),
                     ],
                   ),
 
                   if (_isTutor) ...[
                     const SizedBox(height: 20),
-                    _buildLabel('Hourly Rate (\$/hr)'),
-                    TextField(
-                      controller: _hourlyRateController,
-                      decoration: _inputDecoration('e.g. 25'),
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(color: Colors.white),
-                    ),
+                    _buildLabel(context, 'Hourly Rate (\$/hr)'),
+                    _buildTextField(context,
+                        controller: _hourlyRateController,
+                        hint: 'e.g. 25',
+                        keyboardType: TextInputType.number),
                   ],
 
                   const SizedBox(height: 20),
-                  _buildLabel('Bio / About Me'),
-                  TextField(
-                    controller: _bioController,
-                    decoration:
-                        _inputDecoration('Tell others about yourself...'),
-                    style: const TextStyle(color: Colors.white),
-                    maxLines: 4,
-                  ),
+                  _buildLabel(context, 'Bio / About Me'),
+                  _buildTextField(context,
+                      controller: _bioController,
+                      hint: 'Tell others about yourself...',
+                      maxLines: 4),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 32),
 
                   // My Connections Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const ConnectionsPage()),
-                        );
-                        // Refresh counts when returning
-                        _fetchConnectionCount();
-                      },
-                      icon: const Icon(Icons.people),
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text("My Connections"),
-                          if (_connectionCount > 0) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.cyanAccent,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                '$_connectionCount',
-                                style: const TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Colors.white24),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
+                  _buildMenuButton(
+                    context,
+                    icon: Icons.people,
+                    label: "My Connections",
+                    count: _connectionCount,
+                    countColor: theme.primaryColor,
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const ConnectionsPage()),
+                      );
+                      _fetchConnectionCount();
+                    },
                   ),
 
                   const SizedBox(height: 16),
 
                   // Requests Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const RequestsPage()),
-                        );
-                        // Refresh counts when returning
-                        _fetchPendingRequestCount();
-                      },
-                      icon: const Icon(Icons.notifications_active),
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text("Manage Requests"),
-                          if (_pendingRequestCount > 0) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.redAccent,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                '$_pendingRequestCount',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Colors.white24),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // My Schedule Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const SchedulePage()),
-                        );
-                      },
-                      icon: const Icon(Icons.calendar_today),
-                      label: const Text("My Schedule"),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Colors.white24),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
+                  _buildMenuButton(
+                    context,
+                    icon: Icons.notifications_active,
+                    label: "Manage Requests",
+                    count: _pendingRequestCount,
+                    countColor: Colors.redAccent,
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const RequestsPage()),
+                      );
+                      _fetchPendingRequestCount();
+                    },
                   ),
 
                   const SizedBox(height: 16),
 
+                  // My Chats Button
+                  _buildMenuButton(
+                    context,
+                    icon: Icons.chat_bubble_outline,
+                    label: "My Chats",
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const ConversationsPage()),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // My Schedule Button
+                  _buildMenuButton(
+                    context,
+                    icon: Icons.calendar_today,
+                    label: "My Schedule",
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const SchedulePage()),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 32),
+
                   // Save Button
                   SizedBox(
                     width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
+                    height: 56,
+                    child: FilledButton(
                       onPressed: _saveProfile,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.cyanAccent,
-                        foregroundColor: Colors.black,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: theme.primaryColor,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                            borderRadius: BorderRadius.circular(16)),
                       ),
                       child: const Text('Save Changes',
                           style: TextStyle(
@@ -534,33 +546,102 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  InputDecoration _inputDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: Colors.white24),
-      filled: true,
-      fillColor: Colors.white.withOpacity(0.05),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.cyanAccent, width: 1.5),
+  Widget _buildTextField(BuildContext context,
+      {required TextEditingController controller,
+      required String hint,
+      TextInputType? keyboardType,
+      int maxLines = 1,
+      Function(String)? onChanged}) {
+    final theme = Theme.of(context);
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      onChanged: onChanged,
+      style: theme.textTheme.bodyMedium,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(
+            color: theme.textTheme.bodyMedium?.color?.withOpacity(0.5)),
+        filled: true,
+        fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: theme.dividerColor.withOpacity(0.1)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: theme.primaryColor, width: 1.5),
+        ),
       ),
     );
   }
 
-  Widget _buildLabel(String text) {
+  Widget _buildLabel(BuildContext context, String text) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text.toUpperCase(),
-        style: const TextStyle(
-          color: Colors.cyanAccent,
-          fontSize: 12,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.primaryColor,
           fontWeight: FontWeight.bold,
           letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuButton(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    int? count,
+    Color? countColor,
+  }) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, color: theme.iconTheme.color),
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label,
+                style: TextStyle(color: theme.textTheme.bodyLarge?.color)),
+            if (count != null && count > 0) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                    color: countColor?.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: countColor ?? Colors.grey)),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    color: countColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: theme.dividerColor.withOpacity(0.2)),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          alignment: Alignment.centerLeft,
         ),
       ),
     );

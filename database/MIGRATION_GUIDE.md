@@ -143,3 +143,38 @@ ALTER TABLE messages DROP COLUMN IF EXISTS media_url;
    - Upload an image in chat
    - Check notifications appear
 3. Monitor Supabase logs for any errors
+
+### 3. Admin Portal Migration
+**Files**:
+- `database/add_admin_columns.sql`
+- `database/admin_policies.sql`
+
+**What it does**:
+- Adds `is_admin` and `is_banned` columns to `profiles` table.
+- Enables RLS policies for admins to manage all profiles.
+
+**To apply**:
+1. Open Supabase Dashboard → SQL Editor
+2. Run contents of `add_admin_columns.sql`.
+3. Run contents of `admin_policies.sql`.
+4. **Important**: Grant yourself admin access:
+   ```sql
+   UPDATE public.profiles SET is_admin = true WHERE user_id = auth.uid();
+   ```
+
+### 4. Payment Integration Migration
+**File**: `database/payment_schema.sql`
+
+**What it does**:
+- Adds `wallet_balance` column to `profiles`.
+- Creates `transactions` table with RLS policies.
+
+**To apply**:
+1. Open Supabase Dashboard → SQL Editor
+2. Run contents of `payment_schema.sql`.
+3. Run contents of `enable_realtime_transactions.sql` (Required for transaction list updates).
+4. Run contents of `alter_appointments_payment.sql` (Adds price/paid columns).
+5. Run contents of `create_payment_rpc.sql` (Secure payment function).
+6. Run contents of `fix_transaction_types.sql` (Transaction types constraint).
+7. Run contents of `fix_reviews_rls.sql` (Allow reviewing completed appointments).
+8. Verify: Check `wallet_balance` column in `profiles` and new `transactions` table.

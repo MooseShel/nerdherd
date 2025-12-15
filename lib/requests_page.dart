@@ -4,6 +4,7 @@ import 'services/logger_service.dart';
 import 'services/profile_service.dart';
 
 import 'services/haptic_service.dart';
+import 'widgets/empty_state_widget.dart';
 
 class RequestsPage extends StatefulWidget {
   const RequestsPage({super.key});
@@ -153,19 +154,25 @@ class _RequestsPageState extends State<RequestsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: const Color(0xFF0F111A), // Dark Cyber Blue
+        backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
-          title: const Text("Notification Hub"),
-          backgroundColor: const Color(0xFF0F111A),
-          foregroundColor: Colors.white,
-          bottom: const TabBar(
-            indicatorColor: Colors.cyanAccent,
-            labelColor: Colors.cyanAccent,
-            unselectedLabelColor: Colors.white54,
-            tabs: [
+          title: Text("Notification Hub",
+              style: theme.textTheme.titleLarge
+                  ?.copyWith(fontWeight: FontWeight.bold)),
+          backgroundColor: theme.scaffoldBackgroundColor,
+          elevation: 0,
+          foregroundColor: theme.textTheme.bodyLarge?.color,
+          bottom: TabBar(
+            indicatorColor: theme.primaryColor,
+            labelColor: theme.primaryColor,
+            unselectedLabelColor: theme.disabledColor,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            tabs: const [
               Tab(text: "PENDING"),
               Tab(text: "HISTORY"),
             ],
@@ -187,17 +194,16 @@ class _RequestsPageState extends State<RequestsPage> {
       {required bool isHistory}) {
     if (items.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(isHistory ? Icons.history : Icons.notifications_none,
-                size: 60, color: Colors.white24),
-            const SizedBox(height: 16),
-            Text(
-              isHistory ? "No past notifications" : "No pending requests",
-              style: const TextStyle(color: Colors.white54),
-            ),
-          ],
+        child: EmptyStateWidget(
+          icon: isHistory ? Icons.history : Icons.notifications_none,
+          title: isHistory ? "No past notifications" : "No pending requests",
+          subtitle: isHistory
+              ? "Your request history will appear here."
+              : "When people want to connect, you'll see it here.",
+          actionLabel: isHistory ? null : "Find Peers",
+          onAction: isHistory
+              ? null
+              : () => Navigator.of(context).popUntil((route) => route.isFirst),
         ),
       );
     }
@@ -212,6 +218,7 @@ class _RequestsPageState extends State<RequestsPage> {
 
   Widget _buildRequestCard(
       BuildContext context, Map<String, dynamic> req, bool isHistory) {
+    final theme = Theme.of(context);
     final myId = supabase.auth.currentUser?.id;
     final isIncoming = req['receiver_id'] == myId;
     final status = req['status'] ?? 'pending';
@@ -226,106 +233,132 @@ class _RequestsPageState extends State<RequestsPage> {
     final otherAvatar = otherUser['avatar_url'];
     final otherIsTutor = otherUser['is_tutor'] == true;
 
-    return Card(
-      color: Colors.white.withOpacity(0.05),
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+      ),
       child: Padding(
-        // Added padding for GridView safety
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor: Colors.black54,
-            backgroundImage:
-                otherAvatar != null ? NetworkImage(otherAvatar) : null,
-            child: otherAvatar == null
-                ? Icon(
-                    otherIsTutor ? Icons.school : Icons.person,
-                    color: otherIsTutor ? Colors.amber : Colors.cyanAccent,
-                  )
-                : null,
-          ),
-          title: Text(
-            isIncoming ? "From: $otherName" : "To: $otherName",
-            style: const TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          subtitle: Text(
-            isIncoming
-                ? (otherIsTutor
-                    ? "Tutor Requesting..."
-                    : "Student Requesting...")
-                : "Waiting for them...",
-            style: TextStyle(
-              color: isIncoming ? Colors.white70 : Colors.grey,
-              fontSize: 12,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          trailing: isHistory
-              ? Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: status == 'accepted'
-                        ? Colors.green.withOpacity(0.2)
-                        : Colors.red.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: theme.dividerColor.withOpacity(0.1),
+                  backgroundImage:
+                      otherAvatar != null ? NetworkImage(otherAvatar) : null,
+                  child: otherAvatar == null
+                      ? Icon(
+                          otherIsTutor ? Icons.school : Icons.person,
+                          color:
+                              otherIsTutor ? Colors.amber : theme.primaryColor,
+                          size: 24,
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isIncoming ? "From: $otherName" : "To: $otherName",
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        isIncoming
+                            ? (otherIsTutor
+                                ? "Tutor Requesting..."
+                                : "Student Requesting...")
+                            : "Waiting for them...",
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.textTheme.bodySmall?.color
+                                ?.withOpacity(0.7)),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                if (isHistory)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: status == 'accepted'
+                          ? Colors.green.withOpacity(0.1)
+                          : Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                          color: status == 'accepted'
+                              ? Colors.green
+                              : Colors.redAccent.withOpacity(0.5)),
+                    ),
+                    child: Text(
+                      status.toUpperCase(),
+                      style: TextStyle(
                         color: status == 'accepted'
                             ? Colors.green
-                            : Colors.redAccent),
-                  ),
-                  child: Text(
-                    status.toUpperCase(),
-                    style: TextStyle(
-                      color: status == 'accepted'
-                          ? Colors.green
-                          : Colors.redAccent,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                )
-              : isIncoming
-                  ? Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon:
-                              const Icon(Icons.close, color: Colors.redAccent),
-                          onPressed: () {
-                            hapticService.lightImpact();
-                            _respondToRequest(
-                                req['id'], req['sender_id'], false);
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.check,
-                              color: Colors.greenAccent),
-                          onPressed: () {
-                            hapticService.mediumImpact();
-                            _respondToRequest(
-                                req['id'], req['sender_id'], true);
-                          },
-                        ),
-                      ],
-                    )
-                  : ElevatedButton(
-                      onPressed: () {
-                        hapticService.mediumImpact();
-                        _respondToRequest(req['id'], req['sender_id'], true);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent.withOpacity(0.2),
-                        foregroundColor: Colors.blueAccent,
-                        side: const BorderSide(color: Colors.blueAccent),
+                            : Colors.redAccent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
                       ),
-                      child: const Text("Force Accept"),
                     ),
+                  )
+              ],
+            ),
+            if (!isHistory && isIncoming) ...[
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton(
+                    onPressed: () {
+                      hapticService.lightImpact();
+                      _respondToRequest(req['id'], req['sender_id'], false);
+                    },
+                    style: OutlinedButton.styleFrom(
+                        foregroundColor: theme.colorScheme.error,
+                        side: BorderSide(
+                            color: theme.colorScheme.error.withOpacity(0.5)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12)),
+                    child: const Text("Decline"),
+                  ),
+                  const SizedBox(width: 12),
+                  FilledButton(
+                    onPressed: () {
+                      hapticService.mediumImpact();
+                      _respondToRequest(req['id'], req['sender_id'], true);
+                    },
+                    style: FilledButton.styleFrom(
+                        backgroundColor: theme.primaryColor,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12)),
+                    child: const Text("Accept"),
+                  ),
+                ],
+              )
+            ]
+          ],
         ),
       ),
     );

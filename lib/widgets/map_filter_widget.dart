@@ -66,6 +66,9 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -74,9 +77,8 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
         FloatingActionButton.small(
           heroTag: "filter_toggle",
           onPressed: _toggleExpanded,
-          backgroundColor:
-              _isExpanded ? Colors.cyanAccent : const Color(0xFF1E1E1E),
-          foregroundColor: _isExpanded ? Colors.black : Colors.cyanAccent,
+          backgroundColor: _isExpanded ? theme.primaryColor : theme.cardColor,
+          foregroundColor: _isExpanded ? Colors.white : theme.primaryColor,
           child: Icon(_isExpanded ? Icons.close : Icons.filter_list),
         ),
 
@@ -88,17 +90,19 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
           curve: Curves.easeOutCubic,
           width: _isExpanded ? 260 : 0,
           height: _isExpanded ? null : 0,
-          // Constrain height if needed, but 'null' allows it to grow with content within reason
           constraints: BoxConstraints(
             maxHeight: _isExpanded ? 400 : 0,
           ),
           decoration: BoxDecoration(
-            color: const Color(0xFF0F111A).withOpacity(0.85),
+            color: theme.cardTheme.color?.withOpacity(0.9) ??
+                (isDark
+                    ? const Color(0xFF0F111A).withOpacity(0.9)
+                    : Colors.white.withOpacity(0.9)),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white10),
+            border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.3),
+                color: Colors.black.withOpacity(0.1),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -114,10 +118,11 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             "FILTER PEERS",
-                            style: TextStyle(
-                              color: Colors.white54,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.textTheme.labelSmall?.color
+                                  ?.withOpacity(0.5),
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.5,
@@ -129,26 +134,29 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
                           _buildSwitch(
                             "Tutors",
                             widget.currentFilters.showTutors,
-                            Colors.amber,
+                            Colors.amber, // Semantic color
                             (val) => _updateFilters(widget.currentFilters
                                 .copyWith(showTutors: val)),
+                            theme,
                           ),
                           _buildSwitch(
                             "Students",
                             widget.currentFilters.showStudents,
-                            Colors.cyanAccent,
+                            theme.primaryColor,
                             (val) => _updateFilters(widget.currentFilters
                                 .copyWith(showStudents: val)),
+                            theme,
                           ),
 
                           const SizedBox(height: 16),
-                          const Divider(color: Colors.white10),
+                          Divider(color: theme.dividerColor.withOpacity(0.1)),
                           const SizedBox(height: 8),
 
-                          const Text(
+                          Text(
                             "SUBJECTS",
-                            style: TextStyle(
-                              color: Colors.white54,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.textTheme.labelSmall?.color
+                                  ?.withOpacity(0.5),
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.5,
@@ -179,25 +187,24 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
                                   _updateFilters(widget.currentFilters
                                       .copyWith(selectedSubjects: newSubjects));
                                 },
-                                backgroundColor: Colors.white10,
+                                backgroundColor:
+                                    theme.cardTheme.color?.withOpacity(0.5),
                                 selectedColor:
-                                    Colors.purpleAccent.withOpacity(0.3),
+                                    theme.primaryColor.withOpacity(0.2),
                                 labelStyle: TextStyle(
                                   color: isSelected
-                                      ? Colors.purpleAccent
-                                      : Colors.white70,
+                                      ? theme.primaryColor
+                                      : theme.textTheme.bodyMedium?.color
+                                          ?.withOpacity(0.7),
                                   fontSize: 12,
                                   fontWeight: isSelected
                                       ? FontWeight.bold
                                       : FontWeight.normal,
                                 ),
-                                side: BorderSide(
-                                  color: isSelected
-                                      ? Colors.purpleAccent
-                                      : Colors.transparent,
-                                ),
+                                side: BorderSide.none,
                                 shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8)),
+                                    borderRadius: BorderRadius.circular(
+                                        20)), // Rounded chips
                               );
                             }).toList(),
                           ),
@@ -212,8 +219,8 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
     );
   }
 
-  Widget _buildSwitch(
-      String label, bool value, Color activeColor, Function(bool) onChanged) {
+  Widget _buildSwitch(String label, bool value, Color activeColor,
+      Function(bool) onChanged, ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -224,12 +231,14 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
               Icon(
                 label == "Tutors" ? Icons.school : Icons.person,
                 size: 16,
-                color: activeColor,
+                color: value
+                    ? activeColor
+                    : theme.iconTheme.color?.withOpacity(0.5),
               ),
               const SizedBox(width: 8),
               Text(
                 label,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
+                style: theme.textTheme.bodyMedium,
               ),
             ],
           ),
@@ -241,7 +250,7 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
             },
             activeColor: activeColor,
             activeTrackColor: activeColor.withOpacity(0.3),
-            inactiveTrackColor: Colors.white10,
+            inactiveTrackColor: theme.disabledColor.withOpacity(0.1),
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         ],
