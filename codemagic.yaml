@@ -15,8 +15,10 @@ workflows:
       app_store_connect: codemagic
     signing:
       ios:
-        distribution_type: app_store
-        bundle_identifier: com.nerdherd.app
+        provisioning_profiles:
+          - NerdHerd_App_Store_Prov_Profile
+        certificates:
+          - nerdherdcertificate
     scripts:
       - name: Get Flutter packages
         script: |
