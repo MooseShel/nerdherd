@@ -19,6 +19,7 @@ workflows:
           keychain initialize
       - name: Fetch signing files
         script: |
+          app-store-connect certificates list
           app-store-connect fetch-signing-files "$APP_ID" --type IOS_APP_STORE --create
       - name: Set up signing certificate
         script: |
