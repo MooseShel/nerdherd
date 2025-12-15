@@ -11,14 +11,14 @@ workflows:
         - app_store_connect
       vars:
         APP_ID: "com.nerdherd.app"
-    integrations:
-      app_store_connect: codemagic
-    signing:
-      ios:
+      ios_signing:
         provisioning_profiles:
           - NerdHerd_App_Store_Prov_Profile
         certificates:
           - nerdherdcertificate
+    integrations:
+      app_store_connect: codemagic
+
     scripts:
       - name: Get Flutter packages
         script: |
