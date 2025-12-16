@@ -47,6 +47,8 @@
 		<string>We need access to your camera to allow you to take profile pictures and share images in chat.</string>
 		<key>NSLocationWhenInUseUsageDescription</key>
 		<string>We need your location to show you on the map and find nearby connections.</string>
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+		<string>We need your location to show you on the map and find nearby connections even when the app is in the background.</string>
 		<key>NSMicrophoneUsageDescription</key>
 		<string>We need access to your microphone for video capture.</string>
 		<key>CADisableMinimumFrameDurationOnPhone</key>
