@@ -20,6 +20,9 @@ workflows:
       app_store_connect: codemagic
 
     scripts:
+      - name: Create .env file
+        script: |
+          echo "$ENV_FILE_CONTENT" > .env
       - name: Set up code signing settings on Xcode project
         script: |
           xcode-project use-profiles
