@@ -227,11 +227,13 @@ class _MapPageState extends State<MapPage> {
 
               // Check if relevant to me
               bool relevant = false;
-              if (newRec.isNotEmpty && newRec['receiver_id'] == user.id)
+              if (newRec.isNotEmpty && newRec['receiver_id'] == user.id) {
                 relevant = true;
+              }
               // If update, check old record too (though receiver_id shouldn't change)
-              if (oldRec.isNotEmpty && oldRec['receiver_id'] == user.id)
+              if (oldRec.isNotEmpty && oldRec['receiver_id'] == user.id) {
                 relevant = true;
+              }
 
               if (relevant) {
                 final newCount = await supabase

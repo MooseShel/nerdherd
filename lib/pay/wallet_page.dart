@@ -240,7 +240,7 @@ class _WalletPageState extends State<WalletPage> {
                   const SizedBox(height: 16),
 
                   if (transactions.isEmpty)
-                    EmptyStateWidget(
+                    const EmptyStateWidget(
                       icon: Icons.receipt_long,
                       title: 'No Transactions',
                       description: 'Your transaction history will appear here.',

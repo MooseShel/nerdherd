@@ -107,8 +107,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       .updateUser(UserAttributes(password: newPass));
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: const Text('Password updated successfully!'),
+                      const SnackBar(
+                          content: Text('Password updated successfully!'),
                           backgroundColor: Colors.green),
                     );
                   }

@@ -48,7 +48,28 @@ class StudySpot {
       isVerified: false,
       source: 'osm',
       type: json['tags']['amenity'] ?? 'other',
+      imageUrl: json['tags']['image'] ??
+          _getOSMImageUrl(
+              json['tags']['amenity'] ?? 'other', json['id'].toString()),
       perks: [],
     );
+  }
+
+  static String _getOSMImageUrl(String type, String id) {
+    // Use hashCode to ensure a valid integer for the lock
+    final lockId = id.hashCode;
+    switch (type.toLowerCase()) {
+      case 'cafe':
+        return 'https://loremflickr.com/800/600/coffee,shop,interior?lock=$lockId';
+      case 'library':
+        return 'https://loremflickr.com/800/600/library,books,university?lock=$lockId';
+      case 'restaurant':
+        return 'https://loremflickr.com/800/600/restaurant,dining,food?lock=$lockId';
+      case 'bar':
+        return 'https://loremflickr.com/800/600/bar,pub,club?lock=$lockId';
+      default:
+        // Use a broader random category for 'other'
+        return 'https://loremflickr.com/800/600/city,architecture,street?lock=$lockId';
+    }
   }
 }

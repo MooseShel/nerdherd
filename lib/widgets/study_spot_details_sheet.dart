@@ -42,16 +42,30 @@ class StudySpotDetailsSheet extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
-                      child: Text(
-                        spot.name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            spot.name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (!spot.isVerified)
+                            Text(
+                              _formatType(spot.type),
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
-                    if (spot.incentive != null)
+                    if (spot.isVerified)
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
@@ -64,9 +78,31 @@ class StudySpotDetailsSheet extends StatelessWidget {
                             Icon(Icons.stars, size: 16, color: Colors.black),
                             SizedBox(width: 4),
                             Text(
-                              "DEAL",
+                              "VERIFIED",
                               style: TextStyle(
                                   color: Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white10,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.public, size: 16, color: Colors.white70),
+                            SizedBox(width: 4),
+                            Text(
+                              "PUBLIC",
+                              style: TextStyle(
+                                  color: Colors.white70,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12),
                             ),
@@ -76,37 +112,84 @@ class StudySpotDetailsSheet extends StatelessWidget {
                   ],
                 ),
 
+                const SizedBox(height: 8),
+
                 if (spot.incentive != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    spot.incentive!,
-                    style: const TextStyle(
-                      color: Colors.amberAccent,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.amber.withOpacity(0.5)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.local_offer,
+                            color: Colors.amber, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            spot.incentive!,
+                            style: const TextStyle(
+                              color: Colors.amberAccent,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                  const SizedBox(height: 16),
                 ],
 
-                const SizedBox(height: 16),
-
-                // 3. Perks
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: spot.perks.map((perk) {
-                    return Chip(
-                      label: Text(_formatPerk(perk)),
-                      backgroundColor: Colors.white10,
-                      labelStyle: const TextStyle(color: Colors.white70),
-                      avatar: Icon(_getPerkIcon(perk),
-                          size: 16, color: Colors.cyanAccent),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20)),
-                      side: BorderSide.none,
-                    );
-                  }).toList(),
-                ),
+                // 3. Perks (or Features)
+                if (spot.perks.isNotEmpty)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: spot.perks.map((perk) {
+                      return Chip(
+                        label: Text(_formatPerk(perk)),
+                        backgroundColor: Colors.white10,
+                        labelStyle: const TextStyle(color: Colors.white70),
+                        avatar: Icon(_getPerkIcon(perk),
+                            size: 16, color: Colors.cyanAccent),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
+                        side: BorderSide.none,
+                      );
+                    }).toList(),
+                  )
+                else if (!spot.isVerified)
+                  // For public spots without specific perks, show generic tags based on type
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      Chip(
+                        label: const Text("Public Access"),
+                        backgroundColor: Colors.white10,
+                        labelStyle: const TextStyle(color: Colors.white70),
+                        avatar: const Icon(Icons.door_front_door,
+                            size: 16, color: Colors.white70),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
+                        side: BorderSide.none,
+                      ),
+                      Chip(
+                        label: Text(_formatType(spot.type)),
+                        backgroundColor: Colors.white10,
+                        labelStyle: const TextStyle(color: Colors.white70),
+                        avatar: Icon(_getTypeIcon(spot.type),
+                            size: 16, color: Colors.white70),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
+                        side: BorderSide.none,
+                      ),
+                    ],
+                  ),
 
                 const SizedBox(height: 24),
 
@@ -174,6 +257,26 @@ class StudySpotDetailsSheet extends StatelessWidget {
         return Icons.landscape;
       default:
         return Icons.check_circle_outline;
+    }
+  }
+
+  String _formatType(String type) {
+    if (type.isEmpty) return 'Public Spot';
+    return type[0].toUpperCase() + type.substring(1).replaceAll('_', ' ');
+  }
+
+  IconData _getTypeIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'cafe':
+        return Icons.coffee;
+      case 'library':
+        return Icons.local_library;
+      case 'restaurant':
+        return Icons.restaurant;
+      case 'bar':
+        return Icons.local_bar;
+      default:
+        return Icons.place;
     }
   }
 }

@@ -431,7 +431,7 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
 
                 if (widget.profile.bio?.isNotEmpty == true) ...[
                   const SizedBox(height: 32),
-                  SectionHeader(title: "About"),
+                  const SectionHeader(title: "About"),
                   const SizedBox(height: 8),
                   Text(
                     widget.profile.bio!,
@@ -442,7 +442,7 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
 
                 const SizedBox(height: 32),
 
-                SectionHeader(title: "Current Classes"),
+                const SectionHeader(title: "Current Classes"),
                 const SizedBox(height: 12),
 
                 if (widget.profile.currentClasses.isEmpty)

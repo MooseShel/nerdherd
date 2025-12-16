@@ -63,7 +63,7 @@ class _ReviewsHistoryPageState extends State<ReviewsHistoryPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _reviews.isEmpty
-              ? Center(
+              ? const Center(
                   child: EmptyStateWidget(
                     icon: Icons.rate_review_outlined,
                     title: "No reviews yet",
