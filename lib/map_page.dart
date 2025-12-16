@@ -18,6 +18,7 @@ import 'notifications_page.dart';
 import 'conversations_page.dart'; // NEW
 import 'models/study_spot.dart'; // NEW
 import 'widgets/study_spot_details_sheet.dart'; // NEW
+import 'services/places_service.dart'; // NEW
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -106,17 +107,54 @@ class _MapPageState extends State<MapPage> {
 
   Future<void> _fetchStudySpots() async {
     try {
-      final data = await supabase
-          .from('study_spots')
-          .select(); // Fetches all columns including lat/long
+      // 1. Fetch Verified Spots (Supabase)
+      final supabaseFuture = supabase.from('study_spots').select();
 
-      final spots = (data as List).map((e) => StudySpot.fromJson(e)).toList();
+      // 2. Fetch General Spots (OSM) - if we have a location
+      Future<List<StudySpot>> osmFuture = Future.value([]);
+      if (_currentLocation != null) {
+        osmFuture = placesService.fetchNearbyPOIs(
+            _currentLocation!.latitude, _currentLocation!.longitude,
+            radius: 2000); // 2km radius
+      }
+
+      final results = await Future.wait<dynamic>([supabaseFuture, osmFuture]);
+
+      final verifiedData = results[0] as List<dynamic>;
+      final verifiedSpots =
+          verifiedData.map((e) => StudySpot.fromJson(e)).toList();
+
+      final generalSpots = results[1] as List<StudySpot>;
+
       setState(() {
-        _studySpots = spots;
+        _studySpots = [...verifiedSpots, ...generalSpots];
       });
       _updateMapMarkers(); // Refresh map
     } catch (e) {
       logger.error("Error fetching study spots", error: e);
+    }
+  }
+
+  // Helper for Verified vs General styling
+  CircleOptions _getSpotStyle(StudySpot spot) {
+    if (spot.isVerified) {
+      return CircleOptions(
+        geometry: LatLng(spot.latitude, spot.longitude),
+        circleColor: '#FFA500', // Gold/Orange
+        circleRadius: 12,
+        circleStrokeWidth: 2,
+        circleStrokeColor: '#FFFFFF',
+        circleOpacity: 1.0,
+      );
+    } else {
+      return CircleOptions(
+        geometry: LatLng(spot.latitude, spot.longitude),
+        circleColor: '#FFFFFF', // White
+        circleRadius: 6,
+        circleStrokeWidth: 1,
+        circleStrokeColor: '#888888',
+        circleOpacity: 0.7,
+      );
     }
   }
 
@@ -513,7 +551,8 @@ class _MapPageState extends State<MapPage> {
     }
 
     try {
-      logger.debug("📍 Updating markers for ${_peers.length} peer(s)");
+      logger.debug(
+          "📍 Updating markers for ${_peers.length} peer(s) and ${_studySpots.length} spots");
       try {
         await mapController?.clearCircles();
       } catch (e) {
@@ -524,17 +563,11 @@ class _MapPageState extends State<MapPage> {
       for (var spot in _studySpots) {
         try {
           await mapController?.addCircle(
-            CircleOptions(
-              geometry: LatLng(spot.latitude, spot.longitude),
-              circleColor: '#FFA500', // Orange
-              circleRadius: 8,
-              circleStrokeWidth: 2,
-              circleStrokeColor: '#FFFFFF',
-              circleOpacity: 0.9,
-            ),
+            _getSpotStyle(spot),
             {
               'is_study_spot': true,
               'spot_id': spot.id,
+              'is_verified': spot.isVerified,
             },
           );
         } catch (e) {
@@ -545,7 +578,6 @@ class _MapPageState extends State<MapPage> {
       for (var peer in _peers.values) {
         final geometry = peer.location;
         if (geometry == null) {
-          // logger.debug("Peer ${peer.userId} has null location"); // Keep valid noise down
           continue;
         }
 
@@ -579,11 +611,10 @@ class _MapPageState extends State<MapPage> {
         // --------------------
 
         try {
-          // logger.debug("Drawing marker at $geometry"); // Reduced noise
           await mapController?.addCircle(
             CircleOptions(
               geometry: geometry, // Safe local variable
-              circleColor: peer.isTutor ? '#FFD700' : '#00FFFF',
+              circleColor: peer.isTutor ? '#9D00FF' : '#00FFFF',
               circleRadius: 10,
               circleStrokeWidth: 2,
               circleStrokeColor: '#FFFFFF',
