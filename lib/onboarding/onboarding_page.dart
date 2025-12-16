@@ -17,25 +17,39 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   final List<Map<String, dynamic>> _pages = [
     {
+      'title': 'Welcome to Nerd Herd',
+      'description':
+          'Your ultimate campus companion. Find peers, book tutors, and ace your classes.',
+      'icon': Icons.school_rounded,
+      'color': Colors.indigoAccent,
+    },
+    {
       'title': 'Find Your Squad',
       'description':
-          'Discover tutors and study partners on the map. Connect instantly with peers nearby.',
+          'See who is studying nearby on the Map. Filter by major or class to find the perfect study buddy.',
       'icon': Icons.map_rounded,
       'color': Colors.cyanAccent,
     },
     {
-      'title': 'Book & Pay Instantly',
+      'title': 'Book Verified Tutors',
       'description':
-          'Schedule sessions and pay securely directly through the app. No more cash hassles.',
-      'icon': Icons.payment_rounded,
-      'color': Colors.greenAccent,
+          'Struggling with a concept? Book instant sessions with top-rated tutors directly through the app.',
+      'icon': Icons.verified_user_rounded,
+      'color': Colors.amberAccent,
     },
     {
-      'title': 'Academic Velocity',
+      'title': 'Manage Classes',
       'description':
-          'Track your earnings, manage your schedule, and accelerate your learning journey.',
-      'icon': Icons.rocket_launch_rounded,
-      'color': Colors.amberAccent,
+          'Add your current schedule to get matched with classmates and receive tailored study recommendations.',
+      'icon': Icons.calendar_today_rounded,
+      'color': Colors.purpleAccent,
+    },
+    {
+      'title': 'Stay Connected',
+      'description':
+          'Chat with connections, receive session reminders, and stay in the loop with push notifications.',
+      'icon': Icons.chat_bubble_rounded,
+      'color': Colors.greenAccent,
     },
   ];
 

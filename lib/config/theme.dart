@@ -35,7 +35,7 @@ class AppTheme {
         elevation: 0,
         centerTitle: true,
       ),
-      cardTheme: const CardThemeData(
+      cardTheme: const CardTheme(
         color: _surfaceDark,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -73,7 +73,7 @@ class AppTheme {
         titleTextStyle: TextStyle(
             color: Colors.black, fontSize: 20, fontWeight: FontWeight.w600),
       ),
-      cardTheme: const CardThemeData(
+      cardTheme: const CardTheme(
         color: Colors.white,
         elevation: 2,
         shadowColor: Colors.black12,

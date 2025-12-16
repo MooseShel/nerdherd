@@ -15,6 +15,7 @@ import 'services/haptic_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'widgets/map_filter_widget.dart';
 import 'notifications_page.dart';
+import 'conversations_page.dart'; // NEW
 import 'models/study_spot.dart'; // NEW
 import 'widgets/study_spot_details_sheet.dart'; // NEW
 
@@ -45,24 +46,60 @@ class _MapPageState extends State<MapPage> {
   // Optimization: Smart Broadcast
   LatLng? _lastBroadcastLocation;
   DateTime? _lastBroadcastTime;
-  int _unreadCount = 0; // Unread notifications
+  int _unreadSystemCount = 0; // Unread system notifications
+  int _unreadChatCount = 0; // Unread chat messages
   RealtimeChannel? _notificationsChannel;
+  RealtimeChannel? _messagesChannel; // NEW
 
   // Cyber/Dark Style - Using CartoDB Dark Matter (free, widely available, very dark/cyber)
   static const String _mapStyle =
       "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
+  CameraPosition? _initialPosition;
+
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    _loadInitialLocation(); // Fast load
 
     _checkLocationPermissions();
     _startLocationUpdates();
+    // ... rest of init
     _subscribeToPeers();
     _subscribeToRequests();
     _subscribeToNotifications();
+    _subscribeToMessages(); // NEW
     _fetchStudySpots(); // NEW
+  }
+
+  Future<void> _loadInitialLocation() async {
+    try {
+      final position = await Geolocator.getLastKnownPosition();
+      if (position != null) {
+        setState(() {
+          _initialPosition = CameraPosition(
+            target: LatLng(position.latitude, position.longitude),
+            zoom: 15,
+          );
+        });
+      } else {
+        // Fallback to NYC if absolutely no location found
+        setState(() {
+          _initialPosition = const CameraPosition(
+            target: LatLng(40.7128, -74.0060),
+            zoom: 14,
+          );
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _initialPosition = const CameraPosition(
+          target: LatLng(40.7128, -74.0060),
+          zoom: 14,
+        );
+      });
+    }
   }
 
   List<StudySpot> _studySpots = []; // NEW
@@ -87,36 +124,85 @@ class _MapPageState extends State<MapPage> {
     final user = supabase.auth.currentUser;
     if (user == null) return;
 
-    // Initial fetch
+    // Initial fetch for SYSTEM notifications (excluding messages)
+    // We assume 'type' != 'message' and 'chat_message'
     final count = await supabase
         .from('notifications')
         .count(CountOption.exact)
         .eq('user_id', user.id)
-        .eq('read', false);
+        .eq('read', false)
+        .neq('type', 'message')
+        .neq('type', 'chat_message');
 
-    if (mounted) setState(() => _unreadCount = count);
+    if (mounted) setState(() => _unreadSystemCount = count);
 
     // Listen
     _notificationsChannel = supabase
-        .channel('public:notifications:${user.id}') // Unique channel per user
+        .channel('public:notifications:${user.id}')
         .onPostgresChanges(
-            event: PostgresChangeEvent.all, // Insert or Update
+            event: PostgresChangeEvent.all,
             schema: 'public',
             table: 'notifications',
-            // Reliance on RLS for primary filtering, plus client-side check
             callback: (payload) async {
               final newRecord = payload.newRecord;
               if (newRecord['user_id'] != user.id) return;
-
-              logger.debug("🔔 Notification received: ${payload.eventType}");
 
               // Refresh count on any change
               final newCount = await supabase
                   .from('notifications')
                   .count(CountOption.exact)
                   .eq('user_id', user.id)
-                  .eq('read', false);
-              if (mounted) setState(() => _unreadCount = newCount);
+                  .eq('read', false)
+                  .neq('type', 'message')
+                  .neq('type', 'chat_message');
+              if (mounted) setState(() => _unreadSystemCount = newCount);
+            })
+        .subscribe();
+  }
+
+  Future<void> _subscribeToMessages() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    // Initial fetch for CHAT messages (unread)
+    final count = await supabase
+        .from('messages')
+        .count(CountOption.exact)
+        .eq('receiver_id', user.id)
+        .filter('read_at', 'is', null);
+
+    if (mounted) setState(() => _unreadChatCount = count);
+
+    // Listen for new messages or reads
+    _messagesChannel = supabase
+        .channel('public:messages:${user.id}')
+        .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'messages',
+            callback: (payload) async {
+              // We just refresh the count on any message event involving us as receiver
+              // A new message (INSERT receiver=me)
+              // A read message (UPDATE receiver=me read_at=now)
+              final newRec = payload.newRecord;
+              final oldRec = payload.oldRecord;
+
+              // Check if relevant to me
+              bool relevant = false;
+              if (newRec.isNotEmpty && newRec['receiver_id'] == user.id)
+                relevant = true;
+              // If update, check old record too (though receiver_id shouldn't change)
+              if (oldRec.isNotEmpty && oldRec['receiver_id'] == user.id)
+                relevant = true;
+
+              if (relevant) {
+                final newCount = await supabase
+                    .from('messages')
+                    .count(CountOption.exact)
+                    .eq('receiver_id', user.id)
+                    .filter('read_at', 'is', null);
+                if (mounted) setState(() => _unreadChatCount = newCount);
+              }
             })
         .subscribe();
   }
@@ -152,6 +238,7 @@ class _MapPageState extends State<MapPage> {
     _requestsSubscription?.cancel();
     _locationSubscription?.cancel();
     _notificationsChannel?.unsubscribe();
+    _messagesChannel?.unsubscribe(); // NEW
     _stopBroadcast();
     _stopSimulation();
     super.dispose();
@@ -858,16 +945,16 @@ class _MapPageState extends State<MapPage> {
       body: Stack(
         children: [
           // ... MapLibreMap ...
-          MaplibreMap(
-            onMapCreated: _onMapCreated,
-            initialCameraPosition: const CameraPosition(
-              target: LatLng(40.7128, -74.0060),
-              zoom: 14,
-            ),
-            styleString: _mapStyle,
-            myLocationEnabled: false,
-            trackCameraPosition: true,
-          ),
+          if (_initialPosition != null)
+            MaplibreMap(
+              onMapCreated: _onMapCreated,
+              initialCameraPosition: _initialPosition!,
+              styleString: _mapStyle,
+              myLocationEnabled: false,
+              trackCameraPosition: true,
+            )
+          else
+            const Center(child: CircularProgressIndicator()),
 
           // "Recenter" Button (Bottom Right)
           Positioned(
@@ -916,6 +1003,54 @@ class _MapPageState extends State<MapPage> {
                               color: isDark ? Colors.white : Colors.black87),
                 ),
                 const SizedBox(height: 12),
+                // Chat Button (NEW)
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    _buildGlassControl(
+                      isMini: true,
+                      onPressed: () {
+                        hapticService.lightImpact();
+                        Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const ConversationsPage()))
+                            .then((_) {
+                          // Refresh message count on return
+                          _subscribeToMessages();
+                        });
+                      },
+                      child: Icon(Icons.chat_bubble_outline,
+                          color: isDark ? Colors.white : Colors.black87),
+                    ),
+                    if (_unreadChatCount > 0)
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.cyanAccent,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 18,
+                            minHeight: 18,
+                          ),
+                          child: Text(
+                            '$_unreadChatCount',
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 // Summon Button (Testing)
                 _buildGlassControl(
                   isMini: true,
@@ -954,7 +1089,7 @@ class _MapPageState extends State<MapPage> {
                       child: Icon(Icons.notifications,
                           color: isDark ? Colors.white : Colors.black87),
                     ),
-                    if (_unreadCount > 0)
+                    if (_unreadSystemCount > 0)
                       Positioned(
                         right: -2,
                         top: -2,
@@ -969,7 +1104,7 @@ class _MapPageState extends State<MapPage> {
                             minHeight: 18,
                           ),
                           child: Text(
-                            '$_unreadCount',
+                            '$_unreadSystemCount',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,

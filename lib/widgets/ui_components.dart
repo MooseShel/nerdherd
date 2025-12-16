@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 export 'empty_state_widget.dart';
@@ -325,4 +326,212 @@ void showSuccessSnackBar(BuildContext context, String message) {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ),
   );
+}
+
+/// A premium glass-effect container with blur, gradient, and border.
+class GlassContainer extends StatelessWidget {
+  final Widget child;
+  final double? width;
+  final double? height;
+  final EdgeInsetsGeometry? padding;
+  final EdgeInsetsGeometry? margin;
+  final BorderRadius? borderRadius;
+  final double blur;
+  final double opacity;
+  final Color? color;
+  final Border? border;
+  final List<BoxShadow>? boxShadow;
+  final VoidCallback? onTap;
+  final AlignmentGeometry? alignment;
+
+  const GlassContainer({
+    super.key,
+    required this.child,
+    this.width,
+    this.height,
+    this.padding,
+    this.margin,
+    this.borderRadius,
+    this.blur = 15,
+    this.opacity = 0.08, // Subtle by default
+    this.color,
+    this.border,
+    this.boxShadow,
+    this.onTap,
+    this.alignment,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final effectiveRadius = borderRadius ?? BorderRadius.circular(24);
+
+    // Default glass styling
+    final effectiveColor =
+        color ?? (isDark ? Colors.white : Colors.black).withOpacity(opacity);
+
+    final effectiveBorder = border ??
+        Border.all(
+          color: (isDark ? Colors.white : Colors.black).withOpacity(0.08),
+          width: 0.5,
+        );
+
+    Widget content = Container(
+      width: width,
+      height: height,
+      padding: padding,
+      margin: margin,
+      alignment: alignment,
+      decoration: BoxDecoration(
+        color: effectiveColor,
+        borderRadius: effectiveRadius,
+        border: effectiveBorder,
+        boxShadow: boxShadow,
+      ),
+      child: child,
+    );
+
+    // Apply blur if needed
+    if (blur > 0) {
+      content = ClipRRect(
+        borderRadius: effectiveRadius,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+          child: content,
+        ),
+      );
+    } // If blur is 0, we still want the Clipped container if using default radius
+
+    if (onTap != null) {
+      return GestureDetector(
+        onTap: onTap,
+        child: content,
+      );
+    }
+
+    return content;
+  }
+}
+
+/// Standardized Primary Button (Electric Indigo gradient/solid)
+class PrimaryButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onPressed;
+  final IconData? icon;
+  final bool isLoading;
+  final bool fullWidth;
+
+  const PrimaryButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.isLoading = false,
+    this.fullWidth = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    Widget content = Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (isLoading)
+          const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.white,
+            ),
+          )
+        else ...[
+          if (icon != null) ...[Icon(icon, size: 20), const SizedBox(width: 8)],
+          Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+          ),
+        ],
+      ],
+    );
+
+    final buttonStyle = ElevatedButton.styleFrom(
+      backgroundColor: theme.primaryColor,
+      foregroundColor: Colors.white,
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+      elevation: 4,
+      shadowColor: theme.primaryColor.withOpacity(0.4),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    );
+
+    Widget button = ElevatedButton(
+      onPressed: isLoading ? null : onPressed,
+      style: buttonStyle,
+      child: content,
+    );
+
+    if (fullWidth) {
+      return SizedBox(width: double.infinity, child: button);
+    }
+    return button;
+  }
+}
+
+/// Standardized Secondary Button (Glass/Outlined style)
+class SecondaryButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onPressed;
+  final IconData? icon;
+  final bool fullWidth;
+
+  const SecondaryButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.fullWidth = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final buttonStyle = OutlinedButton.styleFrom(
+      foregroundColor: theme.textTheme.bodyMedium?.color,
+      side: BorderSide(color: theme.dividerColor.withOpacity(0.2), width: 1.5),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: (isDark ? Colors.white : Colors.black).withOpacity(0.05),
+    );
+
+    Widget content = Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (icon != null) ...[
+          Icon(icon, size: 20, color: theme.primaryColor),
+          const SizedBox(width: 8)
+        ],
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+        ),
+      ],
+    );
+
+    Widget button = OutlinedButton(
+      onPressed: onPressed,
+      style: buttonStyle,
+      child: content,
+    );
+
+    if (fullWidth) {
+      return SizedBox(width: double.infinity, child: button);
+    }
+    return button;
+  }
 }

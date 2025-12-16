@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/biometric_service.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
@@ -17,6 +18,7 @@ class _AuthPageState extends State<AuthPage> {
   bool _isLoading = false;
   bool _isLogin = true;
   bool _isTutor = false;
+  bool _isRememberMe = false; // Default off
 
   Future<void> _handleAuth() async {
     setState(() => _isLoading = true);
@@ -26,6 +28,12 @@ class _AuthPageState extends State<AuthPage> {
           email: _emailController.text,
           password: _passwordController.text,
         );
+        // Save biometric preference
+        if (_isRememberMe) {
+          await biometricService.setBiometricEnabled(true);
+        } else {
+          await biometricService.setBiometricEnabled(false);
+        }
       } else {
         await Supabase.instance.client.auth.signUp(
           email: _emailController.text,
@@ -189,7 +197,20 @@ class _AuthPageState extends State<AuthPage> {
                           icon: Icons.lock_outline,
                           obscureText: true,
                         ),
-                        if (!_isLogin) ...[
+                        if (_isLogin) ...[
+                          const SizedBox(height: 16),
+                          CheckboxListTile(
+                            title: Text("Remember Me (Biometrics)",
+                                style: theme.textTheme.bodyMedium),
+                            value: _isRememberMe,
+                            activeColor: theme.primaryColor,
+                            contentPadding: EdgeInsets.zero,
+                            controlAffinity: ListTileControlAffinity.leading,
+                            onChanged: (val) {
+                              setState(() => _isRememberMe = val ?? false);
+                            },
+                          ),
+                        ] else ...[
                           const SizedBox(height: 16),
                           _buildTextField(
                             controller: _fullNameController,
