@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/haptic_service.dart';
@@ -6,15 +7,16 @@ import 'widgets/ui_components.dart';
 import 'pay/wallet_page.dart';
 import 'admin/admin_dashboard.dart';
 import 'reviews/reviews_history_page.dart';
+import 'providers/theme_provider.dart';
 
-class SettingsPage extends StatefulWidget {
+class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
 
   @override
-  State<SettingsPage> createState() => _SettingsPageState();
+  ConsumerState<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
+class _SettingsPageState extends ConsumerState<SettingsPage> {
   final supabase = Supabase.instance.client;
   bool _ghostMode = false;
   bool _notificationsEnabled = true;
@@ -52,11 +54,78 @@ class _SettingsPageState extends State<SettingsPage> {
     await prefs.setBool(key, value);
   }
 
+  Future<void> _showThemePicker() async {
+    hapticService.mediumImpact();
+    final currentTheme =
+        ref.read(themeNotifierProvider).value ?? ThemeMode.system;
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        final theme = Theme.of(context);
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: theme.dividerColor.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text("App Theme",
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold)),
+              ),
+              _buildThemeOption(
+                  context, "System Default", ThemeMode.system, currentTheme),
+              _buildThemeOption(
+                  context, "Light Mode", ThemeMode.light, currentTheme),
+              _buildThemeOption(
+                  context, "Dark Mode", ThemeMode.dark, currentTheme),
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildThemeOption(
+      BuildContext context, String title, ThemeMode mode, ThemeMode current) {
+    final isSelected = mode == current;
+    final theme = Theme.of(context);
+
+    return ListTile(
+      title: Text(title,
+          style: TextStyle(
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected
+                ? theme.primaryColor
+                : theme.textTheme.bodyLarge?.color,
+          )),
+      trailing:
+          isSelected ? Icon(Icons.check, color: theme.primaryColor) : null,
+      onTap: () {
+        ref.read(themeNotifierProvider.notifier).setThemeMode(mode);
+        Navigator.pop(context);
+      },
+    );
+  }
+
   Future<void> _changePassword() async {
     hapticService.mediumImpact();
     final passwordController = TextEditingController();
-    // Capture theme before async gap to avoid BuildContext issues if possible,
-    // but showDialog provides a context. We will use Theme.of(context) inside builder.
 
     await showDialog(
       context: context,
@@ -100,7 +169,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   );
                   return;
                 }
-                Navigator.pop(dialogContext); // Close dialog first
+                Navigator.pop(dialogContext);
 
                 try {
                   await supabase.auth
@@ -191,6 +260,22 @@ class _SettingsPageState extends State<SettingsPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          const SectionHeader(title: 'APPEARANCE'),
+          SettingsTile(
+            icon: Icons.brightness_6,
+            title: 'App Theme',
+            subtitle: ref.watch(themeNotifierProvider).when(
+                  data: (mode) => mode == ThemeMode.system
+                      ? 'System Default'
+                      : mode == ThemeMode.light
+                          ? 'Light Mode'
+                          : 'Dark Mode',
+                  error: (_, __) => 'System Default',
+                  loading: () => 'Loading...',
+                ),
+            onTap: _showThemePicker,
+          ),
+          const SizedBox(height: 24),
           const SectionHeader(title: 'PRIVACY'),
           SettingsTile(
             icon: Icons.visibility_off,
@@ -250,7 +335,6 @@ class _SettingsPageState extends State<SettingsPage> {
             title: 'My Reviews',
             iconColor: Colors.amber,
             onTap: () {
-              // Navigation to review history
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const ReviewsHistoryPage()),
               );

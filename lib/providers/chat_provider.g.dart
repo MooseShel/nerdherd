@@ -173,7 +173,7 @@ class _TypingStatusProviderElement extends StreamProviderElement<bool>
   String get otherUserId => (origin as TypingStatusProvider).otherUserId;
 }
 
-String _$chatNotifierHash() => r'6b78c58f1445c42f2f75185de60482bdc577406d';
+String _$chatNotifierHash() => r'd2493c95a9dd72fe4a3425544bfa6b1addb883f3';
 
 abstract class _$ChatNotifier
     extends BuildlessAsyncNotifier<List<Map<String, dynamic>>> {

@@ -36,6 +36,11 @@ Access via the **Admin Panel** button in the Settings menu.
 - **Support**: Manage support tickets submitted by users.
 - **Verification**: Review and approve Tutor applications.
 
+## ⚙️ Settings & Customization
+- **App Theme**: customize the look of the app. Choose between **Light Mode**, **Dark Mode**, or **System Default**.
+- **Ghost Mode**: Toggle this to hide your location from the map while still being able to see others.
+- **Push Notifications**: meaningful controls to enable or disable alerts for requests and messages.
+
 ## 💬 Chat & Social
 - **Peer Messaging**: Tap "Connect" on a user's profile. Once accepted, you can chat.
 - **Notifications**: Check the bell icon on the map for new requests and alerts.

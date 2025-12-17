@@ -63,9 +63,11 @@ class _MapPageState extends ConsumerState<MapPage> {
   RealtimeChannel? _notificationsChannel;
   RealtimeChannel? _messagesChannel; // NEW
 
-  // Cyber/Dark Style - Using CartoDB Dark Matter (free, widely available, very dark/cyber)
-  static const String _mapStyle =
+  // Map Styles
+  static const String _darkMapStyle =
       "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+  static const String _lightMapStyle =
+      "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 
   CameraPosition? _initialPosition;
 
@@ -956,7 +958,7 @@ class _MapPageState extends ConsumerState<MapPage> {
             MaplibreMap(
               onMapCreated: _onMapCreated,
               initialCameraPosition: _initialPosition!,
-              styleString: _mapStyle,
+              styleString: isDark ? _darkMapStyle : _lightMapStyle,
               myLocationEnabled: false,
               trackCameraPosition: true,
               onCameraIdle: _onCameraIdle,

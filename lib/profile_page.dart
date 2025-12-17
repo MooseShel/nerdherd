@@ -9,6 +9,7 @@ import 'settings_page.dart';
 import 'schedule_page.dart';
 import 'services/logger_service.dart';
 import 'conversations_page.dart';
+import 'university/university_selection_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -466,10 +467,35 @@ class _ProfilePageState extends State<ProfilePage> {
                       hint: 'e.g. Studying Calculus'),
                   const SizedBox(height: 20),
 
-                  _buildLabel(context, 'Current Classes (comma separated)'),
-                  _buildTextField(context,
-                      controller: _classesController,
-                      hint: 'e.g. CS101, MATH200'),
+                  _buildLabel(context, 'Current Classes'),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                          context,
+                          controller: _classesController,
+                          hint: 'No classes imported',
+                          readOnly: true,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.school),
+                        color: theme.primaryColor,
+                        tooltip: 'Import from University',
+                        onPressed: () async {
+                          // Navigate to University Selection
+                          await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      const UniversitySelectionPage()));
+                          // Refresh profile on return to seeing updated classes
+                          _loadProfile();
+                        },
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 20),
 
                   // Avatar URL (Hidden or Optional Manual Input)
@@ -629,10 +655,12 @@ class _ProfilePageState extends State<ProfilePage> {
       required String hint,
       TextInputType? keyboardType,
       int maxLines = 1,
+      bool readOnly = false,
       Function(String)? onChanged}) {
     final theme = Theme.of(context);
     return TextField(
       controller: controller,
+      readOnly: readOnly,
       keyboardType: keyboardType,
       maxLines: maxLines,
       onChanged: onChanged,

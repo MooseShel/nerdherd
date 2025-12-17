@@ -14,6 +14,8 @@ import 'services/notification_service.dart';
 import 'config/navigation.dart';
 import 'config/theme.dart';
 
+import 'providers/theme_provider.dart';
+
 Future<void> main() async {
   runZonedGuarded<Future<void>>(() async {
     WidgetsFlutterBinding.ensureInitialized();
@@ -67,7 +69,7 @@ Future<void> main() async {
   });
 }
 
-class NerdHerdApp extends StatelessWidget {
+class NerdHerdApp extends ConsumerWidget {
   final bool hasSeenOnboarding;
 
   const NerdHerdApp({
@@ -76,10 +78,13 @@ class NerdHerdApp extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeModeAsync = ref.watch(themeNotifierProvider);
+
     return MaterialApp(
       title: 'Nerd Herd',
-      themeMode: ThemeMode.system, // Use system settings
+      themeMode: themeModeAsync.value ??
+          ThemeMode.system, // Default to system if loading
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       home: hasSeenOnboarding ? const AuthGate() : const OnboardingPage(),

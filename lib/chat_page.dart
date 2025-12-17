@@ -47,6 +47,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   void _onScroll() {
+    // Determine if we are near the "end" (which is actually the top/start in reverse mode)
+    // maxScrollExtent in reverse list is the top of the content
     if (_scrollController.hasClients &&
         _scrollController.position.pixels >=
             _scrollController.position.maxScrollExtent * 0.9 &&
@@ -91,6 +93,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     if (content.isEmpty && imageUrl == null) return;
 
     try {
+      // Optimistic UI update handled by Riverpod subscription usually,
+      // preventing double submission
       await ref
           .read(chatNotifierProvider(widget.otherUser.userId).notifier)
           .sendMessage(
@@ -102,19 +106,13 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       _messageController.clear();
       _updateTypingStatus(false);
 
-      // Auto-scroll to bottom after sending
+      // Navigate to bottom (start of list in reverse)
       if (_scrollController.hasClients) {
-        // Since list is top-to-bottom, bottom is maxScrollExtent.
-        // Wait for build?
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_scrollController.hasClients) {
-            _scrollController.animateTo(
-              _scrollController.position.maxScrollExtent,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOut,
-            );
-          }
-        });
+        _scrollController.animateTo(
+          0.0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
       }
     } catch (e) {
       logger.error("Error sending message", error: e);
@@ -133,10 +131,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
       setState(() => _isUploading = true);
 
-      // Upload via Service - Accessing ChatService directly for image upload helper if needed
-      // Or we can add uploadImage to notifier.
-      // Current notifier doesn't have uploadImage.
-      // Let's access ChatService via provider directly for this operation.
       final service = ref.read(chatServiceProvider);
 
       final bytes = await image.readAsBytes();
@@ -176,6 +170,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     // 1. Messages State
     final messagesAsync =
         ref.watch(chatNotifierProvider(widget.otherUser.userId));
@@ -189,18 +186,18 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     final myId = ref.watch(authStateProvider).value?.id;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor ??
-            Theme.of(context).scaffoldBackgroundColor,
-        foregroundColor: Colors.white,
+        backgroundColor:
+            theme.appBarTheme.backgroundColor ?? theme.scaffoldBackgroundColor,
+        foregroundColor: theme.iconTheme.color,
         title: Row(
           children: [
             Hero(
               tag: 'avatar_${widget.otherUser.userId}',
               child: CircleAvatar(
                 radius: 18,
-                backgroundColor: Colors.black54,
+                backgroundColor: colorScheme.surfaceContainerHighest,
                 backgroundImage: widget.otherUser.avatarUrl != null
                     ? CachedNetworkImageProvider(widget.otherUser.avatarUrl!)
                     : null,
@@ -209,7 +206,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                         widget.otherUser.isTutor ? Icons.school : Icons.person,
                         color: widget.otherUser.isTutor
                             ? Colors.amber
-                            : Colors.cyanAccent,
+                            : colorScheme.primary,
                         size: 20,
                       )
                     : null,
@@ -224,16 +221,15 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                     widget.otherUser.fullName ??
                         widget.otherUser.intentTag ??
                         "User",
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold),
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   Text(
                     widget.otherUser.isTutor ? "Tutor" : "Student",
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: theme.textTheme.bodySmall?.copyWith(
                       color: widget.otherUser.isTutor
-                          ? Colors.amberAccent
-                          : Colors.cyanAccent,
+                          ? Colors.amber
+                          : colorScheme.secondary,
                     ),
                   ),
                 ],
@@ -255,7 +251,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       child: messagesAsync.when(
                         data: (messages) {
                           if (messages.isEmpty) {
-                            return const Center(
+                            return Center(
                               child: EmptyStateWidget(
                                 icon: Icons.chat_bubble_outline_rounded,
                                 title: "No messages yet",
@@ -264,151 +260,142 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                               ),
                             );
                           }
-                          return Column(
-                            children: [
-                              if (_isLoadingMore)
-                                const Padding(
-                                  padding: EdgeInsets.all(8.0),
-                                  child: SizedBox(
-                                    width: 20,
-                                    height: 20,
+                          return ListView.builder(
+                            reverse: true, // Show newest at the bottom
+                            controller: _scrollController,
+                            padding: const EdgeInsets.all(16),
+                            itemCount:
+                                messages.length + (_isLoadingMore ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index == messages.length) {
+                                return const Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.all(8.0),
                                     child: CircularProgressIndicator(
                                         strokeWidth: 2),
                                   ),
-                                ),
-                              Expanded(
-                                child: ListView.builder(
-                                  controller: _scrollController,
-                                  padding: const EdgeInsets.all(16),
-                                  itemCount: messages.length,
-                                  itemBuilder: (context, index) {
-                                    final msg = messages[index];
-                                    final isMine = msg['sender_id'] == myId;
-                                    final timestamp =
-                                        DateTime.tryParse(msg['created_at']) ??
-                                            DateTime.now();
-                                    final messageType =
-                                        msg['message_type'] ?? 'text';
-                                    final mediaUrl = msg['media_url'];
-                                    final readAt = msg['read_at'];
+                                );
+                              }
 
-                                    return Align(
-                                      alignment: isMine
-                                          ? Alignment.centerRight
-                                          : Alignment.centerLeft,
-                                      child: Container(
-                                        margin:
-                                            const EdgeInsets.only(bottom: 12),
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 16, vertical: 10),
-                                        constraints: BoxConstraints(
-                                          maxWidth: min(
-                                              600,
-                                              MediaQuery.of(context)
-                                                      .size
-                                                      .width *
-                                                  0.7),
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: isMine
-                                              ? Colors.cyanAccent
-                                                  .withOpacity(0.2)
-                                              : Colors.white.withOpacity(0.05),
-                                          border: Border.all(
-                                            color: isMine
-                                                ? Colors.cyanAccent
-                                                    .withOpacity(0.5)
-                                                : Colors.white24,
-                                          ),
+                              final msg = messages[index];
+                              final isMine = msg['sender_id'] == myId;
+                              final timestamp =
+                                  DateTime.tryParse(msg['created_at']) ??
+                                      DateTime.now();
+                              final messageType = msg['message_type'] ?? 'text';
+                              final mediaUrl = msg['media_url'];
+                              final readAt = msg['read_at'];
+
+                              return Align(
+                                alignment: isMine
+                                    ? Alignment.centerRight
+                                    : Alignment.centerLeft,
+                                child: Container(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 10),
+                                  constraints: BoxConstraints(
+                                    maxWidth: min(
+                                        600,
+                                        MediaQuery.of(context).size.width *
+                                            0.7),
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isMine
+                                        ? colorScheme.primaryContainer
+                                        : colorScheme.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: isMine
+                                        ? CrossAxisAlignment.end
+                                        : CrossAxisAlignment.start,
+                                    children: [
+                                      // Image if present
+                                      if (messageType == 'image' &&
+                                          mediaUrl != null) ...[
+                                        ClipRRect(
                                           borderRadius:
-                                              BorderRadius.circular(16),
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment: isMine
-                                              ? CrossAxisAlignment.end
-                                              : CrossAxisAlignment.start,
-                                          children: [
-                                            // Image if present
-                                            if (messageType == 'image' &&
-                                                mediaUrl != null) ...[
-                                              ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                                child: CachedNetworkImage(
-                                                  imageUrl: mediaUrl,
-                                                  width: 200,
-                                                  fit: BoxFit.cover,
-                                                  placeholder: (context, url) =>
-                                                      Container(
-                                                    width: 200,
-                                                    height: 150,
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .surface
-                                                        .withOpacity(0.1),
-                                                    child: const Center(
-                                                        child:
-                                                            CircularProgressIndicator()),
-                                                  ),
-                                                  errorWidget:
-                                                      (context, url, error) =>
-                                                          const Icon(
-                                                    Icons.broken_image,
-                                                    color: Colors.white54,
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                            ],
-                                            // Text content
-                                            Text(
-                                              msg['content'] ?? '',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 15,
-                                              ),
+                                              BorderRadius.circular(8),
+                                          child: CachedNetworkImage(
+                                            imageUrl: mediaUrl,
+                                            width: 200,
+                                            fit: BoxFit.cover,
+                                            placeholder: (context, url) =>
+                                                Container(
+                                              width: 200,
+                                              height: 150,
+                                              color: colorScheme.surface
+                                                  .withOpacity(0.1),
+                                              child: const Center(
+                                                  child:
+                                                      CircularProgressIndicator()),
                                             ),
-                                            const SizedBox(height: 4),
-                                            // Timestamp and read receipt
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Text(
-                                                  "${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}",
-                                                  style: const TextStyle(
-                                                    color: Colors.white38,
-                                                    fontSize: 11,
-                                                  ),
-                                                ),
-                                                if (isMine) ...[
-                                                  const SizedBox(width: 4),
-                                                  Icon(
-                                                    readAt != null
-                                                        ? Icons.done_all
-                                                        : Icons.done,
-                                                    size: 14,
-                                                    color: readAt != null
-                                                        ? Colors.cyanAccent
-                                                        : Colors.white38,
-                                                  ),
-                                                ],
-                                              ],
+                                            errorWidget:
+                                                (context, url, error) => Icon(
+                                              Icons.broken_image,
+                                              color: colorScheme.error,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                      ],
+                                      // Text content
+                                      if ((msg['content'] ?? '').isNotEmpty)
+                                        Text(
+                                          msg['content'] ?? '',
+                                          style: TextStyle(
+                                            color: isMine
+                                                ? colorScheme.onPrimaryContainer
+                                                : colorScheme.onSurface,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                      const SizedBox(height: 4),
+                                      // Timestamp and read receipt
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            "${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}",
+                                            style: TextStyle(
+                                              color: isMine
+                                                  ? colorScheme
+                                                      .onPrimaryContainer
+                                                      .withOpacity(0.6)
+                                                  : colorScheme
+                                                      .onSurfaceVariant,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                          if (isMine) ...[
+                                            const SizedBox(width: 4),
+                                            Icon(
+                                              readAt != null
+                                                  ? Icons.done_all
+                                                  : Icons.done,
+                                              size: 14,
+                                              color: readAt != null
+                                                  ? colorScheme.primary
+                                                  : colorScheme
+                                                      .onPrimaryContainer
+                                                      .withOpacity(0.6),
                                             ),
                                           ],
-                                        ),
+                                        ],
                                       ),
-                                    );
-                                  },
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                              );
+                            },
                           );
                         },
                         loading: () =>
                             const Center(child: CircularProgressIndicator()),
                         error: (err, stack) => Center(
                           child: Text("Error: $err",
-                              style: const TextStyle(color: Colors.red)),
+                              style: TextStyle(color: colorScheme.error)),
                         ),
                       ),
                     ),
@@ -423,7 +410,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                             children: [
                               CircleAvatar(
                                 radius: 12,
-                                backgroundColor: Colors.black54,
+                                backgroundColor:
+                                    colorScheme.surfaceContainerHighest,
                                 backgroundImage:
                                     widget.otherUser.avatarUrl != null
                                         ? CachedNetworkImageProvider(
@@ -435,17 +423,18 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 12, vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.05),
+                                  color: colorScheme.surfaceContainerHighest,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const Row(
+                                child: Row(
                                   children: [
                                     Text(
                                       'typing',
                                       style: TextStyle(
-                                          color: Colors.white54, fontSize: 12),
+                                          color: colorScheme.onSurfaceVariant,
+                                          fontSize: 12),
                                     ),
-                                    SizedBox(width: 4),
+                                    const SizedBox(width: 4),
                                     SizedBox(
                                       width: 12,
                                       height: 12,
@@ -453,7 +442,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                                         strokeWidth: 2,
                                         valueColor:
                                             AlwaysStoppedAnimation<Color>(
-                                                Colors.cyanAccent),
+                                                colorScheme.primary),
                                       ),
                                     ),
                                   ],
@@ -473,20 +462,20 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: theme.scaffoldBackgroundColor, // or surface logic
               border: Border(
-                top: BorderSide(color: Colors.white.withOpacity(0.1)),
+                top: BorderSide(color: theme.dividerColor.withOpacity(0.1)),
               ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (_isUploading)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
                     child: LinearProgressIndicator(
                       backgroundColor: Colors.transparent,
-                      color: Colors.cyanAccent,
+                      color: colorScheme.primary,
                       minHeight: 2,
                     ),
                   ),
@@ -494,19 +483,20 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   children: [
                     // Image picker button
                     IconButton(
-                      icon: const Icon(Icons.image, color: Colors.cyanAccent),
+                      icon: Icon(Icons.image, color: colorScheme.primary),
                       onPressed: _pickAndSendImage,
                     ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: TextField(
                         controller: _messageController,
-                        style: const TextStyle(color: Colors.white),
+                        style: TextStyle(color: colorScheme.onSurface),
                         decoration: InputDecoration(
                           hintText: "Type a message...",
-                          hintStyle: const TextStyle(color: Colors.white38),
+                          hintStyle:
+                              TextStyle(color: colorScheme.onSurfaceVariant),
                           filled: true,
-                          fillColor: Colors.white.withOpacity(0.05),
+                          fillColor: colorScheme.surfaceContainerHighest,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(24),
                             borderSide: BorderSide.none,
@@ -520,12 +510,12 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                     ),
                     const SizedBox(width: 12),
                     Container(
-                      decoration: const BoxDecoration(
-                        color: Colors.cyanAccent,
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary,
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.send, color: Colors.black),
+                        icon: Icon(Icons.send, color: colorScheme.onPrimary),
                         onPressed: () => _sendMessage(),
                       ),
                     ),

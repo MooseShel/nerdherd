@@ -33,7 +33,8 @@ class ChatNotifier extends _$ChatNotifier {
         final newMsg = payload.newRecord;
         // Check if already exists?
         if (!currentList.any((m) => m['id'] == newMsg['id'])) {
-          state = AsyncValue.data([...currentList, newMsg]);
+          // Newest first: Prepend
+          state = AsyncValue.data([newMsg, ...currentList]);
         }
       } else if (payload.eventType == PostgresChangeEvent.update) {
         final newMsg = payload.newRecord;
@@ -51,8 +52,9 @@ class ChatNotifier extends _$ChatNotifier {
 
     // Initial Fetch (20 items)
     final messages = await service.fetchMessages(myId, otherUserId, 20, 0);
-    // Service returns Newest First. We want Oldest First for UI.
-    return messages.reversed.toList();
+    // Service returns Newest First.
+    // We want Newest First for Reversed ListView.
+    return messages;
   }
 
   Future<void> loadMore() async {
@@ -61,21 +63,6 @@ class ChatNotifier extends _$ChatNotifier {
 
     final currentList = state.value!;
     final offset = currentList.length;
-    final otherUserId =
-        this.otherUserId; // Family argument available as property? No?
-    // Wait, Riverpod Generator passes arguments to build, but are they available in class?
-    // Yes, for family notifiers, arguments are available as fields if we use generated class?
-    // Actually, `otherUserId` is the argument.
-    // In @riverpod class, the arguments are passed to build.
-    // To access them in other methods, we typically store them or use `arg`.
-    // Generator creates `this.otherUserId`?
-    // Let's check docs or common pattern.
-    // Usually we save it in build or it's available.
-    // Riverpod 2: "The arguments of the method are available as properties of the object."
-    // So `otherUserId` should be available.
-
-    // Prevent double loading?
-    // We can't easily check loading state inside notifier unless we set it.
 
     final service = ref.read(chatServiceProvider);
     try {
@@ -83,11 +70,8 @@ class ChatNotifier extends _$ChatNotifier {
           await service.fetchMessages(myId, otherUserId, 20, offset);
       if (olderMessages.isNotEmpty) {
         // Older messages are Newest -> Oldest in that page.
-        // Reversed -> Oldest -> Newest.
-        // But these are older than currentList[0].
-        // So we prepend reversed list.
-        final reversedOlder = olderMessages.reversed.toList();
-        state = AsyncValue.data([...reversedOlder, ...currentList]);
+        // We append them to the end of the list (which is the top of the reversed ListView)
+        state = AsyncValue.data([...currentList, ...olderMessages]);
       }
     } catch (e) {
       // Handle error (maybe toast via callback or separate error state)
