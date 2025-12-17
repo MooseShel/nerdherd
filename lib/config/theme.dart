@@ -35,12 +35,6 @@ class AppTheme {
         elevation: 0,
         centerTitle: true,
       ),
-      cardTheme: const CardThemeData(
-        color: _surfaceDark,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(16))),
-      ),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
           TargetPlatform.android: CupertinoPageTransitionsBuilder(),
@@ -72,13 +66,6 @@ class AppTheme {
         iconTheme: IconThemeData(color: Colors.black),
         titleTextStyle: TextStyle(
             color: Colors.black, fontSize: 20, fontWeight: FontWeight.w600),
-      ),
-      cardTheme: const CardThemeData(
-        color: Colors.white,
-        elevation: 2,
-        shadowColor: Colors.black12,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(16))),
       ),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
