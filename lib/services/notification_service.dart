@@ -1,3 +1,4 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart'; // For MaterialPageRoute
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,6 +7,15 @@ import '../config/navigation.dart'; // For navigatorKey
 import '../chat_page.dart';
 import '../requests_page.dart'; // For RequestsPage navigation
 import '../models/user_profile.dart';
+
+// Top-level background handler
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // If you're going to use other Firebase services in the background, such as Firestore,
+  // make sure you call `initializeApp` before using other Firebase services.
+  // await Firebase.initializeApp();
+  print("Handling a background message: ${message.messageId}");
+}
 
 /// Service to handle local notifications and real-time alerts.
 class NotificationService {
@@ -16,6 +26,8 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
   final supabase = Supabase.instance.client;
+  // REMOVED: final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  // We access instance lazily to avoid crashes if Firebase init failed.
 
   bool _initialized = false;
   RealtimeChannel? _notificationChannel;
@@ -23,6 +35,8 @@ class NotificationService {
   /// Initialize the notification service
   Future<void> initialize() async {
     if (_initialized) return;
+
+    // Set background handler - moved to _initFCM to be safe
 
     // Android initialization settings
     const androidSettings =
@@ -40,17 +54,114 @@ class NotificationService {
       iOS: iosSettings,
     );
 
-    // Initialize
+    // Initialize Local Notifications
     await _notifications.initialize(
       initSettings,
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
-    // Request permissions
+    // Request permissions (Local + FCM)
     await _requestPermissions();
+
+    // Init FCM
+    await _initFCM();
 
     _initialized = true;
     logger.info('📬 Notification service initialized');
+  }
+
+  /// Initialize Firebase Cloud Messaging
+  Future<void> _initFCM() async {
+    try {
+      // Lazy access - will throw here if Firebase.initializeApp failed, but we catch it.
+      final messaging = FirebaseMessaging.instance;
+
+      // 1. Request Permission
+      final settings = await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      );
+
+      logger.info('User granted permission: ${settings.authorizationStatus}');
+
+      // 2. Get Token
+      // On iOS, we need to wait for APNs token first
+      /* 
+      if (Platform.isIOS) {
+        final apnsToken = await messaging.getAPNSToken();
+        if (apnsToken == null) {
+           // wait or retry...
+        }
+      } 
+      */
+
+      final fcmToken = await messaging.getToken();
+      logger.info('FCM Token: $fcmToken');
+
+      if (fcmToken != null) {
+        await _saveTokenToDatabase(fcmToken);
+      }
+
+      // 3. Listen for token refreshes
+      messaging.onTokenRefresh.listen((newToken) {
+        _saveTokenToDatabase(newToken);
+      });
+
+      // 4. Foreground Message Handler
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        logger.info('Got a message whilst in the foreground!');
+        logger.info('Message data: ${message.data}');
+
+        if (message.notification != null) {
+          logger.info(
+              'Message also contained a notification: ${message.notification}');
+
+          // Show local notification using existing logic
+          // We assume the payload 'type' is passed in data for navigation
+          final type = message.data['type'] ?? 'message';
+
+          _showNotification(
+            message.messageId ?? DateTime.now().toString(),
+            type,
+            message.notification!.title ?? 'New Notification',
+            message.notification!.body ?? '',
+            message.data,
+          );
+        }
+      });
+
+      // Set background handler (needs to be static or top-level)
+      FirebaseMessaging.onBackgroundMessage(
+          _firebaseMessagingBackgroundHandler);
+    } catch (e) {
+      logger.error(
+          'Error initializing FCM (likely due to missing config or Web/Emulator environment)',
+          error: e);
+    }
+  }
+
+  /// Save FCM token to Supabase profiles
+  Future<void> _saveTokenToDatabase(String token) async {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      // Call the RPC function we created
+      await supabase.rpc('update_fcm_token', params: {'token': token});
+      logger.info('✅ FCM Token saved to database');
+    } catch (e) {
+      logger.error('Error saving FCM token', error: e);
+      // Fallback: Try direct update if RPC fails (though RPC is preferred for security)
+      try {
+        await supabase
+            .from('profiles')
+            .update({'fcm_token': token}).eq('user_id', userId);
+      } catch (e2) {
+        logger.error('Fallback update also failed', error: e2);
+      }
+    }
   }
 
   /// Request notification permissions

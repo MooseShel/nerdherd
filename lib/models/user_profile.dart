@@ -52,6 +52,9 @@ class UserProfile {
   /// Whether the user is banned.
   final bool isBanned;
 
+  /// Whether the tutor is verified by admin.
+  final bool isVerifiedTutor;
+
   /// Wallet balance of the user.
   final double walletBalance;
 
@@ -59,6 +62,7 @@ class UserProfile {
     required this.userId,
     this.universityId,
     this.isTutor = false,
+    this.isVerifiedTutor = false,
     this.currentClasses = const [],
     this.intentTag,
     this.fullName,
@@ -89,6 +93,7 @@ class UserProfile {
       userId: json['user_id'],
       universityId: json['university_id'],
       isTutor: json['is_tutor'] ?? false,
+      isVerifiedTutor: json['is_verified_tutor'] ?? false,
       currentClasses: List<String>.from(json['current_classes'] ?? []),
       intentTag: json['intent_tag'],
       fullName: json['full_name'],
@@ -115,6 +120,7 @@ class UserProfile {
       'user_id': userId,
       'university_id': universityId,
       'is_tutor': isTutor,
+      'is_verified_tutor': isVerifiedTutor,
       'current_classes': currentClasses,
       'intent_tag': intentTag,
       'full_name': fullName,

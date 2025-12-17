@@ -10,7 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   supabase_flutter: ^2.6.0
-  maplibre_gl: ^0.19.0 # Compatible with Dart 3.5
+  maplibre_gl: ^0.24.1 # Compatible with Dart 3.5
   geolocator: ^10.1.0
   google_fonts: ^6.1.0 # For the "modern typography" requirement
   image_picker: ^1.0.4
@@ -23,8 +23,11 @@ dependencies:
   intl: ^0.20.2
   flutter_animate: ^4.5.0
   local_auth: ^2.1.6
-  flutter_secure_storage: ^9.0.0
+  flutter_secure_storage: ^10.0.0
   http: ^1.2.0
+  fl_chart: ^0.71.0
+  firebase_core: ^4.3.0
+  firebase_messaging: ^16.1.0
 
 dev_dependencies:
   flutter_test:

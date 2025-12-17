@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'rating_dialog.dart';
@@ -9,7 +8,7 @@ import '../profile_page.dart';
 import '../chat_page.dart';
 import '../services/logger_service.dart';
 import '../services/haptic_service.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+
 import 'ui_components.dart';
 
 class GlassProfileDrawer extends StatefulWidget {
@@ -225,6 +224,62 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
     }
   }
 
+  Future<void> _reportUser() async {
+    if (currentUser == null) return;
+
+    final reasonController = TextEditingController();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Report ${widget.profile.fullName ?? "User"}?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Please describe the issue:'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: reasonController,
+              decoration:
+                  const InputDecoration(hintText: 'Spam, harassment, etc.'),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('REPORT'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && reasonController.text.isNotEmpty) {
+      try {
+        await supabase.from('reports').insert({
+          'reporter_id': currentUser!.id,
+          'reported_id': widget.profile.userId,
+          'reason': reasonController.text,
+          'status': 'pending',
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Report submitted. We will investigate.'),
+              backgroundColor: Colors.orange));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Error: $e')));
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isMe = currentUser?.id == widget.profile.userId;
@@ -235,31 +290,30 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       blur: 20,
       opacity: isDark
-          ? 0.6
-          : 0.95, // High opacity in light mode to prevent blending with map
-      color: theme.cardTheme.color, // Use theme card color as base
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
+          ? 0.9 // Higher opacity for legibility
+          : 0.95,
+      color: theme.cardTheme.color,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Drag Handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 5,
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white30 : Colors.black26,
+                borderRadius: BorderRadius.circular(2.5),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Drag Handle
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 5,
-                    margin: const EdgeInsets.only(bottom: 24),
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white30 : Colors.black26,
-                      borderRadius: BorderRadius.circular(2.5),
-                    ),
-                  ),
-                ),
-
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -409,13 +463,17 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                           fontWeight: FontWeight.bold,
                                           fontSize: 15),
                                     ),
-                                    Text(
-                                      "(${widget.profile.reviewCount ?? 0} reviews)",
-                                      style: TextStyle(
-                                        color: theme.textTheme.bodySmall?.color
-                                            ?.withOpacity(0.6),
-                                        fontSize: 13,
-                                        decoration: TextDecoration.underline,
+                                    Flexible(
+                                      child: Text(
+                                        "(${widget.profile.reviewCount ?? 0} reviews)",
+                                        style: TextStyle(
+                                          color: theme
+                                              .textTheme.bodySmall?.color
+                                              ?.withOpacity(0.6),
+                                          fontSize: 13,
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ],
@@ -442,6 +500,19 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
 
                 const SizedBox(height: 32),
 
+                // Report Button
+                if (!isMe)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: _reportUser,
+                      icon: const Icon(Icons.flag_outlined,
+                          size: 18, color: Colors.grey),
+                      label: const Text('Report User',
+                          style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    ),
+                  ),
+
                 const SectionHeader(title: "Current Classes"),
                 const SizedBox(height: 12),
 
@@ -459,10 +530,15 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                           horizontal: 16, vertical: 10),
                       borderRadius: BorderRadius.circular(20),
                       color: theme.cardColor.withOpacity(0.5),
-                      child: Text(
-                        cls,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 300),
+                        // Constraint prevents massive chip overflow
+                        child: Text(
+                          cls,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     );
@@ -601,13 +677,11 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                     },
                   ),
                 ],
-              ]
-                  .animate(interval: 50.ms)
-                  .fade(duration: 400.ms)
-                  .slideY(begin: 0.1, end: 0, curve: Curves.easeOutQuart),
+                const SizedBox(height: 24),
+              ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }

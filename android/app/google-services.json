@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "340047536816",
+    "project_id": "nerdherd-719d8",
+    "storage_bucket": "nerdherd-719d8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:340047536816:android:e793cf3aaed9d735285175",
+        "android_client_info": {
+          "package_name": "com.nerdherd.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZk_BtalHm1kTcgmFj1LvzwO-4TiLZ4i8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

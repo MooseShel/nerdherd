@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,12 +18,23 @@ Future<void> main() async {
   runZonedGuarded<Future<void>>(() async {
     WidgetsFlutterBinding.ensureInitialized();
 
-    // Load configuration from .env file
-    await AppConfig.load();
-
-    // Initialize logger
+    // Initialize logger first to catch startup errors
     logger.initialize();
     logger.info('🚀 Nerd Herd starting up...');
+
+    // Initialize Firebase (Skip on Web to avoid startup delay/timeout)
+    if (!kIsWeb) {
+      try {
+        await Firebase.initializeApp();
+      } catch (e) {
+        logger.error(
+            'Failed to initialize Firebase (Warning: Push notifications may not work)',
+            error: e);
+      }
+    }
+
+    // Load configuration from .env file
+    await AppConfig.load();
 
     // Initialize Supabase with config
     await Supabase.initialize(
@@ -66,7 +79,7 @@ class NerdHerdApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Nerd Herd',
-      themeMode: ThemeMode.dark, // Default to dark for now
+      themeMode: ThemeMode.system, // Use system settings
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       home: hasSeenOnboarding ? const AuthGate() : const OnboardingPage(),

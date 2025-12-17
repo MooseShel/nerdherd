@@ -253,6 +253,71 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  Future<void> _showHelpDialog() async {
+    final subjectController = TextEditingController();
+    final messageController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Help Center'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('How can we help you today?'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: subjectController,
+              decoration: const InputDecoration(
+                  labelText: 'Subject', hintText: 'Bug, Billing, etc.'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: messageController,
+              decoration: const InputDecoration(
+                  labelText: 'Message', hintText: 'Describe your issue...'),
+              maxLines: 4,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).primaryColor,
+                foregroundColor: Colors.white),
+            child: const Text('Submit Ticket'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true &&
+        subjectController.text.isNotEmpty &&
+        messageController.text.isNotEmpty) {
+      final user = supabase.auth.currentUser;
+      if (user == null) return;
+
+      try {
+        await supabase.from('support_tickets').insert({
+          'user_id': user.id,
+          'subject': subjectController.text.trim(),
+          'message': messageController.text.trim(),
+          'status': 'open',
+        });
+        if (mounted)
+          _showSnack('Support ticket submitted! We will contact you soon.',
+              isError: false);
+      } catch (e) {
+        if (mounted) _showSnack('Error submitting ticket: $e', isError: true);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -517,6 +582,16 @@ class _ProfilePageState extends State<ProfilePage> {
                             builder: (context) => const SchedulePage()),
                       );
                     },
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Help Center Button
+                  _buildMenuButton(
+                    context,
+                    icon: Icons.help_outline,
+                    label: "Help Center",
+                    onTap: _showHelpDialog,
                   ),
 
                   const SizedBox(height: 32),

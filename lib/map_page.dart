@@ -11,6 +11,7 @@ import 'widgets/glass_profile_drawer.dart';
 import 'profile_page.dart';
 import 'services/logger_service.dart';
 import 'services/haptic_service.dart';
+import 'package:flutter/foundation.dart'; // For kIsWeb
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'widgets/map_filter_widget.dart';
@@ -72,15 +73,57 @@ class _MapPageState extends State<MapPage> {
     _subscribeToNotifications();
     _subscribeToMessages(); // NEW
     _fetchStudySpots(); // NEW
+    _checkForAnnouncements(); // NEW
+  }
+
+  Future<void> _checkForAnnouncements() async {
+    try {
+      final response = await supabase
+          .from('announcements')
+          .select()
+          .eq('is_active', true)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      if (response != null && mounted) {
+        // Show banner
+        ScaffoldMessenger.of(context).showMaterialBanner(
+          MaterialBanner(
+            content: Text(
+              '📢 ${response['title']}: ${response['message']}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: Colors.amberAccent,
+            actions: [
+              TextButton(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
+                },
+                child: const Text('DISMISS'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      // sticky error ignored for announcements
+    }
   }
 
   Future<void> _loadInitialLocation() async {
     try {
-      final position = await Geolocator.getLastKnownPosition();
+      // getLastKnownPosition is not supported on Web
+      // We skip this check on web to avoid the PlatformException
+      Position? position;
+      if (!kIsWeb) {
+        position = await Geolocator.getLastKnownPosition();
+      }
+
       if (position != null) {
         setState(() {
           _initialPosition = CameraPosition(
-            target: LatLng(position.latitude, position.longitude),
+            target: LatLng(position!.latitude, position!.longitude),
             zoom: 15,
           );
         });
@@ -107,29 +150,36 @@ class _MapPageState extends State<MapPage> {
 
   Future<void> _fetchStudySpots() async {
     try {
-      // 1. Fetch Verified Spots (Supabase)
-      final supabaseFuture = supabase.from('study_spots').select();
+      // OPTIMIZATION: Load Verified Spots FIRST (Fast)
+      final verifiedData = await supabase.from('study_spots').select();
+      final verifiedSpots =
+          (verifiedData as List).map((e) => StudySpot.fromJson(e)).toList();
 
-      // 2. Fetch General Spots (OSM) - if we have a location
-      Future<List<StudySpot>> osmFuture = Future.value([]);
-      if (_currentLocation != null) {
-        osmFuture = placesService.fetchNearbyPOIs(
-            _currentLocation!.latitude, _currentLocation!.longitude,
-            radius: 2000); // 2km radius
+      if (mounted) {
+        setState(() {
+          _studySpots = verifiedSpots; // Show these immediately
+        });
+        _updateMapMarkers();
       }
 
-      final results = await Future.wait<dynamic>([supabaseFuture, osmFuture]);
+      // Then Load OSM Spots (Slow)
+      if (_currentLocation != null) {
+        try {
+          final osmSpots = await placesService.fetchNearbyPOIs(
+              _currentLocation!.latitude, _currentLocation!.longitude,
+              radius: 2000); // 2km radius
 
-      final verifiedData = results[0] as List<dynamic>;
-      final verifiedSpots =
-          verifiedData.map((e) => StudySpot.fromJson(e)).toList();
-
-      final generalSpots = results[1] as List<StudySpot>;
-
-      setState(() {
-        _studySpots = [...verifiedSpots, ...generalSpots];
-      });
-      _updateMapMarkers(); // Refresh map
+          if (mounted) {
+            setState(() {
+              // Merge: Verified first, then OSM
+              _studySpots = [...verifiedSpots, ...osmSpots];
+            });
+            _updateMapMarkers();
+          }
+        } catch (e) {
+          logger.warning("Failed to fetch OSM spots", error: e);
+        }
+      }
     } catch (e) {
       logger.error("Error fetching study spots", error: e);
     }
@@ -323,9 +373,9 @@ class _MapPageState extends State<MapPage> {
 
       // Fallback: Try to get fresh location if stream hasn't fired yet
       try {
-        // Increased timeout to 5s to avoid frequent timeouts on emulators/slow devices
+        // Increased timeout to 10s for better Web reliability
         final position = await Geolocator.getCurrentPosition(
-            timeLimit: const Duration(seconds: 5));
+            timeLimit: const Duration(seconds: 10));
         logger.debug("📍 Got fresh position: $position");
         if (mapController != null && mounted) {
           await mapController!.animateCamera(
@@ -337,21 +387,25 @@ class _MapPageState extends State<MapPage> {
           );
         }
       } catch (e) {
-        logger.warning(
-            "⚠️ Location check timed out or failed, trying last known position...",
+        // Just a timeout/fail, we will rely on the stream. Not a critical warning.
+        logger.debug(
+            "ℹ️ Location check timed out (expected on some devices), waiting for stream...",
             error: e);
         // Fallback to last known position
         try {
-          final position = await Geolocator.getLastKnownPosition();
-          if (position != null && mapController != null && mounted) {
-            logger.debug("📍 Using last known position: $position");
-            await mapController!.animateCamera(
-              CameraUpdate.newLatLngZoom(
-                LatLng(position.latitude, position.longitude),
-                15,
-              ),
-              duration: const Duration(milliseconds: 800),
-            );
+          // getLastKnownPosition is not supported on Web
+          if (!kIsWeb) {
+            final position = await Geolocator.getLastKnownPosition();
+            if (position != null && mapController != null && mounted) {
+              logger.debug("📍 Using last known position: $position");
+              await mapController!.animateCamera(
+                CameraUpdate.newLatLngZoom(
+                  LatLng(position.latitude, position.longitude),
+                  15,
+                ),
+                duration: const Duration(milliseconds: 800),
+              );
+            }
           }
         } catch (e2) {
           logger.error("❌ Could not get any location", error: e2);
@@ -360,12 +414,22 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
+  bool _isStyleLoaded = false; // Guard for Annotation Manager
+
   void _onMapCreated(MaplibreMapController controller) {
     mapController = controller;
     controller.onCircleTapped.add(_onCircleTapped);
 
     // DELAY: Fix for Web "Unexpected null value" / style loading race condition
-    Future.delayed(const Duration(seconds: 2), () {});
+    // We wait for the style to load before allowing marker updates
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _isStyleLoaded = true;
+        });
+        _updateMapMarkers(); // Draw initial markers
+      }
+    });
   }
 
   void _startLocationUpdates() {
@@ -542,8 +606,8 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _updateMapMarkers() async {
-    if (mapController == null) {
-      logger.warning("⚠️ Map controller is null, cannot update markers");
+    if (mapController == null || !_isStyleLoaded) {
+      // logger.warning("⚠️ Map/Style not ready, skipping marker update");
       return;
     }
 
@@ -573,7 +637,7 @@ class _MapPageState extends State<MapPage> {
             },
           );
         } catch (e) {
-          logger.warning("Failed to draw study spot ${spot.name}");
+          logger.warning("Failed to draw study spot ${spot.name}", error: e);
         }
       }
 
@@ -586,6 +650,30 @@ class _MapPageState extends State<MapPage> {
         // SKIP MYSELF: I am already drawn as the "Me" circle with pulse
         if (peer.userId == supabase.auth.currentUser?.id) {
           continue;
+        }
+
+        // --- STALENESS FILTER (>30 mins) ---
+        // Don't show users who haven't updated their location recently (Ghosts)
+        if (peer.lastUpdated == null ||
+            DateTime.now().difference(peer.lastUpdated!).inMinutes > 30) {
+          // logger.debug("Skipping stale peer ${peer.fullName} (Last active: ${peer.lastUpdated})");
+          continue;
+        }
+
+        // --- DISTANCE FILTER (50km) ---
+        // Don't show users across the globe to avoid clutter/confusion
+        if (_currentLocation != null) {
+          final distanceInMeters = Geolocator.distanceBetween(
+            _currentLocation!.latitude,
+            _currentLocation!.longitude,
+            geometry.latitude,
+            geometry.longitude,
+          );
+          if (distanceInMeters > 50000) {
+            // 50km
+            // logger.debug("Skipping far peer ${peer.fullName} (${(distanceInMeters / 1000).toStringAsFixed(1)}km away)");
+            continue;
+          }
         }
 
         // --- FILTER LOGIC ---
@@ -778,12 +866,8 @@ class _MapPageState extends State<MapPage> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.black12,
       isScrollControlled: true,
-      constraints: const BoxConstraints(maxWidth: 600),
       builder: (context) {
-        // Convert the generic map data back to UserProfile
-        // Keys in data come from UserProfile.toJson() which uses snake_case, so fromJson works.
         final profile = UserProfile.fromJson(data);
         return GlassProfileDrawer(profile: profile);
       },

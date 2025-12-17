@@ -122,6 +122,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                 color: theme.dividerColor.withOpacity(0.1)),
                           ),
                           child: ListTile(
+                            onTap: () => _showUserDetails(user),
                             leading: CircleAvatar(
                               backgroundImage: user.avatarUrl != null
                                   ? NetworkImage(user.avatarUrl!)
@@ -164,6 +165,69 @@ class _UserManagementPageState extends State<UserManagementPage> {
                     ),
         ),
       ],
+    );
+  }
+
+  void _showUserDetails(UserProfile user) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(user.fullName ?? 'User Details'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (user.avatarUrl != null)
+                Center(
+                  child: CircleAvatar(
+                    radius: 40,
+                    backgroundImage: NetworkImage(user.avatarUrl!),
+                  ),
+                ),
+              const SizedBox(height: 16),
+              _detailRow('ID', user.userId),
+              if (user.universityId != null)
+                _detailRow('University ID', user.universityId!),
+              if (user.intentTag != null) _detailRow('Intent', user.intentTag!),
+              if (user.bio != null) _detailRow('Bio', user.bio!),
+              if (user.address != null) _detailRow('Address', user.address!),
+              _detailRow('Role',
+                  user.isTutor ? 'Tutor (\$${user.hourlyRate}/hr)' : 'Student'),
+              _detailRow('Status', user.isBanned ? 'Banned' : 'Active'),
+              _detailRow(
+                  'Updated', user.lastUpdated?.toString().split(' ')[0] ?? '-'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              '$label:',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+          ),
+          Expanded(
+            child: Text(value, style: const TextStyle(fontSize: 13)),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'user_management_page.dart';
+import 'appointment_management_page.dart';
+import 'spot_management_page.dart';
+import 'analytics_page.dart';
+import 'tutor_verification_page.dart';
+import 'announcements_page.dart';
+import 'moderation_page.dart';
+import 'ledger_page.dart';
+import 'support_page.dart';
 
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
@@ -13,6 +21,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   final supabase = Supabase.instance.client;
   int _totalUsers = 0;
   int _bannedUsers = 0;
+  int _totalAppointments = 0;
+  int _totalSpots = 0;
   bool _isLoading = true;
 
   @override
@@ -23,24 +33,30 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Future<void> _fetchStats() async {
     try {
-      // NOTE: In a real app with many users, count() is better.
-      // Supabase .count() is available on select.
-      // Supabase .count() is available on select.
-      // Assuming latest v2 usage where count() returns int Future directly if head: true or similar
-      // but standard select(count: exact) returns PostgrestResponse / list.
-      // Let's use simple select for now to be safe with current setup, or standard count.
-      // Actually standard way:
-      final total = await supabase.from('profiles').count(CountOption.exact);
-      final banned = await supabase
+      final totalUsers =
+          await supabase.from('profiles').count(CountOption.exact);
+      final bannedUsers = await supabase
           .from('profiles')
           .select()
           .eq('is_banned', true)
           .count(CountOption.exact);
 
+      final totalAppointments =
+          await supabase.from('appointments').count(CountOption.exact);
+
+      // Handle potential missing table or error for spots efficiently
+      int totalSpots = 0;
+      try {
+        totalSpots =
+            await supabase.from('study_spots').count(CountOption.exact);
+      } catch (_) {}
+
       if (mounted) {
         setState(() {
-          _totalUsers = total;
-          _bannedUsers = banned.count;
+          _totalUsers = totalUsers;
+          _bannedUsers = bannedUsers.count;
+          _totalAppointments = totalAppointments;
+          _totalSpots = totalSpots;
           _isLoading = false;
         });
       }
@@ -54,7 +70,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return DefaultTabController(
-      length: 2,
+      length: 10,
       child: Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
@@ -68,16 +84,33 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             indicatorColor: theme.primaryColor,
             labelColor: theme.primaryColor,
             unselectedLabelColor: theme.textTheme.bodySmall?.color,
+            isScrollable: true,
             tabs: const [
               Tab(text: "OVERVIEW"),
+              Tab(text: "ANALYTICS"),
+              Tab(text: "REPORTS"), // Moderation
+              Tab(text: "LEDGER"),
+              Tab(text: "SUPPORT"),
+              Tab(text: "VERIFICATION"),
+              Tab(text: "ANNOUNCEMENTS"),
               Tab(text: "USERS"),
+              Tab(text: "APPOINTMENTS"),
+              Tab(text: "SPOTS"),
             ],
           ),
         ),
         body: TabBarView(
           children: [
             _buildOverviewTab(theme),
+            const AnalyticsPage(),
+            const ModerationPage(),
+            const LedgerPage(),
+            const SupportPage(),
+            const TutorVerificationPage(),
+            const AnnouncementsPage(),
             const UserManagementPage(),
+            const AppointmentManagementPage(),
+            const SpotManagementPage(),
           ],
         ),
       ),
@@ -92,23 +125,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _buildStatCard(
-          theme,
-          title: 'Total Users',
-          value: _totalUsers.toString(),
-          icon: Icons.people,
-          color: Colors.blueAccent,
+        GridView.count(
+          crossAxisCount: 2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            _buildStatCard(
+              theme,
+              title: 'Total Users',
+              value: _totalUsers.toString(),
+              icon: Icons.people,
+              color: Colors.blueAccent,
+            ),
+            _buildStatCard(
+              theme,
+              title: 'Appointments',
+              value: _totalAppointments.toString(),
+              icon: Icons.calendar_today,
+              color: Colors.purpleAccent,
+            ),
+            _buildStatCard(
+              theme,
+              title: 'Study Spots',
+              value: _totalSpots.toString(),
+              icon: Icons.place,
+              color: Colors.orangeAccent,
+            ),
+            _buildStatCard(
+              theme,
+              title: 'Banned Users',
+              value: _bannedUsers.toString(),
+              icon: Icons.block,
+              color: Colors.redAccent,
+            ),
+          ],
         ),
-        const SizedBox(height: 16),
-        _buildStatCard(
-          theme,
-          title: 'Banned Users',
-          value: _bannedUsers.toString(),
-          icon: Icons.block,
-          color: Colors.redAccent,
-        ),
-        const SizedBox(height: 16),
-        // Add more stats here
       ],
     );
   }
@@ -119,7 +172,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       required IconData icon,
       required Color color}) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: theme.cardTheme.color,
         borderRadius: BorderRadius.circular(16),
@@ -132,36 +185,33 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           )
         ],
       ),
-      child: Row(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+              shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: color, size: 30),
+            child: Icon(icon, color: color, size: 28),
           ),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title.toUpperCase(),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
-                  letterSpacing: 1.0,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: theme.textTheme.titleLarge?.color,
-                ),
-              ),
-            ],
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.textTheme.titleLarge?.color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title.toUpperCase(),
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+              letterSpacing: 0.5,
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),

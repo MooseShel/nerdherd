@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/study_spot.dart';
 import '../services/haptic_service.dart';
+import 'ui_components.dart';
 
 class StudySpotDetailsSheet extends StatelessWidget {
   final StudySpot spot;
@@ -9,15 +10,33 @@ class StudySpotDetailsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E2C).withOpacity(0.95),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return GlassContainer(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      blur: 20,
+      opacity: isDark
+          ? 0.9 // Higher opacity for legibility
+          : 0.95,
+      color: theme.cardTheme.color,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Drag Handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 5,
+              margin: const EdgeInsets.only(top: 12, bottom: 12),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white30 : Colors.black26,
+                borderRadius: BorderRadius.circular(2.5),
+              ),
+            ),
+          ),
+
           // 1. Header Image
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -47,18 +66,16 @@ class StudySpotDetailsSheet extends StatelessWidget {
                         children: [
                           Text(
                             spot.name,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
+                            style: theme.textTheme.headlineMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           if (!spot.isVerified)
                             Text(
                               _formatType(spot.type),
-                              style: const TextStyle(
-                                color: Colors.white54,
-                                fontSize: 14,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.textTheme.bodySmall?.color
+                                    ?.withOpacity(0.7),
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -73,13 +90,14 @@ class StudySpotDetailsSheet extends StatelessWidget {
                           color: Colors.amber,
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Row(
+                        child: Row(
                           children: [
-                            Icon(Icons.stars, size: 16, color: Colors.black),
-                            SizedBox(width: 4),
+                            const Icon(Icons.stars,
+                                size: 16, color: Colors.black),
+                            const SizedBox(width: 4),
                             Text(
                               "VERIFIED",
-                              style: TextStyle(
+                              style: const TextStyle(
                                   color: Colors.black,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12),
@@ -92,17 +110,20 @@ class StudySpotDetailsSheet extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.white10,
+                          color: theme.disabledColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Row(
+                        child: Row(
                           children: [
-                            Icon(Icons.public, size: 16, color: Colors.white70),
-                            SizedBox(width: 4),
+                            Icon(Icons.public,
+                                size: 16,
+                                color: theme.iconTheme.color?.withOpacity(0.5)),
+                            const SizedBox(width: 4),
                             Text(
                               "PUBLIC",
                               style: TextStyle(
-                                  color: Colors.white70,
+                                  color: theme.textTheme.bodySmall?.color
+                                      ?.withOpacity(0.5),
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12),
                             ),
@@ -152,10 +173,10 @@ class StudySpotDetailsSheet extends StatelessWidget {
                     children: spot.perks.map((perk) {
                       return Chip(
                         label: Text(_formatPerk(perk)),
-                        backgroundColor: Colors.white10,
-                        labelStyle: const TextStyle(color: Colors.white70),
+                        backgroundColor: theme.canvasColor,
+                        labelStyle: theme.textTheme.bodySmall,
                         avatar: Icon(_getPerkIcon(perk),
-                            size: 16, color: Colors.cyanAccent),
+                            size: 16, color: theme.primaryColor),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20)),
                         side: BorderSide.none,
@@ -170,20 +191,22 @@ class StudySpotDetailsSheet extends StatelessWidget {
                     children: [
                       Chip(
                         label: const Text("Public Access"),
-                        backgroundColor: Colors.white10,
-                        labelStyle: const TextStyle(color: Colors.white70),
-                        avatar: const Icon(Icons.door_front_door,
-                            size: 16, color: Colors.white70),
+                        backgroundColor: theme.canvasColor,
+                        labelStyle: theme.textTheme.bodySmall,
+                        avatar: Icon(Icons.door_front_door,
+                            size: 16,
+                            color: theme.primaryColor.withOpacity(0.7)),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20)),
                         side: BorderSide.none,
                       ),
                       Chip(
                         label: Text(_formatType(spot.type)),
-                        backgroundColor: Colors.white10,
-                        labelStyle: const TextStyle(color: Colors.white70),
+                        backgroundColor: theme.canvasColor,
+                        labelStyle: theme.textTheme.bodySmall,
                         avatar: Icon(_getTypeIcon(spot.type),
-                            size: 16, color: Colors.white70),
+                            size: 16,
+                            color: theme.primaryColor.withOpacity(0.7)),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20)),
                         side: BorderSide.none,
@@ -194,25 +217,18 @@ class StudySpotDetailsSheet extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 // 4. Action Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      hapticService.mediumImpact();
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text("Navigation started! (Simulation)")),
-                      );
-                    },
-                    icon: const Icon(Icons.directions),
-                    label: const Text("Navigate Here"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.cyanAccent,
-                      foregroundColor: Colors.black,
-                    ),
-                  ),
+                PrimaryButton(
+                  label: "Navigate Here",
+                  icon: Icons.directions,
+                  fullWidth: true,
+                  onPressed: () {
+                    hapticService.mediumImpact();
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text("Navigation started! (Simulation)")),
+                    );
+                  },
                 ),
               ],
             ),
