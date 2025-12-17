@@ -55,9 +55,10 @@ class _ModerationPageState extends State<ModerationPage> {
         _fetchReports();
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     }
   }
 
@@ -98,9 +99,10 @@ class _ModerationPageState extends State<ModerationPage> {
           _fetchReports();
         }
       } catch (e) {
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context)
               .showSnackBar(SnackBar(content: Text('Error: $e')));
+        }
       }
     }
   }
@@ -143,7 +145,7 @@ class _ModerationPageState extends State<ModerationPage> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.warning_amber_rounded,
+                    const Icon(Icons.warning_amber_rounded,
                         color: Colors.orange, size: 20),
                     const SizedBox(width: 8),
                     Text('Reason: ${report.reason}',

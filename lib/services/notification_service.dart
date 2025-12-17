@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart'; // For MaterialPageRoute
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -88,14 +89,13 @@ class NotificationService {
 
       // 2. Get Token
       // On iOS, we need to wait for APNs token first
-      /* 
       if (Platform.isIOS) {
-        final apnsToken = await messaging.getAPNSToken();
+        String? apnsToken = await messaging.getAPNSToken();
         if (apnsToken == null) {
-           // wait or retry...
+          await Future.delayed(const Duration(seconds: 3));
+          apnsToken = await messaging.getAPNSToken();
         }
-      } 
-      */
+      }
 
       final fcmToken = await messaging.getToken();
       logger.info('FCM Token: $fcmToken');

@@ -96,7 +96,10 @@ class _ReviewsListDialogState extends State<ReviewsListDialog> {
                                         ? (avatarUrl.startsWith('assets/')
                                             ? AssetImage(avatarUrl)
                                                 as ImageProvider
-                                            : NetworkImage(avatarUrl))
+                                            : ResizeImage(
+                                                NetworkImage(avatarUrl),
+                                                width: 64,
+                                              ))
                                         : null,
                                     child: avatarUrl == null
                                         ? const Icon(Icons.person, size: 16)

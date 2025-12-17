@@ -1,7 +1,7 @@
 name: nerd_herd
 description: "A new Flutter project."
 publish_to: 'none'
-version: 0.1.5+1
+version: 1.0.0+1
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
@@ -26,6 +26,7 @@ dependencies:
   flutter_secure_storage: ^10.0.0
   http: ^1.2.0
   fl_chart: ^0.71.0
+  cached_network_image: ^3.3.0
   firebase_core: ^4.3.0
   firebase_messaging: ^16.1.0
 
@@ -41,6 +42,7 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.4
   flutter_native_splash: ^2.4.4
 
+  supabase: any
 flutter:
   uses-material-design: true
   assets:

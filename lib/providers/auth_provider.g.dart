@@ -6,14 +6,29 @@ part of 'auth_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$authStateHash() => r'8a26fe3f6fbf9f6c2d5343feae85802bb3f78890';
+String _$supabaseClientHash() => r'deacb610ba5a2a6164a9836f0ed10a1e9de80426';
 
-/// Provides the current Supabase session user
-///
-/// Copied from [authState].
-@ProviderFor(authState)
-final authStateProvider = AutoDisposeStreamProvider<User?>.internal(
-  authState,
+/// See also [supabaseClient].
+@ProviderFor(supabaseClient)
+final supabaseClientProvider = Provider<SupabaseClient>.internal(
+  supabaseClient,
+  name: r'supabaseClientProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$supabaseClientHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef SupabaseClientRef = ProviderRef<SupabaseClient>;
+String _$authStateHash() => r'a04533344c6c594d563d26fd0f062151730527f8';
+
+/// See also [AuthState].
+@ProviderFor(AuthState)
+final authStateProvider = StreamNotifierProvider<AuthState, User?>.internal(
+  AuthState.new,
   name: r'authStateProvider',
   debugGetCreateSourceHash:
       const bool.fromEnvironment('dart.vm.product') ? null : _$authStateHash,
@@ -21,27 +36,6 @@ final authStateProvider = AutoDisposeStreamProvider<User?>.internal(
   allTransitiveDependencies: null,
 );
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef AuthStateRef = AutoDisposeStreamProviderRef<User?>;
-String _$currentUserIdHash() => r'c4e692090fecb9d60426a387adc52c28a30e37d6';
-
-/// Provides the current user ID or null if not logged in
-///
-/// Copied from [currentUserId].
-@ProviderFor(currentUserId)
-final currentUserIdProvider = AutoDisposeProvider<String?>.internal(
-  currentUserId,
-  name: r'currentUserIdProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$currentUserIdHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
-
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef CurrentUserIdRef = AutoDisposeProviderRef<String?>;
+typedef _$AuthState = StreamNotifier<User?>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

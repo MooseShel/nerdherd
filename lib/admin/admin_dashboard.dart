@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/admin_provider.dart';
 import 'user_management_page.dart';
 import 'appointment_management_page.dart';
 import 'spot_management_page.dart';
@@ -10,61 +11,15 @@ import 'moderation_page.dart';
 import 'ledger_page.dart';
 import 'support_page.dart';
 
-class AdminDashboardPage extends StatefulWidget {
+class AdminDashboardPage extends ConsumerStatefulWidget {
   const AdminDashboardPage({super.key});
 
   @override
-  State<AdminDashboardPage> createState() => _AdminDashboardPageState();
+  ConsumerState<AdminDashboardPage> createState() => _AdminDashboardPageState();
 }
 
-class _AdminDashboardPageState extends State<AdminDashboardPage> {
-  final supabase = Supabase.instance.client;
-  int _totalUsers = 0;
-  int _bannedUsers = 0;
-  int _totalAppointments = 0;
-  int _totalSpots = 0;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchStats();
-  }
-
-  Future<void> _fetchStats() async {
-    try {
-      final totalUsers =
-          await supabase.from('profiles').count(CountOption.exact);
-      final bannedUsers = await supabase
-          .from('profiles')
-          .select()
-          .eq('is_banned', true)
-          .count(CountOption.exact);
-
-      final totalAppointments =
-          await supabase.from('appointments').count(CountOption.exact);
-
-      // Handle potential missing table or error for spots efficiently
-      int totalSpots = 0;
-      try {
-        totalSpots =
-            await supabase.from('study_spots').count(CountOption.exact);
-      } catch (_) {}
-
-      if (mounted) {
-        setState(() {
-          _totalUsers = totalUsers;
-          _bannedUsers = bannedUsers.count;
-          _totalAppointments = totalAppointments;
-          _totalSpots = totalSpots;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error fetching stats: $e');
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
+class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
+  // Stats are now handled by Provider
 
   @override
   Widget build(BuildContext context) {
@@ -118,51 +73,55 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   Widget _buildOverviewTab(ThemeData theme) {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    final statsAsync = ref.watch(adminStatsProvider);
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        GridView.count(
-          crossAxisCount: 2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          children: [
-            _buildStatCard(
-              theme,
-              title: 'Total Users',
-              value: _totalUsers.toString(),
-              icon: Icons.people,
-              color: Colors.blueAccent,
-            ),
-            _buildStatCard(
-              theme,
-              title: 'Appointments',
-              value: _totalAppointments.toString(),
-              icon: Icons.calendar_today,
-              color: Colors.purpleAccent,
-            ),
-            _buildStatCard(
-              theme,
-              title: 'Study Spots',
-              value: _totalSpots.toString(),
-              icon: Icons.place,
-              color: Colors.orangeAccent,
-            ),
-            _buildStatCard(
-              theme,
-              title: 'Banned Users',
-              value: _bannedUsers.toString(),
-              icon: Icons.block,
-              color: Colors.redAccent,
+    return statsAsync.when(
+      data: (stats) {
+        return CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.all(16),
+              sliver: SliverGrid.count(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                children: [
+                  _buildStatCard(
+                    theme,
+                    title: 'Total Users',
+                    value: stats.totalUsers.toString(),
+                    icon: Icons.people,
+                    color: Colors.blueAccent,
+                  ),
+                  _buildStatCard(
+                    theme,
+                    title: 'Appointments',
+                    value: stats.totalAppointments.toString(),
+                    icon: Icons.calendar_today,
+                    color: Colors.purpleAccent,
+                  ),
+                  _buildStatCard(
+                    theme,
+                    title: 'Study Spots',
+                    value: stats.totalSpots.toString(),
+                    icon: Icons.place,
+                    color: Colors.orangeAccent,
+                  ),
+                  _buildStatCard(
+                    theme,
+                    title: 'Banned Users',
+                    value: stats.bannedUsers.toString(),
+                    icon: Icons.block,
+                    color: Colors.redAccent,
+                  ),
+                ],
+              ),
             ),
           ],
-        ),
-      ],
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => Center(child: Text('Error loading stats: $err')),
     );
   }
 

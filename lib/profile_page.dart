@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'models/user_profile.dart'; // Ensure this matches your project structure
 import 'requests_page.dart';
 import 'connections_page.dart';
@@ -309,9 +310,10 @@ class _ProfilePageState extends State<ProfilePage> {
           'message': messageController.text.trim(),
           'status': 'open',
         });
-        if (mounted)
+        if (mounted) {
           _showSnack('Support ticket submitted! We will contact you soon.',
               isError: false);
+        }
       } catch (e) {
         if (mounted) _showSnack('Error submitting ticket: $e', isError: true);
       }
@@ -371,7 +373,8 @@ class _ProfilePageState extends State<ProfilePage> {
                             radius: 60,
                             backgroundColor: theme.cardTheme.color,
                             backgroundImage: _avatarController.text.isNotEmpty
-                                ? NetworkImage(_avatarController.text)
+                                ? CachedNetworkImageProvider(
+                                    _avatarController.text)
                                 : null,
                             child: _avatarController.text.isEmpty
                                 ? Icon(Icons.person,
@@ -493,7 +496,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       Switch(
                         value: _isTutor,
                         onChanged: (val) => setState(() => _isTutor = val),
-                        activeColor: Colors.amber,
+                        activeThumbColor: Colors.amber,
                       ),
                     ],
                   ),

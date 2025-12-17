@@ -1,11 +1,12 @@
 // ignore: unused_import
-import 'dart:math'; // For random offset
+
 import 'dart:ui'; // For ImageFilter
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:cached_network_image/cached_network_image.dart'; // Add this
 import 'models/user_profile.dart';
 import 'widgets/glass_profile_drawer.dart';
 import 'profile_page.dart';
@@ -19,26 +20,35 @@ import 'notifications_page.dart';
 import 'conversations_page.dart'; // NEW
 import 'models/study_spot.dart'; // NEW
 import 'widgets/study_spot_details_sheet.dart'; // NEW
-import 'services/places_service.dart'; // NEW
 
-class MapPage extends StatefulWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nerd_herd/providers/map_provider.dart';
+
+// Services
+
+class MapPage extends ConsumerStatefulWidget {
   const MapPage({super.key});
 
   @override
-  State<MapPage> createState() => _MapPageState();
+  ConsumerState<MapPage> createState() => _MapPageState();
 }
 
-class _MapPageState extends State<MapPage> {
+class _MapPageState extends ConsumerState<MapPage> {
   MaplibreMapController? mapController;
   final supabase = Supabase.instance.client;
+
+  // Ah, lines 188 uses `placesService`. It is likely a global or imported from `services/places_service.dart`.
+  // Wait, `places_service.dart` usually exposes a singleton or simple class.
+  // Let's assume we can create it.
+
   bool _isStudyMode = false;
 
   // bool _botsSpawned = false; // REMOVED
 
   Map<String, UserProfile> _peers = {};
-  StreamSubscription? _peersSubscription;
+  // StreamSubscription? _peersSubscription; // REMOVED
   StreamSubscription? _requestsSubscription;
-  StreamSubscription? _locationSubscription;
+  // StreamSubscription? _locationSubscription; // REMOVED
   Timer? _broadcastTimer;
   LatLng? _currentLocation;
 
@@ -59,21 +69,31 @@ class _MapPageState extends State<MapPage> {
 
   CameraPosition? _initialPosition;
 
+  // Search Area Logic
+  bool _isFetchingSpots = false;
+  bool _showSearchThisArea = false;
+  LatLng? _lastFetchLocation;
+  LatLng? _cameraTarget; // Track camera center
+
   @override
   void initState() {
     super.initState();
+    // Initialize Services - REMOVED (Handled by Riverpod)
+    // _placesService = ...
+    // _mapService = ...
+
     _loadSettings();
     _loadInitialLocation(); // Fast load
 
     _checkLocationPermissions();
-    _startLocationUpdates();
+    // _startLocationUpdates(); // REMOVED (Riverpod)
     // ... rest of init
-    _subscribeToPeers();
+    // _subscribeToPeers(); // REMOVED (Riverpod)
     _subscribeToRequests();
     _subscribeToNotifications();
-    _subscribeToMessages(); // NEW
-    _fetchStudySpots(); // NEW
-    _checkForAnnouncements(); // NEW
+    _subscribeToMessages();
+    // _fetchStudySpots(); // REMOVED (Riverpod controls)
+    _checkForAnnouncements();
   }
 
   Future<void> _checkForAnnouncements() async {
@@ -123,7 +143,7 @@ class _MapPageState extends State<MapPage> {
       if (position != null) {
         setState(() {
           _initialPosition = CameraPosition(
-            target: LatLng(position!.latitude, position!.longitude),
+            target: LatLng(position!.latitude, position.longitude),
             zoom: 15,
           );
         });
@@ -148,40 +168,57 @@ class _MapPageState extends State<MapPage> {
 
   List<StudySpot> _studySpots = []; // NEW
 
-  Future<void> _fetchStudySpots() async {
-    try {
-      // OPTIMIZATION: Load Verified Spots FIRST (Fast)
-      final verifiedData = await supabase.from('study_spots').select();
-      final verifiedSpots =
-          (verifiedData as List).map((e) => StudySpot.fromJson(e)).toList();
+  Future<void> _fetchStudySpots({bool userTriggered = false}) async {
+    if (_isFetchingSpots) return;
 
+    // Determine target location: Camera Center (if manual) or Current Location (auto)
+    final LatLng? target = userTriggered ? _cameraTarget : _currentLocation;
+    if (target == null) return;
+
+    setState(() {
+      _isFetchingSpots = true;
+      if (userTriggered) _showSearchThisArea = false;
+    });
+
+    try {
+      // Use Provider
+      await ref.read(studySpotsProvider.notifier).search(target, radius: 2000);
+
+      // Local state update handled by ref.listen in build()
       if (mounted) {
         setState(() {
-          _studySpots = verifiedSpots; // Show these immediately
+          _lastFetchLocation = target;
+          _isFetchingSpots = false;
         });
-        _updateMapMarkers();
       }
 
-      // Then Load OSM Spots (Slow)
-      if (_currentLocation != null) {
-        try {
-          final osmSpots = await placesService.fetchNearbyPOIs(
-              _currentLocation!.latitude, _currentLocation!.longitude,
-              radius: 2000); // 2km radius
-
-          if (mounted) {
-            setState(() {
-              // Merge: Verified first, then OSM
-              _studySpots = [...verifiedSpots, ...osmSpots];
-            });
-            _updateMapMarkers();
-          }
-        } catch (e) {
-          logger.warning("Failed to fetch OSM spots", error: e);
-        }
-      }
+      _updateMapMarkers(); // Trigger redraw
     } catch (e) {
       logger.error("Error fetching study spots", error: e);
+      if (mounted) setState(() => _isFetchingSpots = false);
+    }
+  }
+
+  void _onCameraMove(CameraPosition position) {
+    _cameraTarget = position.target;
+  }
+
+  void _onCameraIdle() {
+    if (_lastFetchLocation == null || _cameraTarget == null) return;
+
+    // Calculate distance from last fetch
+    final dist = Geolocator.distanceBetween(
+      _lastFetchLocation!.latitude,
+      _lastFetchLocation!.longitude,
+      _cameraTarget!.latitude,
+      _cameraTarget!.longitude,
+    );
+
+    // If moved > 1km, show "Search Area" button
+    if (dist > 1000) {
+      if (!_showSearchThisArea) {
+        setState(() => _showSearchThisArea = true);
+      }
     }
   }
 
@@ -319,18 +356,17 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
-  Timer? _simulationTimer;
   // SupabaseClient? _botClient; // UNUSED since switching to local bots
 
   @override
   void dispose() {
-    _peersSubscription?.cancel();
+    // _peersSubscription?.cancel(); // Riverpod handles this
     _requestsSubscription?.cancel();
-    _locationSubscription?.cancel();
+    // _locationSubscription?.cancel(); // Riverpod handles this
     _notificationsChannel?.unsubscribe();
     _messagesChannel?.unsubscribe(); // NEW
     _stopBroadcast();
-    _stopSimulation();
+
     super.dispose();
   }
 
@@ -432,56 +468,9 @@ class _MapPageState extends State<MapPage> {
     });
   }
 
-  void _startLocationUpdates() {
-    const settings =
-        LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 10);
-    logger.debug("📍 Subscribing to location stream");
+  // _startLocationUpdates REMOVED - using userLocationProvider in build()
 
-    // 2. Listen to stream
-    _locationSubscription =
-        Geolocator.getPositionStream(locationSettings: settings)
-            .listen((Position? position) {
-      logger.debug("📍 Position update: $position");
-      if (position != null && mounted) {
-        setState(() {
-          _currentLocation = LatLng(position.latitude, position.longitude);
-        });
-        _updateMapMarkers();
-
-        // Auto-Spawn Bots Logic Removed
-      }
-    });
-  }
-
-  void _subscribeToPeers() {
-    logger.debug("📡 Subscribing to profiles stream");
-    _peersSubscription = supabase.from('profiles').stream(
-        primaryKey: ['user_id']).listen((List<Map<String, dynamic>> data) {
-      logger.debug("📡 Received ${data.length} profile(s)");
-      final newPeers = <String, UserProfile>{};
-      for (var item in data) {
-        // print("  - Peer Data: $item"); // Uncomment to debug full payload
-        final profile = UserProfile.fromJson(item);
-        // ALLOW SELF: Show everyone including myself to verify visibility
-        newPeers[profile.userId] = profile;
-        logger.debug("Added peer: ${profile.userId}");
-      }
-      if (mounted) {
-        setState(() {
-          _peers = newPeers;
-          // Check if "I" am in the peers list to update my FAB avatar
-          final myId = supabase.auth.currentUser?.id;
-          if (myId != null && _peers.containsKey(myId)) {
-            logger.debug("👤 My avatar URL: ${_peers[myId]?.avatarUrl}");
-            // Force rebuild ensures FAB gets updated
-          }
-        });
-        _updateMapMarkers();
-      }
-    }, onError: (err) {
-      logger.error("🔴 Profile stream error", error: err);
-    });
-  }
+  // _subscribeToPeers REMOVED - using peersProvider in build()
 
   void _subscribeToRequests() {
     final user = supabase.auth.currentUser;
@@ -804,16 +793,12 @@ class _MapPageState extends State<MapPage> {
         logger.debug(
             "📍 Broadcaster: Upserting location ${pos.latitude}, ${pos.longitude}");
         try {
-          await supabase.from('profiles').upsert({
-            'user_id': user.id,
-            'lat': pos.latitude,
-            'long': pos.longitude,
-            'last_updated': DateTime.now().toIso8601String(),
-          });
+          final service = ref.read(mapServiceProvider);
+          await service.updateLocation(user.id, pos.latitude, pos.longitude);
           _lastBroadcastLocation = currentLatLng;
           _lastBroadcastTime = now;
         } catch (e) {
-          logger.error("❌ Broadcaster: Upsert failed", error: e);
+          // Logs handled in service, but we can log context here if needed
         }
       }
     });
@@ -874,142 +859,14 @@ class _MapPageState extends State<MapPage> {
     );
   }
 
-  Future<void> _summonPeers() async {
-    if (_currentLocation == null) return;
-
-    setState(() {}); // Re-use loading flag logic if needed, or just plain.
-    hapticService.mediumImpact();
-
-    try {
-      final user = supabase.auth.currentUser;
-      if (user == null) return;
-
-      // 1. Get all other profiles (real users)
-      // We can't filter by email effectively without Admin, so we just grab everyone who isn't me.
-      final response = await supabase
-          .from('profiles')
-          .select('user_id')
-          .neq('user_id', user.id);
-
-      final List<dynamic> others = response as List<dynamic>;
-
-      logger.info("🪄 Summoning ${others.length} peers to your location...");
-
-      final random = Random();
-      int movedCount = 0;
-
-      for (var other in others) {
-        final uid = other['user_id'] as String;
-
-        // Random offset within ~300m (approx 0.003 degrees)
-        final double latOffset = (random.nextDouble() * 0.006) - 0.003;
-        final double lngOffset = (random.nextDouble() * 0.006) - 0.003;
-
-        final newLat = _currentLocation!.latitude + latOffset;
-        final newLng = _currentLocation!.longitude + lngOffset;
-
-        await supabase.from('profiles').update({
-          'lat': newLat,
-          'long': newLng,
-          'last_updated': DateTime.now().toIso8601String(),
-        }).eq('user_id', uid);
-
-        movedCount++;
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Summoned $movedCount peers to your vicinity!"),
-            backgroundColor: Colors.purpleAccent,
-          ),
-        );
-      }
-    } catch (e) {
-      logger.error("Summon failed", error: e);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text("Summon failed: $e"), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
-  Future<void> _summonStudySpots() async {
-    if (_currentLocation == null) return;
-
-    hapticService.mediumImpact();
-
-    try {
-      final user = supabase.auth.currentUser;
-      if (user == null) return;
-
-      // 1. Get all study spots
-      final response = await supabase.from('study_spots').select();
-      final List<dynamic> spots = response as List<dynamic>;
-
-      logger.info("🪄 Transporting ${spots.length} study spots to you...");
-
-      final random = Random();
-      int movedCount = 0;
-
-      for (var spot in spots) {
-        final spotId = spot['id'] as String;
-
-        // Random offset within ~500m (approx 0.005 degrees)
-        final double latOffset = (random.nextDouble() * 0.008) - 0.004;
-        final double lngOffset = (random.nextDouble() * 0.008) - 0.004;
-
-        final newLat = _currentLocation!.latitude + latOffset;
-        final newLng = _currentLocation!.longitude + lngOffset;
-
-        // Update with both separate columns and PostGIS geometry
-        await supabase.from('study_spots').update({
-          'lat': newLat,
-          'long': newLng,
-          // 'location': ... generated column updates automatically?
-          // WAIT: Created as "generated always stored". We cannot update it directly.
-          // Correct, we just update lat/long and the DB handles 'location'.
-        }).eq('id', spotId);
-
-        movedCount++;
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Transported $movedCount Study Spots! ☕"),
-            backgroundColor: Colors.orange,
-          ),
-        );
-        _fetchStudySpots(); // Refresh local list
-      }
-    } catch (e) {
-      logger.error("Summon Spots failed", error: e);
-    }
-  }
-
-  // Bot simulation logic removed
-
-  void _stopSimulation() {
-    _simulationTimer?.cancel();
-    // _botClient?.dispose();
-    // _botClient = null;
-  }
-
   Future<void> _goGhost() async {
     final user = supabase.auth.currentUser;
     if (user == null) return;
     try {
-      logger.debug("👻 Going Ghost: Clearing location from DB...");
-      await supabase.from('profiles').update({
-        'lat': null,
-        'long': null,
-        'last_updated': DateTime.now().toIso8601String(),
-      }).eq('user_id', user.id);
+      final service = ref.read(mapServiceProvider);
+      await service.goGhost(user.id);
     } catch (e) {
-      logger.error("Failed to go ghost", error: e);
+      // Logged in Service
     }
   }
 
@@ -1058,6 +915,39 @@ class _MapPageState extends State<MapPage> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    // RIVERPOD LISTENERS
+    // 1. Location
+    ref.listen(userLocationProvider, (previous, next) {
+      next.whenData((pos) {
+        // Only update if changed significantly or first time
+        if (_currentLocation == null || _currentLocation != pos) {
+          setState(() => _currentLocation = pos);
+          _updateMapMarkers();
+        }
+      });
+    });
+
+    // 2. Peers
+    ref.listen(peersProvider, (previous, next) {
+      next.whenData((data) {
+        final newPeers = <String, UserProfile>{};
+        for (var profile in data) {
+          newPeers[profile.userId] = profile;
+          // Don't log every update
+        }
+        setState(() => _peers = newPeers);
+        _updateMapMarkers();
+      });
+    });
+
+    // 3. Study Spots
+    ref.listen(studySpotsProvider, (previous, next) {
+      next.whenData((spots) {
+        setState(() => _studySpots = spots);
+        _updateMapMarkers();
+      });
+    });
+
     return Scaffold(
       body: Stack(
         children: [
@@ -1069,9 +959,97 @@ class _MapPageState extends State<MapPage> {
               styleString: _mapStyle,
               myLocationEnabled: false,
               trackCameraPosition: true,
+              onCameraIdle: _onCameraIdle,
+              onCameraMove: _onCameraMove,
             )
           else
             const Center(child: CircularProgressIndicator()),
+
+          // "Search Area" Button (Top Center, below Dynamic Island)
+          if (_showSearchThisArea)
+            Positioned(
+              top: 100,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: GestureDetector(
+                  onTap: () {
+                    hapticService.mediumImpact();
+                    _fetchStudySpots(userTriggered: true);
+                  },
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: theme.primaryColor,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.search, color: Colors.black, size: 18),
+                        SizedBox(width: 6),
+                        Text(
+                          "Search This Area",
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // Loading Pill (Top Center)
+          if (_isFetchingSpots)
+            Positioned(
+              top: 100,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black87,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        "Loading spots...",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
 
           // "Recenter" Button (Bottom Right)
           Positioned(
@@ -1111,7 +1089,7 @@ class _MapPageState extends State<MapPage> {
                                       ? AssetImage(
                                           _peers[supabase.auth.currentUser!.id]!
                                               .avatarUrl!) as ImageProvider
-                                      : NetworkImage(
+                                      : CachedNetworkImageProvider(
                                           _peers[supabase.auth.currentUser!.id]!
                                               .avatarUrl!),
                               radius: 18,
@@ -1168,23 +1146,7 @@ class _MapPageState extends State<MapPage> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                // Summon Button (Testing)
-                _buildGlassControl(
-                  isMini: true,
-                  onPressed: _summonPeers,
-                  activeColor: Colors.purple.withOpacity(0.5),
-                  child: const Icon(Icons.group_add, color: Colors.white),
-                  tooltip: "Summon Peers (Test)",
-                ),
-                const SizedBox(height: 12),
-                // Summon Spots Button (Testing)
-                _buildGlassControl(
-                  isMini: true,
-                  onPressed: _summonStudySpots,
-                  activeColor: Colors.orange.withOpacity(0.5),
-                  child: const Icon(Icons.coffee, color: Colors.white),
-                  tooltip: "Summon Study Spots (Test)",
-                ),
+
                 const SizedBox(height: 12),
                 // Notifications Bell
                 Stack(

@@ -1,20 +1,41 @@
+import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-
-import 'supabase_provider.dart';
+import '../services/logger_service.dart';
 
 part 'auth_provider.g.dart';
 
-/// Provides the current Supabase session user
-@riverpod
-Stream<User?> authState(AuthStateRef ref) {
-  final supabase = ref.watch(supabaseProvider);
-  return supabase.auth.onAuthStateChange.map((event) => event.session?.user);
+// 1. Expose the Supabase Client as a Provider
+@Riverpod(keepAlive: true)
+SupabaseClient supabaseClient(SupabaseClientRef ref) {
+  return Supabase.instance.client;
 }
 
-/// Provides the current user ID or null if not logged in
-@riverpod
-String? currentUserId(CurrentUserIdRef ref) {
-  final user = ref.watch(authStateProvider).value;
-  return user?.id;
+// 2. Auth State Provider (AsyncNotifier)
+@Riverpod(keepAlive: true)
+class AuthState extends _$AuthState {
+  @override
+  Stream<User?> build() {
+    final client = ref.watch(supabaseClientProvider);
+
+    // Listen to Auth State Changes
+    return client.auth.onAuthStateChange.map((state) {
+      final user = state.session?.user;
+      if (user != null) {
+        logger.debug("AuthProvider: User is authenticated (${user.id})");
+      } else {
+        logger.debug("AuthProvider: User is signed out");
+      }
+      return user;
+    });
+  }
+
+  // Helper method to sign out
+  Future<void> signOut() async {
+    final client = ref.read(supabaseClientProvider);
+    await client.auth.signOut();
+  }
 }
+
+// 3. Simple User Provider (Synchronous access helper if needed, but Stream is better)
+// We generally use `ref.watch(authProvider)` to get AsyncValue<User?>

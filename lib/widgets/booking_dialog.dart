@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../services/payment_service.dart';
+import '../providers/payment_provider.dart';
 import '../services/logger_service.dart';
 
-class BookingDialog extends StatefulWidget {
+class BookingDialog extends ConsumerStatefulWidget {
   final String tutorId;
   final String tutorName;
   final double hourlyRate;
@@ -16,10 +17,10 @@ class BookingDialog extends StatefulWidget {
   });
 
   @override
-  State<BookingDialog> createState() => _BookingDialogState();
+  ConsumerState<BookingDialog> createState() => _BookingDialogState();
 }
 
-class _BookingDialogState extends State<BookingDialog> {
+class _BookingDialogState extends ConsumerState<BookingDialog> {
   final _messageController = TextEditingController();
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
@@ -81,7 +82,10 @@ class _BookingDialogState extends State<BookingDialog> {
       // Process Payment first if cost > 0
       if (cost > 0) {
         // This will throw if insufficient funds
-        await paymentService.processPayment(user.id, widget.tutorId, cost,
+        await ref.read(paymentServiceProvider).processPayment(
+            user.id,
+            widget.tutorId,
+            cost,
             "Booking with ${widget.tutorName} (${start.toString().split('.')[0]})");
       }
 
@@ -112,7 +116,10 @@ class _BookingDialogState extends State<BookingDialog> {
       if (cost > 0) {
         try {
           // Reverse: Tutor pays Student back
-          await paymentService.processPayment(widget.tutorId, user.id, cost,
+          await ref.read(paymentServiceProvider).processPayment(
+              widget.tutorId,
+              user.id,
+              cost,
               "Auto-refund: Booking failed (${e.toString().split(':')[0]})");
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(

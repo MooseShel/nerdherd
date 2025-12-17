@@ -248,7 +248,7 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
               hapticService.selectionClick();
               onChanged(val);
             },
-            activeColor: activeColor,
+            activeThumbColor: activeColor,
             activeTrackColor: activeColor.withOpacity(0.3),
             inactiveTrackColor: theme.disabledColor.withOpacity(0.1),
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,

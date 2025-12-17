@@ -2,21 +2,23 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/transaction.dart';
 
 class PaymentService {
-  final supabase = Supabase.instance.client;
+  final SupabaseClient _supabase;
+
+  PaymentService(this._supabase);
 
   /// Simulates a deposit of funds into the user's wallet.
   ///
   /// In a real app, this would involve a Stripe PaymentIntent.
   Future<bool> deposit(double amount) async {
     try {
-      final user = supabase.auth.currentUser;
+      final user = _supabase.auth.currentUser;
       if (user == null) throw Exception('User not logged in');
 
       // Simulate network delay for payment processing
       await Future.delayed(const Duration(seconds: 2));
 
       // 1. Log transaction
-      await supabase.from('transactions').insert({
+      await _supabase.from('transactions').insert({
         'user_id': user.id,
         'amount': amount,
         'type': 'deposit',
@@ -26,7 +28,7 @@ class PaymentService {
       // 2. Update wallet balance (using a stored procedure is safer but this works for MVP)
       // Fetch current balance first to be safe, or use Postgres increment if possible.
       // For MVP, we'll just read-modify-write knowing race conditions exist.
-      final profile = await supabase
+      final profile = await _supabase
           .from('profiles')
           .select('wallet_balance')
           .eq('user_id', user.id)
@@ -34,7 +36,7 @@ class PaymentService {
       final currentBalance =
           (profile['wallet_balance'] as num?)?.toDouble() ?? 0.0;
 
-      await supabase.from('profiles').update({
+      await _supabase.from('profiles').update({
         'wallet_balance': currentBalance + amount,
       }).eq('user_id', user.id);
 
@@ -47,11 +49,11 @@ class PaymentService {
   /// Simulates a withdrawal of funds.
   Future<bool> withdraw(double amount) async {
     try {
-      final user = supabase.auth.currentUser;
+      final user = _supabase.auth.currentUser;
       if (user == null) throw Exception('User not logged in');
 
       // Check balance
-      final profile = await supabase
+      final profile = await _supabase
           .from('profiles')
           .select('wallet_balance')
           .eq('user_id', user.id)
@@ -66,7 +68,7 @@ class PaymentService {
       await Future.delayed(const Duration(seconds: 2));
 
       // 1. Log transaction
-      await supabase.from('transactions').insert({
+      await _supabase.from('transactions').insert({
         'user_id': user.id,
         'amount': -amount, // Negative for withdrawal
         'type': 'withdrawal',
@@ -74,7 +76,7 @@ class PaymentService {
       });
 
       // 2. Update balance
-      await supabase.from('profiles').update({
+      await _supabase.from('profiles').update({
         'wallet_balance': currentBalance - amount,
       }).eq('user_id', user.id);
 
@@ -86,10 +88,10 @@ class PaymentService {
 
   /// Get transaction history for current user
   Future<List<Transaction>> getHistory() async {
-    final user = supabase.auth.currentUser;
+    final user = _supabase.auth.currentUser;
     if (user == null) return [];
 
-    final response = await supabase
+    final response = await _supabase
         .from('transactions')
         .select()
         .eq('user_id', user.id)
@@ -108,7 +110,7 @@ class PaymentService {
 
       // Use the secure Database Function (RPC) to handle the transfer atomically
       // and bypass RLS for the receiver's transaction record.
-      await supabase.rpc('process_payment', params: {
+      await _supabase.rpc('process_payment', params: {
         'p_sender_id': senderId,
         'p_receiver_id': receiverId,
         'p_amount': amount,
@@ -130,7 +132,7 @@ class PaymentService {
   Future<bool> refundPayment(String appointmentId) async {
     try {
       // Fetch appointment details
-      final apptData = await supabase
+      final apptData = await _supabase
           .from('appointments')
           .select()
           .eq('id', appointmentId)
@@ -145,7 +147,7 @@ class PaymentService {
 
       // Reverse transaction: Host (Tutor) pays back Attendee (Student)
       // We use the same RPC function.
-      await supabase.rpc('process_payment', params: {
+      await _supabase.rpc('process_payment', params: {
         'p_sender_id': hostId,
         'p_receiver_id': attendeeId,
         'p_amount': price,
@@ -153,7 +155,7 @@ class PaymentService {
       });
 
       // Update appointment to unpaid status
-      await supabase.from('appointments').update({
+      await _supabase.from('appointments').update({
         'is_paid': false,
         // We leave price reference but mark unpaid
       }).eq('id', appointmentId);
@@ -165,5 +167,3 @@ class PaymentService {
     }
   }
 }
-
-final paymentService = PaymentService();

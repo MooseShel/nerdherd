@@ -1,26 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models/appointment.dart';
-import 'models/user_profile.dart'; // Import UserProfile
+import 'models/user_profile.dart';
 import 'package:intl/intl.dart';
 import 'widgets/review_dialog.dart';
 import 'widgets/empty_state_widget.dart';
-import 'services/payment_service.dart';
+import 'providers/payment_provider.dart';
 
-class SchedulePage extends StatefulWidget {
+class SchedulePage extends ConsumerStatefulWidget {
   const SchedulePage({super.key});
 
   @override
-  State<SchedulePage> createState() => _SchedulePageState();
+  ConsumerState<SchedulePage> createState() => _SchedulePageState();
 }
 
-class _SchedulePageState extends State<SchedulePage> {
+class _SchedulePageState extends ConsumerState<SchedulePage> {
   final supabase = Supabase.instance.client;
   List<Appointment> _appointments = [];
-  Map<String, UserProfile> _profiles = {}; // Cache for profiles
+  Map<String, UserProfile> _profiles = {};
   Set<String> _reviewedAppointmentIds = {};
   bool _isLoading = true;
-  String _filter = 'all'; // all, pending, confirmed
+  String _filter = 'all';
 
   @override
   void initState() {
@@ -43,14 +44,12 @@ class _SchedulePageState extends State<SchedulePage> {
       final List<Appointment> loaded =
           (data as List).map((e) => Appointment.fromJson(e)).toList();
 
-      // Collect all User IDs (Hosts and Attendees)
       final userIds = <String>{};
       for (var a in loaded) {
         userIds.add(a.hostId);
         userIds.add(a.attendeeId);
       }
 
-      // Fetch Profiles
       if (userIds.isNotEmpty) {
         final profilesData = await supabase
             .from('profiles')
@@ -63,13 +62,11 @@ class _SchedulePageState extends State<SchedulePage> {
           newProfiles[profile.userId] = profile;
         }
 
-        // Update cache
         if (mounted) {
           _profiles = newProfiles;
         }
       }
 
-      // Fetch reviews by this user to check which appointments are already reviewed
       final reviewsData = await supabase
           .from('reviews')
           .select('appointment_id')
@@ -97,18 +94,15 @@ class _SchedulePageState extends State<SchedulePage> {
 
   Future<void> _updateStatus(String id, String newStatus) async {
     try {
-      // Refund Logic: If status becomes declined or cancelled (from paid status)
-      // Check if it was paid first?
-      // The refundPayment method checks 'is_paid' inside it, effectively safe to call.
       if (newStatus == 'declined' || newStatus == 'cancelled') {
-        await paymentService.refundPayment(
-            id); // Will return false/true but safely handles checks
+        // Use Provider
+        await ref.read(paymentServiceProvider).refundPayment(id);
       }
 
       await supabase
           .from('appointments')
           .update({'status': newStatus}).eq('id', id);
-      _fetchAppointments(); // Refresh
+      _fetchAppointments();
       if (mounted) {
         String msg = "Appointment marked as $newStatus";
         if (newStatus == 'declined' || newStatus == 'cancelled') {
@@ -165,7 +159,7 @@ class _SchedulePageState extends State<SchedulePage> {
       await supabase.from('appointments').update({
         'start_time': newStart.toUtc().toIso8601String(),
         'end_time': newEnd.toUtc().toIso8601String(),
-        'status': 'pending', // Reset to pending for re-approval
+        'status': 'pending',
         'message':
             "${appt.message}\n(Rescheduled from ${DateFormat('MM/dd HH:mm').format(appt.startTime.toLocal())})",
       }).eq('id', appt.id);
@@ -221,7 +215,6 @@ class _SchedulePageState extends State<SchedulePage> {
 
       if (user == null) return;
 
-      // Determine who is being reviewed (the OTHER person)
       final revieweeId = user.id == appt.hostId ? appt.attendeeId : appt.hostId;
 
       try {
@@ -283,7 +276,6 @@ class _SchedulePageState extends State<SchedulePage> {
       ),
       body: Column(
         children: [
-          // Filter Chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -299,7 +291,6 @@ class _SchedulePageState extends State<SchedulePage> {
               ],
             ),
           ),
-
           Expanded(
             child: _isLoading
                 ? Center(
@@ -358,7 +349,6 @@ class _SchedulePageState extends State<SchedulePage> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      // Avatar
                                       Container(
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
@@ -370,17 +360,20 @@ class _SchedulePageState extends State<SchedulePage> {
                                           radius: 24,
                                           backgroundColor: theme.primaryColor
                                               .withOpacity(0.1),
-                                          backgroundImage: otherProfile
-                                                      ?.avatarUrl !=
-                                                  null
-                                              ? (otherProfile!.avatarUrl!
-                                                      .startsWith('assets/')
-                                                  ? AssetImage(otherProfile
-                                                          .avatarUrl!)
-                                                      as ImageProvider
-                                                  : NetworkImage(
-                                                      otherProfile.avatarUrl!))
-                                              : null,
+                                          backgroundImage:
+                                              otherProfile?.avatarUrl != null
+                                                  ? (otherProfile!.avatarUrl!
+                                                          .startsWith('assets/')
+                                                      ? AssetImage(otherProfile
+                                                              .avatarUrl!)
+                                                          as ImageProvider
+                                                      : ResizeImage(
+                                                          NetworkImage(
+                                                              otherProfile
+                                                                  .avatarUrl!),
+                                                          width: 100,
+                                                        ))
+                                                  : null,
                                           child: otherProfile?.avatarUrl == null
                                               ? Icon(Icons.person,
                                                   color: theme.primaryColor)
@@ -388,8 +381,6 @@ class _SchedulePageState extends State<SchedulePage> {
                                         ),
                                       ),
                                       const SizedBox(width: 16),
-
-                                      // Info
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment:
@@ -455,7 +446,6 @@ class _SchedulePageState extends State<SchedulePage> {
                                       ),
                                     ],
                                   ),
-
                                   if (appt.message != null &&
                                       appt.message!.isNotEmpty) ...[
                                     Container(
@@ -479,10 +469,7 @@ class _SchedulePageState extends State<SchedulePage> {
                                       ),
                                     ),
                                   ],
-
                                   const SizedBox(height: 20),
-
-                                  // Simplified Action Buttons
                                   _buildActionButtons(appt, isHost, context),
                                 ],
                               ),

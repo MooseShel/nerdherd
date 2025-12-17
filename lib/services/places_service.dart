@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import '../models/study_spot.dart';
 import 'logger_service.dart';
@@ -21,16 +22,18 @@ class PlacesService {
         out;
       ''';
 
+      logger.debug("🌍 Fetching OSM spots around $lat, $lon (r=$radius)");
+
       final response = await http.post(
         Uri.parse(_overpassUrl),
         body: {'data': query},
-      );
+      ).timeout(const Duration(seconds: 10)); // Add 10s timeout
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final elements = data['elements'] as List;
 
-        logger.debug("🌍 OSM fetched ${elements.length} places");
+        logger.info("🌍 OSM fetched ${elements.length} places");
 
         return elements
             .where((e) =>
@@ -39,9 +42,13 @@ class PlacesService {
             .map((e) => StudySpot.fromOSM(e))
             .toList();
       } else {
-        logger.error("❌ OSM Request Failed: ${response.statusCode}");
+        logger.error(
+            "❌ OSM Request Failed: ${response.statusCode} - ${response.body}");
         return [];
       }
+    } on TimeoutException catch (_) {
+      logger.warning("⚠️ OSM Request Timed Out (Overpass is slow)");
+      return [];
     } catch (e) {
       logger.error("❌ Error fetching OSM data", error: e);
       return [];

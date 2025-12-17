@@ -203,7 +203,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 setState(() => _ghostMode = val);
                 _saveSetting('ghost_mode', val);
               },
-              activeColor: theme.primaryColor,
+              activeThumbColor: theme.primaryColor,
             ),
           ),
           const SizedBox(height: 24),
@@ -219,7 +219,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 setState(() => _notificationsEnabled = val);
                 _saveSetting('notifications_enabled', val);
               },
-              activeColor: theme.primaryColor,
+              activeThumbColor: theme.primaryColor,
             ),
           ),
           const SizedBox(height: 24),

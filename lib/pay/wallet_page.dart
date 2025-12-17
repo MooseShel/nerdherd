@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../services/payment_service.dart';
+import '../providers/payment_provider.dart';
 import '../models/transaction.dart';
 import '../widgets/ui_components.dart';
 
-class WalletPage extends StatefulWidget {
+class WalletPage extends ConsumerStatefulWidget {
   const WalletPage({super.key});
 
   @override
-  State<WalletPage> createState() => _WalletPageState();
+  ConsumerState<WalletPage> createState() => _WalletPageState();
 }
 
-class _WalletPageState extends State<WalletPage> {
+class _WalletPageState extends ConsumerState<WalletPage> {
   final supabase = Supabase.instance.client;
 
   Stream<List<Transaction>>? _transactionsStream;
@@ -90,7 +91,10 @@ class _WalletPageState extends State<WalletPage> {
 
               try {
                 setState(() => _isProcessingAudio = true);
-                await paymentService.deposit(amount);
+
+                // Use Provider
+                await ref.read(paymentServiceProvider).deposit(amount);
+
                 if (!context.mounted) return;
 
                 setState(() => _isProcessingAudio = false);
@@ -154,7 +158,10 @@ class _WalletPageState extends State<WalletPage> {
 
               try {
                 setState(() => _isProcessingAudio = true);
-                await paymentService.withdraw(amount);
+
+                // Use Provider
+                await ref.read(paymentServiceProvider).withdraw(amount);
+
                 if (!context.mounted) return;
 
                 setState(() => _isProcessingAudio = false);

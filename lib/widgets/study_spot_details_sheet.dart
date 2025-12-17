@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/study_spot.dart';
 import '../services/haptic_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'ui_components.dart';
 
 class StudySpotDetailsSheet extends StatelessWidget {
@@ -41,12 +42,13 @@ class StudySpotDetailsSheet extends StatelessWidget {
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             child: spot.imageUrl != null
-                ? Image.network(
-                    spot.imageUrl!,
+                ? CachedNetworkImage(
+                    imageUrl: spot.imageUrl!,
                     height: 200,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildPlaceholder(),
+                    placeholder: (_, __) => _buildPlaceholder(),
+                    errorWidget: (_, __, ___) => _buildPlaceholder(),
                   )
                 : _buildPlaceholder(),
           ),
@@ -90,14 +92,13 @@ class StudySpotDetailsSheet extends StatelessWidget {
                           color: Colors.amber,
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Row(
+                        child: const Row(
                           children: [
-                            const Icon(Icons.stars,
-                                size: 16, color: Colors.black),
-                            const SizedBox(width: 4),
+                            Icon(Icons.stars, size: 16, color: Colors.black),
+                            SizedBox(width: 4),
                             Text(
                               "VERIFIED",
-                              style: const TextStyle(
+                              style: TextStyle(
                                   color: Colors.black,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12),

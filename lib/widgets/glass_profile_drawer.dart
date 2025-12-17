@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'rating_dialog.dart';
 import 'booking_dialog.dart';
 import 'reviews_list_dialog.dart';
@@ -347,7 +348,11 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                               ? (widget.profile.avatarUrl!.startsWith('assets/')
                                   ? AssetImage(widget.profile.avatarUrl!)
                                       as ImageProvider
-                                  : NetworkImage(widget.profile.avatarUrl!))
+                                  : ResizeImage(
+                                      CachedNetworkImageProvider(
+                                          widget.profile.avatarUrl!),
+                                      width: 200,
+                                    ))
                               : null,
                           child: widget.profile.avatarUrl == null
                               ? Icon(

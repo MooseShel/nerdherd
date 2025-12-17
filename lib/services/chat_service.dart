@@ -1,0 +1,121 @@
+import 'dart:typed_data';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'logger_service.dart';
+
+class ChatService {
+  final SupabaseClient _supabase;
+
+  ChatService(this._supabase);
+
+  // 1. Fetch Messages (Pagination)
+  Future<List<Map<String, dynamic>>> fetchMessages(
+      String myId, String otherId, int limit, int offset) async {
+    try {
+      final data = await _supabase
+          .from('messages')
+          .select()
+          .or('and(sender_id.eq.$myId,receiver_id.eq.$otherId),and(sender_id.eq.$otherId,receiver_id.eq.$myId)')
+          .order('created_at', ascending: false) // Newest first
+          .range(offset, offset + limit - 1);
+      return List<Map<String, dynamic>>.from(data);
+    } catch (e) {
+      logger.error("ChatService: Error fetching messages", error: e);
+      rethrow;
+    }
+  }
+
+  // 2. Send Message
+  Future<void> sendMessage(
+    String senderId,
+    String receiverId,
+    String content, {
+    String type = 'text',
+    String? mediaUrl,
+  }) async {
+    try {
+      await _supabase.from('messages').insert({
+        'sender_id': senderId,
+        'receiver_id': receiverId,
+        'content': content,
+        'message_type':
+            type, // Schema uses 'message_type' based on ChatPage analysis
+        'media_url': mediaUrl,
+        'is_read': false,
+      });
+      // logger.debug("📨 Message sent to $receiverId");
+    } catch (e) {
+      logger.error("ChatService: Failed to send message", error: e);
+      rethrow;
+    }
+  }
+
+  // 3. Mark as Read
+  Future<void> markMessagesAsRead(String receiverId, String senderId) async {
+    try {
+      await _supabase
+          .from('messages')
+          .update({'read_at': DateTime.now().toIso8601String()})
+          .eq('receiver_id', receiverId) // Me
+          .eq('sender_id', senderId) // Other
+          .isFilter('read_at', null);
+    } catch (e) {
+      // logger.warning("Failed to mark messages as read", error: e);
+    }
+  }
+
+  // 4. Upload Image
+  Future<String> uploadImage(
+      String userId, Uint8List bytes, String fileExt) async {
+    try {
+      final fileName =
+          '$userId/${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      await _supabase.storage.from('chat-images').uploadBinary(fileName, bytes);
+      return _supabase.storage.from('chat-images').getPublicUrl(fileName);
+    } catch (e) {
+      logger.error("ChatService: Failed to upload image", error: e);
+      rethrow;
+    }
+  }
+
+  // 5. Typing Status
+  Future<void> updateTypingStatus(
+      String userId, String chatWith, bool isTyping) async {
+    try {
+      await _supabase.from('typing_status').upsert({
+        'user_id': userId,
+        'chat_with': chatWith,
+        'is_typing': isTyping,
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      // Silent fail
+    }
+  }
+
+  // 6. Subscriptions
+  RealtimeChannel subscribeToMessages(String myId, String otherId,
+      void Function(PostgresChangePayload) callback) {
+    return _supabase
+        .channel('messages:$otherId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'messages',
+          callback: callback,
+        )
+        .subscribe();
+  }
+
+  RealtimeChannel subscribeToTyping(String myId, String otherId,
+      void Function(PostgresChangePayload) callback) {
+    return _supabase
+        .channel('typing:$otherId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'typing_status',
+          callback: callback,
+        )
+        .subscribe();
+  }
+}
