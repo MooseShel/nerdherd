@@ -226,24 +226,26 @@ class _MapPageState extends ConsumerState<MapPage> {
   }
 
   // Helper for Verified vs General styling
-  CircleOptions _getSpotStyle(StudySpot spot) {
+  CircleOptions _getSpotStyle(StudySpot spot, {required bool isDark}) {
     if (spot.isVerified) {
       return CircleOptions(
         geometry: LatLng(spot.latitude, spot.longitude),
-        circleColor: '#FFA500', // Gold/Orange
+        circleColor: '#FFA500', // Gold/Orange (Visible on both)
         circleRadius: 12,
         circleStrokeWidth: 2,
-        circleStrokeColor: '#FFFFFF',
+        circleStrokeColor: isDark ? '#FFFFFF' : '#000000',
         circleOpacity: 1.0,
       );
     } else {
+      // General spots: White in Dark Mode, Deep Purple in Light Mode
+      final color = isDark ? '#FFFFFF' : '#6200EE';
       return CircleOptions(
         geometry: LatLng(spot.latitude, spot.longitude),
-        circleColor: '#FFFFFF', // White
+        circleColor: color,
         circleRadius: 6,
         circleStrokeWidth: 1,
         circleStrokeColor: '#888888',
-        circleOpacity: 0.7,
+        circleOpacity: 0.8,
       );
     }
   }
@@ -621,10 +623,13 @@ class _MapPageState extends ConsumerState<MapPage> {
       }
 
       // 0. Draw Study Spots (Bottom Layer)
+      // Determine theme for marker colors
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+
       for (var spot in _studySpots) {
         try {
           await mapController?.addCircle(
-            _getSpotStyle(spot),
+            _getSpotStyle(spot, isDark: isDark),
             {
               'is_study_spot': true,
               'spot_id': spot.id,
