@@ -423,11 +423,15 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                 const Icon(Icons.school,
                                     size: 14, color: Colors.white70),
                                 const SizedBox(width: 4),
-                                Text(
-                                  widget.profile.universityName ??
-                                      _fetchedUniversityName!,
-                                  style: const TextStyle(
-                                      color: Colors.white70, fontSize: 13),
+                                Expanded(
+                                  child: Text(
+                                    widget.profile.universityName ??
+                                        _fetchedUniversityName!,
+                                    style: const TextStyle(
+                                        color: Colors.white70, fontSize: 13),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ],
                             ),

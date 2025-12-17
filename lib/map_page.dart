@@ -20,6 +20,7 @@ import 'notifications_page.dart';
 import 'conversations_page.dart'; // NEW
 import 'models/study_spot.dart'; // NEW
 import 'providers/user_profile_provider.dart'; // NEW
+import 'providers/university_provider.dart'; // NEW
 import 'widgets/study_spot_details_sheet.dart'; // NEW
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -982,6 +983,8 @@ class _MapPageState extends ConsumerState<MapPage> {
       });
     });
 
+    final availableSubjectsAsync = ref.watch(availableSubjectsProvider);
+
     return Scaffold(
       body: Stack(
         children: [
@@ -1312,6 +1315,7 @@ class _MapPageState extends ConsumerState<MapPage> {
             right: 20,
             child: MapFilterWidget(
               currentFilters: _filters,
+              availableSubjects: availableSubjectsAsync.value ?? [],
               onFilterChanged: (newFilters) {
                 setState(() => _filters = newFilters);
                 hapticService.mediumImpact();

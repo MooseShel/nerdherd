@@ -38,3 +38,11 @@ Future<List<Course>> myEnrollments(Ref ref) async {
   if (user == null) return [];
   return service.getMyCourses(user.id);
 }
+
+// 5. Available Subjects
+final availableSubjectsProvider = FutureProvider<List<String>>((ref) async {
+  final supabase = ref.watch(supabaseClientProvider);
+  final response = await supabase.rpc('get_available_subjects');
+  final List<dynamic> data = response as List<dynamic>;
+  return data.map((e) => e['subject'] as String).toList();
+});
