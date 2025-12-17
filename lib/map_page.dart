@@ -19,6 +19,7 @@ import 'widgets/map_filter_widget.dart';
 import 'notifications_page.dart';
 import 'conversations_page.dart'; // NEW
 import 'models/study_spot.dart'; // NEW
+import 'providers/user_profile_provider.dart'; // NEW
 import 'widgets/study_spot_details_sheet.dart'; // NEW
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -602,6 +603,9 @@ class _MapPageState extends ConsumerState<MapPage> {
       return;
     }
 
+    // Get latest profile snapshot (or watch it in build)
+    final myProfile = ref.read(myProfileProvider).value;
+
     if (!mounted) {
       logger.warning("⚠️ Widget not mounted, skipping marker update");
       return;
@@ -667,36 +671,59 @@ class _MapPageState extends ConsumerState<MapPage> {
           }
         }
 
-        // --- FILTER LOGIC ---
-        if (peer.isTutor && !_filters.showTutors) {
-          logger.debug("Active Filtering: Skipping Tutor ${peer.fullName}");
-          continue;
-        }
-        if (!peer.isTutor && !_filters.showStudents) {
-          logger.debug("Active Filtering: Skipping Student ${peer.fullName}");
-          continue;
+        // --- FILTERS ---
+        // 1. Tutors
+        if (peer.isTutor && !_filters.showTutors) continue;
+        // 2. Students
+        if (!peer.isTutor && !_filters.showStudents) continue;
+
+        // 3. Classmates (New)
+        if (_filters.showClassmates) {
+          if (myProfile == null) {
+            continue; // Can't filter if we don't know who I am
+          }
+
+          final myClasses = myProfile.currentClasses;
+          final peerClasses = peer.currentClasses;
+
+          // Check intersection
+          final common = myClasses.toSet().intersection(peerClasses.toSet());
+          if (common.isEmpty) continue;
         }
 
+        // 4. Subjects
         if (_filters.selectedSubjects.isNotEmpty) {
-          // Case insensitive check
-          final peerClasses =
-              peer.currentClasses.map((e) => e.toLowerCase()).toList();
-          final hasSubject = _filters.selectedSubjects
-              .any((s) => peerClasses.contains(s.toLowerCase()));
-          if (!hasSubject) {
-            logger.debug(
-                "Active Filtering: Skipping Subject Match for ${peer.fullName}");
-            continue;
+          // ... (existing logic)
+          // If peer has no classes that match selected subjects?
+          // Or if peer "intent" matches?
+          // For now, let's assume we check against currentClasses or Intent
+          // Simple check:
+          bool matchesSubject = false;
+          for (var subject in _filters.selectedSubjects) {
+            // Check classes
+            if (peer.currentClasses
+                .any((c) => c.toLowerCase().contains(subject.toLowerCase()))) {
+              matchesSubject = true;
+              break;
+            }
+            // Check intent
+            if (peer.intentTag != null &&
+                peer.intentTag!.toLowerCase().contains(subject.toLowerCase())) {
+              matchesSubject = true;
+              break;
+            }
           }
+          if (!matchesSubject) continue;
         }
-        // --------------------
 
         try {
           await mapController?.addCircle(
             CircleOptions(
               geometry: geometry, // Safe local variable
-              circleColor: peer.isTutor ? '#9D00FF' : '#00FFFF',
-              circleRadius: 10,
+              circleColor: peer.isTutor
+                  ? '#FFD700'
+                  : '#00FFFF', // Gold for Tutors, Cyan for Students
+              circleRadius: 8,
               circleStrokeWidth: 2,
               circleStrokeColor: '#FFFFFF',
               circleBlur: 0.2,

@@ -364,7 +364,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                 color: (_isTutor
                                         ? Colors.amber
                                         : theme.primaryColor)
-                                    .withOpacity(0.2),
+                                    .withValues(alpha: 0.2),
                                 blurRadius: 20,
                                 spreadRadius: 5,
                               )
@@ -380,8 +380,8 @@ class _ProfilePageState extends State<ProfilePage> {
                             child: _avatarController.text.isEmpty
                                 ? Icon(Icons.person,
                                     size: 60,
-                                    color:
-                                        theme.iconTheme.color?.withOpacity(0.5))
+                                    color: theme.iconTheme.color
+                                        ?.withValues(alpha: 0.5))
                                 : null,
                           ),
                         ),
@@ -425,10 +425,10 @@ class _ProfilePageState extends State<ProfilePage> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.amber.withOpacity(0.1),
+                          color: Colors.amber.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
-                          border:
-                              Border.all(color: Colors.amber.withOpacity(0.3)),
+                          border: Border.all(
+                              color: Colors.amber.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -668,16 +668,18 @@ class _ProfilePageState extends State<ProfilePage> {
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(
-            color: theme.textTheme.bodyMedium?.color?.withOpacity(0.5)),
+            color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.5)),
         filled: true,
-        fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        fillColor:
+            theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: theme.dividerColor.withOpacity(0.1)),
+          borderSide:
+              BorderSide(color: theme.dividerColor.withValues(alpha: 0.1)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -727,7 +729,7 @@ class _ProfilePageState extends State<ProfilePage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                    color: countColor?.withOpacity(0.2),
+                    color: countColor?.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: countColor ?? Colors.grey)),
                 child: Text(
@@ -743,7 +745,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ],
         ),
         style: OutlinedButton.styleFrom(
-          side: BorderSide(color: theme.dividerColor.withOpacity(0.2)),
+          side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.2)),
           padding: const EdgeInsets.symmetric(horizontal: 16),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

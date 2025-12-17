@@ -31,7 +31,6 @@ class ThemeNotifier extends _$ThemeNotifier {
         value = 'dark';
         break;
       case ThemeMode.system:
-      default:
         value = 'system';
         break;
     }

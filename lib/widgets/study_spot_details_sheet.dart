@@ -77,7 +77,7 @@ class StudySpotDetailsSheet extends StatelessWidget {
                               _formatType(spot.type),
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 color: theme.textTheme.bodySmall?.color
-                                    ?.withOpacity(0.7),
+                                    ?.withValues(alpha: 0.7),
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -111,20 +111,21 @@ class StudySpotDetailsSheet extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: theme.disabledColor.withOpacity(0.1),
+                          color: theme.disabledColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
                           children: [
                             Icon(Icons.public,
                                 size: 16,
-                                color: theme.iconTheme.color?.withOpacity(0.5)),
+                                color: theme.iconTheme.color
+                                    ?.withValues(alpha: 0.5)),
                             const SizedBox(width: 4),
                             Text(
                               "PUBLIC",
                               style: TextStyle(
                                   color: theme.textTheme.bodySmall?.color
-                                      ?.withOpacity(0.5),
+                                      ?.withValues(alpha: 0.5),
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12),
                             ),
@@ -141,9 +142,10 @@ class StudySpotDetailsSheet extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.amber.withOpacity(0.2),
+                      color: Colors.amber.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.amber.withOpacity(0.5)),
+                      border: Border.all(
+                          color: Colors.amber.withValues(alpha: 0.5)),
                     ),
                     child: Row(
                       children: [
@@ -196,7 +198,7 @@ class StudySpotDetailsSheet extends StatelessWidget {
                         labelStyle: theme.textTheme.bodySmall,
                         avatar: Icon(Icons.door_front_door,
                             size: 16,
-                            color: theme.primaryColor.withOpacity(0.7)),
+                            color: theme.primaryColor.withValues(alpha: 0.7)),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20)),
                         side: BorderSide.none,
@@ -207,7 +209,7 @@ class StudySpotDetailsSheet extends StatelessWidget {
                         labelStyle: theme.textTheme.bodySmall,
                         avatar: Icon(_getTypeIcon(spot.type),
                             size: 16,
-                            color: theme.primaryColor.withOpacity(0.7)),
+                            color: theme.primaryColor.withValues(alpha: 0.7)),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20)),
                         side: BorderSide.none,

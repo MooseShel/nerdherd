@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/university_provider.dart';
+import '../providers/auth_provider.dart';
 import 'course_import_page.dart';
 import '../services/haptic_service.dart';
 
@@ -102,13 +103,27 @@ class _UniversitySelectionPageState
                           style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text(uni.domain ?? "Verified Institution"),
                       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                      onTap: () {
+                      onTap: () async {
                         hapticService.mediumImpact();
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) =>
-                                    CourseImportPage(university: uni)));
+                        // Set university in profile
+                        final userId = ref
+                            .read(supabaseClientProvider)
+                            .auth
+                            .currentUser
+                            ?.id;
+                        if (userId != null) {
+                          await ref
+                              .read(universityServiceProvider)
+                              .setUniversity(userId, uni.id);
+                        }
+
+                        if (context.mounted) {
+                          Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      CourseImportPage(university: uni)));
+                        }
                       },
                     );
                   },

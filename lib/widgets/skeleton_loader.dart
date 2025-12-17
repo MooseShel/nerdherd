@@ -37,8 +37,8 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
 
     // Dark theme shimmer: dark grey to slightly lighter grey
     _colorAnimation = ColorTween(
-      begin: Colors.white.withOpacity(0.05),
-      end: Colors.white.withOpacity(0.15),
+      begin: Colors.white.withValues(alpha: 0.05),
+      end: Colors.white.withValues(alpha: 0.15),
     ).animate(_controller);
   }
 

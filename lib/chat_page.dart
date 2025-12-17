@@ -251,7 +251,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       child: messagesAsync.when(
                         data: (messages) {
                           if (messages.isEmpty) {
-                            return Center(
+                            return const Center(
                               child: EmptyStateWidget(
                                 icon: Icons.chat_bubble_outline_rounded,
                                 title: "No messages yet",

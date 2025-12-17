@@ -5,22 +5,26 @@ import '../services/haptic_service.dart';
 class MapFilters {
   final bool showTutors;
   final bool showStudents;
+  final bool showClassmates; // NEW
   final List<String> selectedSubjects;
 
   MapFilters({
     this.showTutors = true,
     this.showStudents = true,
+    this.showClassmates = false,
     this.selectedSubjects = const [],
   });
 
   MapFilters copyWith({
     bool? showTutors,
     bool? showStudents,
+    bool? showClassmates,
     List<String>? selectedSubjects,
   }) {
     return MapFilters(
       showTutors: showTutors ?? this.showTutors,
       showStudents: showStudents ?? this.showStudents,
+      showClassmates: showClassmates ?? this.showClassmates,
       selectedSubjects: selectedSubjects ?? this.selectedSubjects,
     );
   }
@@ -94,15 +98,16 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
             maxHeight: _isExpanded ? 400 : 0,
           ),
           decoration: BoxDecoration(
-            color: theme.cardTheme.color?.withOpacity(0.9) ??
+            color: theme.cardTheme.color?.withValues(alpha: 0.9) ??
                 (isDark
-                    ? const Color(0xFF0F111A).withOpacity(0.9)
-                    : Colors.white.withOpacity(0.9)),
+                    ? const Color(0xFF0F111A).withValues(alpha: 0.9)
+                    : Colors.white.withValues(alpha: 0.9)),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+            border:
+                Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -122,7 +127,7 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
                             "FILTER PEERS",
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: theme.textTheme.labelSmall?.color
-                                  ?.withOpacity(0.5),
+                                  ?.withValues(alpha: 0.5),
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.5,
@@ -147,16 +152,25 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
                                 .copyWith(showStudents: val)),
                             theme,
                           ),
+                          _buildSwitch(
+                            "Classmates",
+                            widget.currentFilters.showClassmates,
+                            Colors.purpleAccent,
+                            (val) => _updateFilters(widget.currentFilters
+                                .copyWith(showClassmates: val)),
+                            theme,
+                          ),
 
                           const SizedBox(height: 16),
-                          Divider(color: theme.dividerColor.withOpacity(0.1)),
+                          Divider(
+                              color: theme.dividerColor.withValues(alpha: 0.1)),
                           const SizedBox(height: 8),
 
                           Text(
                             "SUBJECTS",
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: theme.textTheme.labelSmall?.color
-                                  ?.withOpacity(0.5),
+                                  ?.withValues(alpha: 0.5),
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.5,
@@ -187,15 +201,15 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
                                   _updateFilters(widget.currentFilters
                                       .copyWith(selectedSubjects: newSubjects));
                                 },
-                                backgroundColor:
-                                    theme.cardTheme.color?.withOpacity(0.5),
+                                backgroundColor: theme.cardTheme.color
+                                    ?.withValues(alpha: 0.5),
                                 selectedColor:
-                                    theme.primaryColor.withOpacity(0.2),
+                                    theme.primaryColor.withValues(alpha: 0.2),
                                 labelStyle: TextStyle(
                                   color: isSelected
                                       ? theme.primaryColor
                                       : theme.textTheme.bodyMedium?.color
-                                          ?.withOpacity(0.7),
+                                          ?.withValues(alpha: 0.7),
                                   fontSize: 12,
                                   fontWeight: isSelected
                                       ? FontWeight.bold
@@ -233,7 +247,7 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
                 size: 16,
                 color: value
                     ? activeColor
-                    : theme.iconTheme.color?.withOpacity(0.5),
+                    : theme.iconTheme.color?.withValues(alpha: 0.5),
               ),
               const SizedBox(width: 8),
               Text(
@@ -249,8 +263,8 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
               onChanged(val);
             },
             activeThumbColor: activeColor,
-            activeTrackColor: activeColor.withOpacity(0.3),
-            inactiveTrackColor: theme.disabledColor.withOpacity(0.1),
+            activeTrackColor: activeColor.withValues(alpha: 0.3),
+            inactiveTrackColor: theme.disabledColor.withValues(alpha: 0.1),
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         ],

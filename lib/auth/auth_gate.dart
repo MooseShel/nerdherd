@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../university/university_check.dart';
 import '../providers/auth_provider.dart';
 import '../map_page.dart';
 import 'auth_page.dart';
@@ -19,7 +20,9 @@ class AuthGate extends ConsumerWidget {
       data: (user) {
         if (user != null) {
           notificationService.subscribeToNotifications();
-          return const BiometricGuard(child: MapPage());
+          return const BiometricGuard(
+            child: UniversityCheck(child: MapPage()),
+          );
         } else {
           notificationService.unsubscribe();
           return const AuthPage();

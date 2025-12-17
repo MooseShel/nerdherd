@@ -15,7 +15,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // If you're going to use other Firebase services in the background, such as Firestore,
   // make sure you call `initializeApp` before using other Firebase services.
   // await Firebase.initializeApp();
-  print("Handling a background message: ${message.messageId}");
+  logger.info("Handling a background message: ${message.messageId}");
 }
 
 /// Service to handle local notifications and real-time alerts.
@@ -136,9 +136,8 @@ class NotificationService {
       FirebaseMessaging.onBackgroundMessage(
           _firebaseMessagingBackgroundHandler);
     } catch (e) {
-      logger.error(
-          'Error initializing FCM (likely due to missing config or Web/Emulator environment)',
-          error: e);
+      logger.warning(
+          'FCM not initialized (Expected if missing firebase_options.dart or on Web/Windows without config). Notification features will be local-only.');
     }
   }
 

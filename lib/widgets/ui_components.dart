@@ -15,7 +15,7 @@ class SectionHeader extends StatelessWidget {
       child: Text(
         title.toUpperCase(),
         style: theme.textTheme.labelSmall?.copyWith(
-          color: theme.primaryColor.withOpacity(0.7),
+          color: theme.primaryColor.withValues(alpha: 0.7),
           fontSize: 12,
           fontWeight: FontWeight.bold,
           letterSpacing: 1.2,
@@ -53,10 +53,10 @@ class SettingsTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.cardTheme.color,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           )
@@ -67,7 +67,7 @@ class SettingsTile extends StatelessWidget {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: (iconColor ?? theme.primaryColor).withOpacity(0.1),
+            color: (iconColor ?? theme.primaryColor).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: iconColor ?? theme.primaryColor, size: 20),
@@ -84,14 +84,15 @@ class SettingsTile extends StatelessWidget {
             ? Text(
                 subtitle!,
                 style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                    color: theme.textTheme.bodySmall?.color
+                        ?.withValues(alpha: 0.7),
                     fontSize: 13),
               )
             : null,
         trailing: trailing ??
             (onTap != null
                 ? Icon(Icons.chevron_right,
-                    color: theme.iconTheme.color?.withOpacity(0.3))
+                    color: theme.iconTheme.color?.withValues(alpha: 0.3))
                 : null),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
@@ -368,12 +369,12 @@ class GlassContainer extends StatelessWidget {
     final effectiveRadius = borderRadius ?? BorderRadius.circular(24);
 
     // Default glass styling
-    final effectiveColor =
-        color ?? (isDark ? Colors.white : Colors.black).withOpacity(opacity);
+    final effectiveColor = color ??
+        (isDark ? Colors.white : Colors.black).withValues(alpha: opacity);
 
     final effectiveBorder = border ??
         Border.all(
-          color: (isDark ? Colors.white : Colors.black).withOpacity(0.08),
+          color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.08),
           width: 0.5,
         );
 
@@ -463,7 +464,7 @@ class PrimaryButton extends StatelessWidget {
       foregroundColor: Colors.white,
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
       elevation: 4,
-      shadowColor: theme.primaryColor.withOpacity(0.4),
+      shadowColor: theme.primaryColor.withValues(alpha: 0.4),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     );
 
@@ -502,10 +503,12 @@ class SecondaryButton extends StatelessWidget {
 
     final buttonStyle = OutlinedButton.styleFrom(
       foregroundColor: theme.textTheme.bodyMedium?.color,
-      side: BorderSide(color: theme.dividerColor.withOpacity(0.2), width: 1.5),
+      side: BorderSide(
+          color: theme.dividerColor.withValues(alpha: 0.2), width: 1.5),
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      backgroundColor: (isDark ? Colors.white : Colors.black).withOpacity(0.05),
+      backgroundColor:
+          (isDark ? Colors.white : Colors.black).withValues(alpha: 0.05),
     );
 
     Widget content = Row(

@@ -4,6 +4,7 @@ import '../models/university.dart';
 
 import '../providers/university_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/user_profile_provider.dart'; // NEW
 import '../services/haptic_service.dart';
 
 class CourseImportPage extends ConsumerStatefulWidget {
@@ -18,47 +19,74 @@ class CourseImportPage extends ConsumerStatefulWidget {
 class _CourseImportPageState extends ConsumerState<CourseImportPage> {
   final _searchController = TextEditingController();
   String _query = "";
-  final Set<String> _pendingEnrollments = {};
+  // Track changes locally before saving
+  final Set<String> _pendingAdd = {};
+  final Set<String> _pendingRemove = {};
 
-  void _toggleCourse(String courseId) {
+  void _toggleCourse(String courseId, bool isAlreadyEnrolled) {
     hapticService.selectionClick();
     setState(() {
-      if (_pendingEnrollments.contains(courseId)) {
-        _pendingEnrollments.remove(courseId);
+      if (isAlreadyEnrolled) {
+        // Handling removal of an existing course
+        if (_pendingRemove.contains(courseId)) {
+          _pendingRemove.remove(courseId); // Undo removal
+        } else {
+          _pendingRemove.add(courseId); // Mark for removal
+        }
       } else {
-        _pendingEnrollments.add(courseId);
+        // Handling addition of a new course
+        if (_pendingAdd.contains(courseId)) {
+          _pendingAdd.remove(courseId); // Undo addition
+        } else {
+          _pendingAdd.add(courseId); // Mark for addition
+        }
       }
     });
   }
 
-  Future<void> _processEnrollments() async {
+  Future<void> _processChanges() async {
     final user = ref.read(authStateProvider).value;
     if (user == null) return;
 
-    if (_pendingEnrollments.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Select at least one course")));
+    if (_pendingAdd.isEmpty && _pendingRemove.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text("No changes selected")));
       return;
     }
 
     try {
       final service = ref.read(universityServiceProvider);
-      int count = 0;
-      for (final cid in _pendingEnrollments) {
+      int added = 0;
+      int removed = 0;
+
+      // Process Removals
+      for (final cid in _pendingRemove) {
+        await service.unenroll(user.id, cid);
+        removed++;
+      }
+
+      // Process Additions
+      for (final cid in _pendingAdd) {
         await service.enroll(user.id, cid);
-        count++;
+        added++;
       }
 
       if (mounted) {
         hapticService.heavyImpact();
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text("Success! Added $count courses."),
+          content: Text("Updated: +$added added, -$removed removed."),
           backgroundColor: Colors.green,
         ));
         // Refresh profile classes
         ref.invalidate(myEnrollmentsProvider);
-        Navigator.pop(context); // Back to university selection
-        Navigator.pop(context); // Back to profile
+        ref.invalidate(myProfileProvider);
+
+        // Navigation: Pop back to settings or map
+        // If we came from Settings, one pop might be enough?
+        // Let's just pop once to return to where we came from
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -112,25 +140,26 @@ class _CourseImportPageState extends ConsumerState<CourseImportPage> {
                 itemCount: courses.length,
                 itemBuilder: (context, index) {
                   final course = courses[index];
-                  final isAlreadyEnrolled = enrolledIds.contains(course.id);
-                  final isSelected = _pendingEnrollments.contains(course.id);
+                  final isOriginallyEnrolled = enrolledIds.contains(course.id);
+
+                  // Determine current state based on pending actions
+                  bool showEnrolled = isOriginallyEnrolled;
+                  if (isOriginallyEnrolled &&
+                      _pendingRemove.contains(course.id)) {
+                    showEnrolled = false; // Marked for removal
+                  }
+                  if (!isOriginallyEnrolled &&
+                      _pendingAdd.contains(course.id)) {
+                    showEnrolled = true; // Marked for addition
+                  }
 
                   return ListTile(
                     title: Text(course.code,
                         style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text(course.title),
-                    trailing: isAlreadyEnrolled
-                        ? const Chip(
-                            label: Text("Enrolled"),
-                            visualDensity: VisualDensity.compact)
-                        : isSelected
-                            ? const Icon(Icons.check_circle,
-                                color: Colors.green)
-                            : const Icon(Icons.circle_outlined),
-                    onTap: isAlreadyEnrolled
-                        ? null // Prevent re-selecting enrolled courses
-                        : () => _toggleCourse(course.id),
-                    enabled: !isAlreadyEnrolled,
+                    trailing:
+                        _buildStatusIcon(isOriginallyEnrolled, showEnrolled),
+                    onTap: () => _toggleCourse(course.id, isOriginallyEnrolled),
                   );
                 },
               );
@@ -143,13 +172,30 @@ class _CourseImportPageState extends ConsumerState<CourseImportPage> {
         error: (err, st) =>
             Center(child: Text("Error loading enrollments: $err")),
       ),
-      floatingActionButton: _pendingEnrollments.isNotEmpty
-          ? FloatingActionButton.extended(
-              onPressed: _processEnrollments,
-              label: Text("Import (${_pendingEnrollments.length})"),
-              icon: const Icon(Icons.save_alt),
-            )
-          : null,
+      floatingActionButton:
+          (_pendingAdd.isNotEmpty || _pendingRemove.isNotEmpty)
+              ? FloatingActionButton.extended(
+                  onPressed: _processChanges,
+                  label: const Text("Save Changes"),
+                  icon: const Icon(Icons.save),
+                )
+              : null,
     );
+  }
+
+  Widget _buildStatusIcon(bool original, bool current) {
+    if (original && !current) {
+      // Marked for removal
+      return const Icon(Icons.remove_circle_outline, color: Colors.red);
+    } else if (!original && current) {
+      // Marked for addition
+      return const Icon(Icons.add_circle, color: Colors.green);
+    } else if (original && current) {
+      // Enrolled and staying enrolled
+      return const Icon(Icons.check_circle, color: Colors.blue);
+    } else {
+      // Not enrolled
+      return const Icon(Icons.circle_outlined);
+    }
   }
 }

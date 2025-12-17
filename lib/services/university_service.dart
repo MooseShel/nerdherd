@@ -19,8 +19,24 @@ class UniversityService {
           .limit(10);
       return (data as List).map((e) => University.fromJson(e)).toList();
     } catch (e) {
-      logger.error("Error searching universities", error: e);
+      if (e is PostgrestException && e.code == 'PGRST205') {
+        logger.error(
+            "🚨 Missing 'universities' table! Please run the SQL migration script (20251217000000_university_schema.sql).");
+      } else {
+        logger.error("Error searching universities", error: e);
+      }
       return [];
+    }
+  }
+
+  Future<University?> getUniversityById(String id) async {
+    try {
+      final data =
+          await _supabase.from('universities').select().eq('id', id).single();
+      return University.fromJson(data);
+    } catch (e) {
+      logger.error("Error fetching university by ID", error: e);
+      return null;
     }
   }
 
@@ -60,12 +76,33 @@ class UniversityService {
 
   // --- Actions ---
 
+  Future<void> setUniversity(String userId, String universityId) async {
+    try {
+      await _supabase
+          .from('profiles')
+          .update({'university_id': universityId}).eq('user_id', userId);
+    } catch (e) {
+      logger.error("Error setting university", error: e);
+      rethrow;
+    }
+  }
+
   Future<void> enroll(String userId, String courseId) async {
     try {
-      await _supabase.from('enrollments').upsert({
-        'user_id': userId,
-        'course_id': courseId,
-      });
+      // Use INSERT to avoid triggering UPDATE RLS policies.
+      try {
+        await _supabase.from('enrollments').insert({
+          'user_id': userId,
+          'course_id': courseId,
+        });
+      } catch (e) {
+        // Ignore duplicate key error (already enrolled)
+        if (e is PostgrestException && e.code == '23505') {
+          // Already enrolled, do nothing
+        } else {
+          rethrow;
+        }
+      }
       // Also update the profile's "current_classes" array for backward compatibility/quick display
       // Ideally, we migrate away from that, but for now we sync it.
       await _syncProfileClasses(userId);
@@ -147,7 +184,12 @@ class UniversityService {
       }
       logger.info("🌱 Seeding Complete!");
     } catch (e) {
-      logger.error("Seeding failed", error: e);
+      if (e is PostgrestException && e.code == 'PGRST205') {
+        logger.error(
+            "🚨 Missing 'universities' table! Cannot seed data. Please run the SQL migration script.");
+      } else {
+        logger.error("Seeding failed", error: e);
+      }
     }
   }
 }

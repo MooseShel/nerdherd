@@ -27,14 +27,14 @@ class EmptyStateWidget extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
               ),
               child: Icon(
                 icon,
                 size: 48,
-                color: Colors.cyanAccent.withOpacity(0.8),
+                color: Colors.cyanAccent.withValues(alpha: 0.8),
               ),
             ),
             const SizedBox(height: 24),
@@ -62,7 +62,7 @@ class EmptyStateWidget extends StatelessWidget {
               FilledButton.tonal(
                 onPressed: onAction,
                 style: FilledButton.styleFrom(
-                  backgroundColor: Colors.cyanAccent.withOpacity(0.1),
+                  backgroundColor: Colors.cyanAccent.withValues(alpha: 0.1),
                   foregroundColor: Colors.cyanAccent,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 24, vertical: 12),

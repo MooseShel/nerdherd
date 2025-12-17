@@ -8,6 +8,7 @@ import 'pay/wallet_page.dart';
 import 'admin/admin_dashboard.dart';
 import 'reviews/reviews_history_page.dart';
 import 'providers/theme_provider.dart';
+import 'university/university_selection_page.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -77,7 +78,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: theme.dividerColor.withOpacity(0.2),
+                  color: theme.dividerColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -141,10 +142,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             decoration: InputDecoration(
               hintText: 'New Password',
               hintStyle: TextStyle(
-                  color: theme.textTheme.bodyMedium?.color?.withOpacity(0.5)),
+                  color: theme.textTheme.bodyMedium?.color
+                      ?.withValues(alpha: 0.5)),
               enabledBorder: UnderlineInputBorder(
-                borderSide:
-                    BorderSide(color: theme.dividerColor.withOpacity(0.2)),
+                borderSide: BorderSide(
+                    color: theme.dividerColor.withValues(alpha: 0.2)),
               ),
               focusedBorder: UnderlineInputBorder(
                 borderSide: BorderSide(color: theme.primaryColor),
@@ -260,6 +262,20 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          const SectionHeader(title: 'EDUCATION'),
+          SettingsTile(
+            icon: Icons.school,
+            title: 'Manage Education',
+            subtitle: 'University and Courses',
+            onTap: () {
+              // Always go to University Selection to allow switching
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                    builder: (_) => const UniversitySelectionPage()),
+              );
+            },
+          ),
+          const SizedBox(height: 24),
           const SectionHeader(title: 'APPEARANCE'),
           SettingsTile(
             icon: Icons.brightness_6,
@@ -359,7 +375,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             child: Text(
               'Version 1.0.0',
               style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.textTheme.bodySmall?.color?.withOpacity(0.3)),
+                  color:
+                      theme.textTheme.bodySmall?.color?.withValues(alpha: 0.3)),
             ),
           ),
         ],

@@ -240,12 +240,12 @@ class _RequestsPageState extends State<RequestsPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           )
         ],
-        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -255,7 +255,7 @@ class _RequestsPageState extends State<RequestsPage> {
               children: [
                 CircleAvatar(
                   radius: 24,
-                  backgroundColor: theme.dividerColor.withOpacity(0.1),
+                  backgroundColor: theme.dividerColor.withValues(alpha: 0.1),
                   backgroundImage:
                       otherAvatar != null ? NetworkImage(otherAvatar) : null,
                   child: otherAvatar == null
@@ -287,7 +287,7 @@ class _RequestsPageState extends State<RequestsPage> {
                             : "Waiting for them...",
                         style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.textTheme.bodySmall?.color
-                                ?.withOpacity(0.7)),
+                                ?.withValues(alpha: 0.7)),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -300,13 +300,13 @@ class _RequestsPageState extends State<RequestsPage> {
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: status == 'accepted'
-                          ? Colors.green.withOpacity(0.1)
-                          : Colors.red.withOpacity(0.1),
+                          ? Colors.green.withValues(alpha: 0.1)
+                          : Colors.red.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                           color: status == 'accepted'
                               ? Colors.green
-                              : Colors.redAccent.withOpacity(0.5)),
+                              : Colors.redAccent.withValues(alpha: 0.5)),
                     ),
                     child: Text(
                       status.toUpperCase(),
@@ -334,7 +334,8 @@ class _RequestsPageState extends State<RequestsPage> {
                     style: OutlinedButton.styleFrom(
                         foregroundColor: theme.colorScheme.error,
                         side: BorderSide(
-                            color: theme.colorScheme.error.withOpacity(0.5)),
+                            color:
+                                theme.colorScheme.error.withValues(alpha: 0.5)),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                         padding: const EdgeInsets.symmetric(

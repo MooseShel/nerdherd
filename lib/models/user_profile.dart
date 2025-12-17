@@ -7,8 +7,14 @@ class UserProfile {
   /// University student ID (optional).
   final String? universityId;
 
+  /// University Name (fetched via join)
+  final String? universityName;
+
   /// Whether the user is a tutor or not.
   final bool isTutor;
+
+  /// Whether the tutor is verified by admin.
+  final bool isVerifiedTutor;
 
   /// List of current classes/subjects the user is studying or tutoring.
   final List<String> currentClasses;
@@ -20,17 +26,16 @@ class UserProfile {
   final String? fullName;
 
   /// User's physical location address (optional).
-  final String? address; // NEW: Address field
+  final String? address;
+
   /// URL to the user's avatar image.
   final String? avatarUrl;
 
   /// Last known location (lat/lng).
   ///
   /// Note: This is derived from the PostGIS `location_geom` column in the database.
-  /// Last known location (lat/lng).
-  ///
-  /// Note: This is derived from the PostGIS `location_geom` column in the database.
-  final LatLng? location; // Derived from location_geom
+  final LatLng? location;
+
   /// Average rating from reviews (1.0 - 5.0).
   final double? averageRating;
 
@@ -52,15 +57,13 @@ class UserProfile {
   /// Whether the user is banned.
   final bool isBanned;
 
-  /// Whether the tutor is verified by admin.
-  final bool isVerifiedTutor;
-
   /// Wallet balance of the user.
   final double walletBalance;
 
   UserProfile({
     required this.userId,
     this.universityId,
+    this.universityName,
     this.isTutor = false,
     this.isVerifiedTutor = false,
     this.currentClasses = const [],
@@ -81,7 +84,6 @@ class UserProfile {
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     // Handle location_geom if it comes as GeoJSON or ignore for basic fetch
-    // For now assuming we might parse it manually or separate lat/lng columns in a view
     LatLng? loc;
     var lat = json['lat'];
     var lng = json['lng'] ?? json['long'];
@@ -89,9 +91,15 @@ class UserProfile {
       loc = LatLng(lat, lng);
     }
 
+    String? uniName;
+    if (json['university'] != null && json['university'] is Map) {
+      uniName = json['university']['name'];
+    }
+
     return UserProfile(
       userId: json['user_id'],
       universityId: json['university_id'],
+      universityName: uniName,
       isTutor: json['is_tutor'] ?? false,
       isVerifiedTutor: json['is_verified_tutor'] ?? false,
       currentClasses: List<String>.from(json['current_classes'] ?? []),
@@ -135,7 +143,7 @@ class UserProfile {
       'wallet_balance': walletBalance,
       if (location != null) 'lat': location!.latitude,
       if (location != null) 'long': location!.longitude,
-      'last_updated': DateTime.now().toIso8601String(), // Auto-update timestamp
+      'last_updated': DateTime.now().toIso8601String(),
     };
   }
 }

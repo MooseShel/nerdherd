@@ -61,14 +61,31 @@ class LoggerService {
   ///
   /// Use this for exceptions and runtime errors that impact functionality.
   void error(String message, {dynamic error, StackTrace? stackTrace}) {
-    _logger.e(message, error: error, stackTrace: stackTrace);
+    String errorMsg = message;
+    if (error != null) {
+      try {
+        errorMsg += " | Error: ${error.toString()}";
+      } catch (_) {
+        errorMsg += " | Error: <Complex Object>";
+      }
+    }
+    // Pass null as error to avoid Logger inspecting the object
+    _logger.e(errorMsg, error: null, stackTrace: stackTrace);
   }
 
   /// Log a fatal/critical error.
   ///
   /// Use this for catastrophic failures requiring immediate attention.
   void fatal(String message, {dynamic error, StackTrace? stackTrace}) {
-    _logger.f(message, error: error, stackTrace: stackTrace);
+    String errorMsg = message;
+    if (error != null) {
+      try {
+        errorMsg += " | Error: ${error.toString()}";
+      } catch (_) {
+        errorMsg += " | Error: <Complex Object>";
+      }
+    }
+    _logger.f(errorMsg, error: null, stackTrace: stackTrace);
   }
 }
 

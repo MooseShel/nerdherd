@@ -46,13 +46,14 @@ class _ReviewDialogState extends State<ReviewDialog> {
               decoration: InputDecoration(
                 labelText: "Comment (optional)",
                 labelStyle: TextStyle(
-                    color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6)),
+                    color: theme.textTheme.bodyMedium?.color
+                        ?.withValues(alpha: 0.6)),
                 filled: true,
-                fillColor:
-                    theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                fillColor: theme.colorScheme.surfaceContainerHighest
+                    .withValues(alpha: 0.3),
                 enabledBorder: OutlineInputBorder(
-                    borderSide:
-                        BorderSide(color: theme.dividerColor.withOpacity(0.2)),
+                    borderSide: BorderSide(
+                        color: theme.dividerColor.withValues(alpha: 0.2)),
                     borderRadius: BorderRadius.circular(12)),
                 focusedBorder: OutlineInputBorder(
                     borderSide: BorderSide(color: theme.primaryColor),

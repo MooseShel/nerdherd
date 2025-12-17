@@ -89,7 +89,7 @@ class _ReviewsHistoryPageState extends State<ReviewsHistoryPage> {
                         color: theme.cardTheme.color,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                            color: theme.dividerColor.withOpacity(0.1)),
+                            color: theme.dividerColor.withValues(alpha: 0.1)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,7 +131,7 @@ class _ReviewsHistoryPageState extends State<ReviewsHistoryPage> {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: Colors.amber.withOpacity(0.1),
+                                  color: Colors.amber.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Row(
@@ -157,7 +157,7 @@ class _ReviewsHistoryPageState extends State<ReviewsHistoryPage> {
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 fontStyle: FontStyle.italic,
                                 color: theme.textTheme.bodyMedium?.color
-                                    ?.withOpacity(0.8),
+                                    ?.withValues(alpha: 0.8),
                               ),
                             ),
                           ],

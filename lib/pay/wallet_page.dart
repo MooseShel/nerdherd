@@ -286,14 +286,17 @@ class _WalletPageState extends ConsumerState<WalletPage> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [theme.primaryColor, theme.primaryColor.withOpacity(0.7)],
+          colors: [
+            theme.primaryColor,
+            theme.primaryColor.withValues(alpha: 0.7)
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: theme.primaryColor.withOpacity(0.3),
+            color: theme.primaryColor.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           )
@@ -341,14 +344,14 @@ class _WalletPageState extends ConsumerState<WalletPage> {
         decoration: BoxDecoration(
           color: theme.cardTheme.color,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+          border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
         ),
         child: Column(
           children: [
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 28),
@@ -371,14 +374,15 @@ class _WalletPageState extends ConsumerState<WalletPage> {
       decoration: BoxDecoration(
         color: theme.cardTheme.color,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.05)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: (isPositive ? Colors.green : Colors.red).withOpacity(0.1),
+              color: (isPositive ? Colors.green : Colors.red)
+                  .withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(

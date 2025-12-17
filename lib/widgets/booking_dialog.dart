@@ -193,9 +193,10 @@ class _BookingDialogState extends ConsumerState<BookingDialog> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: Colors.green.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.green.withOpacity(0.3)),
+                    border:
+                        Border.all(color: Colors.green.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
@@ -258,11 +259,11 @@ class _BookingDialogState extends ConsumerState<BookingDialog> {
                 decoration: InputDecoration(
                   hintText: "Reason / Topic (e.g. Calculus Help)",
                   hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                      color:
-                          theme.textTheme.bodyMedium?.color?.withOpacity(0.5)),
+                      color: theme.textTheme.bodyMedium?.color
+                          ?.withValues(alpha: 0.5)),
                   filled: true,
                   fillColor: theme.colorScheme.surfaceContainerHighest
-                      .withOpacity(0.3),
+                      .withValues(alpha: 0.3),
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none),

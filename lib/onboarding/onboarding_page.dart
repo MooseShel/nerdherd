@@ -81,10 +81,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: _pages[_currentPage]['color'].withOpacity(0.2),
+                color: _pages[_currentPage]['color'].withValues(alpha: 0.2),
                 boxShadow: [
                   BoxShadow(
-                    color: _pages[_currentPage]['color'].withOpacity(0.2),
+                    color: _pages[_currentPage]['color'].withValues(alpha: 0.2),
                     blurRadius: 100,
                     spreadRadius: 50,
                   ),
@@ -100,10 +100,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
               height: 250,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.purpleAccent.withOpacity(0.1),
+                color: Colors.purpleAccent.withValues(alpha: 0.1),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.purpleAccent.withOpacity(0.1),
+                    color: Colors.purpleAccent.withValues(alpha: 0.1),
                     blurRadius: 100,
                     spreadRadius: 50,
                   ),
@@ -147,15 +147,15 @@ class _OnboardingPageState extends State<OnboardingPage> {
           Container(
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              color: page['color'].withOpacity(0.1),
+              color: page['color'].withValues(alpha: 0.1),
               shape: BoxShape.circle,
               border: Border.all(
-                color: page['color'].withOpacity(0.3),
+                color: page['color'].withValues(alpha: 0.3),
                 width: 2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: page['color'].withOpacity(0.2),
+                  color: page['color'].withValues(alpha: 0.2),
                   blurRadius: 30,
                   spreadRadius: 10,
                 )

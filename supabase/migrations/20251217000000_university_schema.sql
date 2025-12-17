@@ -50,7 +50,7 @@ create policy "Users can unenroll themselves" on public.enrollments
 
 -- Seed Data (Simulation)
 insert into public.universities (name, domain, logo_url) values 
-('Nerd Herd University', 'nerdherd.edu', 'assets/images/university_logo.png');
+('Nerd Herd University', 'nerdherd.edu', 'assets/images/nerd_herd_logo.png');
 
 -- (Note: You'd typically need the UUID of the inserted university to seed courses, 
 -- but we'll handle seeding dynamically in the app if needed or assumes user adds them manually in admin later)

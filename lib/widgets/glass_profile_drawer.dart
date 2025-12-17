@@ -23,6 +23,7 @@ class GlassProfileDrawer extends StatefulWidget {
 
 class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
   bool _isLoading = false;
+  String? _fetchedUniversityName;
   bool _requestSent = false;
   bool _isConnected = false;
   bool _canRate = false; // New: Verified session exists
@@ -44,6 +45,21 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
     if (mounted) setState(() => _isLoading = true);
 
     try {
+      // 0. Fetch University Name if missing
+      if (widget.profile.universityName == null &&
+          widget.profile.universityId != null) {
+        final uni = await supabase
+            .from('universities')
+            .select('name')
+            .eq('id', widget.profile.universityId!)
+            .maybeSingle();
+        if (uni != null && mounted) {
+          setState(() {
+            _fetchedUniversityName = uni['name'];
+          });
+        }
+      }
+
       // 1. Check if already connected (Friends)
       final connection = await supabase
           .from('connections')
@@ -324,8 +340,8 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: widget.profile.isTutor
-                              ? Colors.amber.withOpacity(0.8)
-                              : theme.primaryColor.withOpacity(0.8),
+                              ? Colors.amber.withValues(alpha: 0.8)
+                              : theme.primaryColor.withValues(alpha: 0.8),
                           width: 2,
                         ),
                         boxShadow: [
@@ -333,7 +349,7 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                             color: (widget.profile.isTutor
                                     ? Colors.amber
                                     : theme.primaryColor)
-                                .withOpacity(0.3),
+                                .withValues(alpha: 0.3),
                             blurRadius: 20,
                             spreadRadius: -2,
                           )
@@ -399,16 +415,35 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                 ),
                             ],
                           ),
+                          if (widget.profile.universityName != null ||
+                              _fetchedUniversityName != null) ...[
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                const Icon(Icons.school,
+                                    size: 14, color: Colors.white70),
+                                const SizedBox(width: 4),
+                                Text(
+                                  widget.profile.universityName ??
+                                      _fetchedUniversityName!,
+                                  style: const TextStyle(
+                                      color: Colors.white70, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ],
                           const SizedBox(height: 4),
                           if (isMe)
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: theme.primaryColor.withOpacity(0.1),
+                                color:
+                                    theme.primaryColor.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                    color: theme.primaryColor.withOpacity(0.2)),
+                                    color: theme.primaryColor
+                                        .withValues(alpha: 0.2)),
                               ),
                               child: Text(
                                 "This is You",
@@ -424,7 +459,7 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                               widget.profile.intentTag ?? "Hanging out",
                               style: theme.textTheme.bodyLarge?.copyWith(
                                 color: theme.textTheme.bodyMedium?.color
-                                    ?.withOpacity(0.7),
+                                    ?.withValues(alpha: 0.7),
                               ),
                             ),
                           if (widget.profile.isTutor &&
@@ -474,7 +509,7 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                         style: TextStyle(
                                           color: theme
                                               .textTheme.bodySmall?.color
-                                              ?.withOpacity(0.6),
+                                              ?.withValues(alpha: 0.6),
                                           fontSize: 13,
                                           decoration: TextDecoration.underline,
                                         ),
@@ -534,7 +569,7 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 10),
                       borderRadius: BorderRadius.circular(20),
-                      color: theme.cardColor.withOpacity(0.5),
+                      color: theme.cardColor.withValues(alpha: 0.5),
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 300),
                         // Constraint prevents massive chip overflow

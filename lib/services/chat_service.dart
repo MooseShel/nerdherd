@@ -40,7 +40,7 @@ class ChatService {
         'message_type':
             type, // Schema uses 'message_type' based on ChatPage analysis
         'media_url': mediaUrl,
-        'is_read': false,
+        // 'is_read': false, // REMOVED: Schema uses read_at timestamp instead
       });
       // logger.debug("📨 Message sent to $receiverId");
     } catch (e) {
