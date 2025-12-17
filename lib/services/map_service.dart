@@ -46,7 +46,6 @@ class MapService {
         .from('profiles')
         .stream(primaryKey: ['user_id'])
         .order('last_updated', ascending: false)
-        .limit(50)
         .map((data) {
           return data.map((e) => UserProfile.fromJson(e)).toList();
         });
