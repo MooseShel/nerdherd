@@ -24,6 +24,7 @@ class ChatPage extends ConsumerStatefulWidget {
 class _ChatPageState extends ConsumerState<ChatPage> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  final _focusNode = FocusNode();
 
   bool _isLoadingMore = false;
   bool _isUploading = false;
@@ -74,6 +75,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _focusNode.dispose();
     _typingTimer?.cancel();
     super.dispose();
   }
@@ -136,8 +138,13 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             mediaUrl: imageUrl,
           );
 
+      if (!mounted) return;
+
       _messageController.clear();
       _updateTypingStatus(false);
+
+      // Keep focus on input field for rapid messaging
+      _focusNode.requestFocus();
 
       // Navigate to bottom (start of list in reverse)
       if (_scrollController.hasClients) {
@@ -586,6 +593,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       Expanded(
                         child: TextField(
                           controller: _messageController,
+                          focusNode: _focusNode,
                           style: TextStyle(color: colorScheme.onSurface),
                           decoration: InputDecoration(
                             hintText: "Type a message...",
@@ -601,7 +609,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                                 horizontal: 20, vertical: 12),
                           ),
                           onChanged: _onTextChanged,
-                          onSubmitted: (_) => _sendMessage(),
+                          onSubmitted: (_) {
+                            _sendMessage();
+                          },
                         ),
                       ),
                       const SizedBox(width: 12),

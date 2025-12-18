@@ -5,6 +5,8 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE TABLE IF NOT EXISTS public.profiles (
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     university_id TEXT, -- e.g., verified email domain or ID
+    full_name TEXT, -- User's display name
+    address TEXT, -- Campus or physical address
     is_tutor BOOLEAN DEFAULT FALSE,
     current_classes TEXT[] DEFAULT '{}', -- Array of strings, e.g., {'CS101', 'MATH200'}
     intent_tag TEXT, -- e.g., 'Open to Collab', 'Quiet Study Only'
@@ -15,6 +17,29 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     last_updated TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
     PRIMARY KEY (user_id)
 );
+
+-- Function to handle new user signup (Auto-create profile)
+CREATE OR REPLACE FUNCTION public.handle_new_user() 
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (user_id, full_name, address, is_tutor, avatar_url)
+  VALUES (
+    NEW.id, 
+    NEW.raw_user_meta_data->>'full_name', 
+    NEW.raw_user_meta_data->>'address', 
+    (NEW.raw_user_meta_data->>'is_tutor')::boolean,
+    NEW.raw_user_meta_data->>'avatar_url'
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger to call handle_new_user
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_user();
 
 -- Trigger to sync lat/long -> location_geom
 CREATE OR REPLACE FUNCTION public.sync_location_geom()

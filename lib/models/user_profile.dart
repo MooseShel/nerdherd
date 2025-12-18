@@ -115,7 +115,7 @@ class UserProfile {
       hourlyRate: json['hourly_rate'],
       bio: json['bio'],
       lastUpdated: json['last_updated'] != null
-          ? DateTime.parse(json['last_updated'])
+          ? DateTime.tryParse(json['last_updated'])
           : null,
       isAdmin: json['is_admin'] ?? false,
       isBanned: json['is_banned'] ?? false,

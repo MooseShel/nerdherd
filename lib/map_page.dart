@@ -419,9 +419,9 @@ class _MapPageState extends ConsumerState<MapPage> {
     final now = DateTime.now();
     bool shouldUpdate = false;
 
-    // 1. Time Check (Heartbeat every 60s)
+    // 1. Time Check (Heartbeat every 30s - User requested)
     if (_lastBroadcastTime == null ||
-        now.difference(_lastBroadcastTime!).inSeconds >= 60) {
+        now.difference(_lastBroadcastTime!).inSeconds >= 30) {
       shouldUpdate = true;
     }
 
@@ -813,11 +813,39 @@ class _MapPageState extends ConsumerState<MapPage> {
           continue;
         }
 
-        // --- INSTANT VISIBILITY FILTER (Presence) ---
-        // Only show users who are currently "Online" and NOT in Ghost Mode
-        if (!_onlineUserIds.contains(peer.userId)) {
+        // --- VISIBILITY & LIVE STATUS ---
+        // Logic:
+        // 1. Online OR Recent (<10m) -> Visible
+        // 2. Stale (>10m) -> HIDDEN (Strict)
+
+        bool isOnline = _onlineUserIds.contains(peer.userId);
+        bool isRecent = false;
+        int minutesAgo = 9999;
+
+        if (peer.lastUpdated != null) {
+          final nowUtc = DateTime.now().toUtc();
+          final lastUpdateUtc = peer.lastUpdated!.isUtc
+              ? peer.lastUpdated!
+              : peer.lastUpdated!.toUtc();
+
+          final diff = nowUtc.difference(lastUpdateUtc);
+          minutesAgo = diff.inMinutes.abs();
+
+          if (minutesAgo <= 10) {
+            isRecent = true;
+          }
+        }
+
+        // STRICT FILTER: If not online and not recent, hide them.
+        if (!isOnline && !isRecent) {
           continue;
         }
+
+        // Only skip if NO LOCATION at all
+        if (peer.location == null) continue;
+
+        // Opacity is always 1.0 since we only show active users
+        double opacity = 1.0;
 
         // --- FILTERS ---
         // 1. Tutors
@@ -865,6 +893,7 @@ class _MapPageState extends ConsumerState<MapPage> {
         }
 
         try {
+          if (!mounted) break; // STOP if the widget is disposed
           await mapController?.addCircle(
             CircleOptions(
               geometry: geometry, // Safe local variable
@@ -875,6 +904,7 @@ class _MapPageState extends ConsumerState<MapPage> {
               circleStrokeWidth: 2,
               circleStrokeColor: '#FFFFFF',
               circleBlur: 0.2,
+              circleOpacity: opacity, // Use calculated opacity
             ),
             peer.toJson(),
           );
@@ -1051,10 +1081,15 @@ class _MapPageState extends ConsumerState<MapPage> {
     // 2. Peers
     ref.listen(peersProvider, (previous, next) {
       next.whenData((data) {
+        // logger.debug("📍 Peers update received: ${data.length} profiles");
         final newPeers = <String, UserProfile>{};
         for (var profile in data) {
           newPeers[profile.userId] = profile;
-          // Don't log every update
+          // Log specific user details to check for null locations
+          if (profile.userId != supabase.auth.currentUser?.id) {
+            logger.debug(
+                "   > Peer ${profile.userId} | Loc: ${profile.location} | Updated: ${profile.lastUpdated}");
+          }
         }
         setState(() => _peers = newPeers);
         _updateMapMarkers();
