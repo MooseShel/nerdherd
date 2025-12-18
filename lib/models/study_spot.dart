@@ -49,13 +49,13 @@ class StudySpot {
       source: 'osm',
       type: json['tags']['amenity'] ?? 'other',
       imageUrl: json['tags']['image'] ??
-          _getOSMImageUrl(
+          getOSMImageUrl(
               json['tags']['amenity'] ?? 'other', json['id'].toString()),
       perks: [],
     );
   }
 
-  static String _getOSMImageUrl(String type, String id) {
+  static String getOSMImageUrl(String type, String id) {
     // Use hashCode to ensure a valid integer for the lock
     final lockId = id.hashCode;
     switch (type.toLowerCase()) {

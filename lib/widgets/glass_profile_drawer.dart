@@ -149,9 +149,9 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text("Review submitted!"),
-              backgroundColor: Colors.green),
+          SnackBar(
+              content: const Text("Review submitted!"),
+              backgroundColor: Theme.of(context).colorScheme.tertiary),
         );
         // RatingDialog handles close via onSubmit if we want, or here.
         // But RatingDialog doesn't pop itself. I need to ensure it pops.
@@ -165,7 +165,7 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text("Error submitting review: $e"),
-              backgroundColor: Colors.red),
+              backgroundColor: Theme.of(context).colorScheme.error),
         );
       }
     } finally {
@@ -220,7 +220,7 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
           SnackBar(
             content:
                 Text("Request sent to ${widget.profile.intentTag ?? 'peer'}!"),
-            backgroundColor: Colors.green,
+            backgroundColor: Theme.of(context).colorScheme.tertiary,
           ),
         );
         Future.delayed(const Duration(seconds: 2), () {
@@ -233,7 +233,7 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("Failed to send request: $e"),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
         setState(() => _isLoading = false);
@@ -268,7 +268,8 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
               child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error),
             child: const Text('REPORT'),
           ),
         ],
@@ -284,9 +285,9 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
           'status': 'pending',
         });
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Report submitted. We will investigate.'),
-              backgroundColor: Colors.orange));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: const Text('Report submitted. We will investigate.'),
+              backgroundColor: Theme.of(context).colorScheme.secondary));
         }
       } catch (e) {
         if (mounted) {
@@ -306,10 +307,8 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
     return GlassContainer(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       blur: 20,
-      opacity: isDark
-          ? 0.9 // Higher opacity for legibility
-          : 0.95,
-      color: theme.cardTheme.color,
+      opacity: isDark ? 0.9 : 1.0,
+      color: theme.scaffoldBackgroundColor,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -321,7 +320,7 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
               height: 5,
               margin: const EdgeInsets.only(bottom: 24),
               decoration: BoxDecoration(
-                color: isDark ? Colors.white30 : Colors.black26,
+                color: theme.dividerColor.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(2.5),
               ),
             ),
@@ -421,14 +420,16 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                             Row(
                               children: [
                                 const Icon(Icons.school,
-                                    size: 14, color: Colors.white70),
+                                    size: 14, color: Colors.grey),
                                 const SizedBox(width: 4),
                                 Expanded(
                                   child: Text(
                                     widget.profile.universityName ??
                                         _fetchedUniversityName!,
-                                    style: const TextStyle(
-                                        color: Colors.white70, fontSize: 13),
+                                    style: TextStyle(
+                                        color: theme.textTheme.bodySmall?.color
+                                            ?.withValues(alpha: 0.7),
+                                        fontSize: 13),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -472,8 +473,7 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                             Text(
                               "\$${widget.profile.hourlyRate}/hr",
                               style: TextStyle(
-                                color: Colors
-                                    .greenAccent[400], // Keep generic green
+                                color: theme.colorScheme.tertiary,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 16,
                               ),
@@ -538,7 +538,10 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                   Text(
                     widget.profile.bio!,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                        height: 1.6, fontSize: 15, color: Colors.white70),
+                        height: 1.6,
+                        fontSize: 15,
+                        color: theme.textTheme.bodyMedium?.color
+                            ?.withValues(alpha: 0.8)),
                   ),
                 ],
 
@@ -550,10 +553,15 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                     alignment: Alignment.centerRight,
                     child: TextButton.icon(
                       onPressed: _reportUser,
-                      icon: const Icon(Icons.flag_outlined,
-                          size: 18, color: Colors.grey),
-                      label: const Text('Report User',
-                          style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      icon: Icon(Icons.flag_outlined,
+                          size: 18,
+                          color: theme.textTheme.bodySmall?.color
+                              ?.withValues(alpha: 0.5)),
+                      label: Text('Report User',
+                          style: TextStyle(
+                              color: theme.textTheme.bodySmall?.color
+                                  ?.withValues(alpha: 0.5),
+                              fontSize: 12)),
                     ),
                   ),
 
@@ -690,12 +698,12 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                             );
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.amber,
-                            foregroundColor: Colors.black, // Contrast
+                            backgroundColor: theme.colorScheme.tertiary,
+                            foregroundColor: theme.colorScheme.onTertiary,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16)),
-                            elevation: 4,
+                            elevation: 0,
                           ),
                           child: const Text(
                             "Book Session",

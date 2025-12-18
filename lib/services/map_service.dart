@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
+import 'package:geolocator/geolocator.dart';
 import '../models/study_spot.dart';
 import '../models/user_profile.dart';
 import 'places_service.dart';
@@ -16,13 +17,23 @@ class MapService {
       {double radius = 2000}) async {
     try {
       // 1. Load Verified Spots (Database) - Fast
+      // Note: For large DBs, use PostGIS. Here we fetch and filter locally for simulation.
       final verifiedData = await _supabase.from('study_spots').select();
-      final verifiedSpots =
+      final allVerified =
           (verifiedData as List).map((e) => StudySpot.fromJson(e)).toList();
 
+      // Filter verified spots by distance
+      final verifiedSpots = allVerified.where((spot) {
+        final dist = Geolocator.distanceBetween(
+          center.latitude,
+          center.longitude,
+          spot.latitude,
+          spot.longitude,
+        );
+        return dist <= radius;
+      }).toList();
+
       // 2. Load OSM Spots (API) - Slower
-      // Note: merging logic can stay here or be handled by the caller.
-      // For now, we return combined list.
       try {
         final osmSpots = await _placesService.fetchNearbyPOIs(
           center.latitude,
@@ -32,7 +43,7 @@ class MapService {
         return [...verifiedSpots, ...osmSpots];
       } catch (e) {
         logger.warning("Failed to fetch OSM spots", error: e);
-        return verifiedSpots; // Return at least the verified ones
+        return verifiedSpots;
       }
     } catch (e) {
       logger.error("Error fetching study spots", error: e);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
 import '../providers/payment_provider.dart';
 import '../services/logger_service.dart';
 
@@ -107,7 +108,7 @@ class _BookingDialogState extends ConsumerState<BookingDialog> {
               content: Text(cost > 0
                   ? 'Payment successful! Request sent.'
                   : 'Request sent! Wait for tutorial confirmation.'),
-              backgroundColor: Colors.green),
+              backgroundColor: Theme.of(context).colorScheme.tertiary),
         );
       }
     } catch (e) {
@@ -123,10 +124,10 @@ class _BookingDialogState extends ConsumerState<BookingDialog> {
               "Auto-refund: Booking failed (${e.toString().split(':')[0]})");
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text(
+              SnackBar(
+                  content: const Text(
                       'Booking failed from server, but you have been refunded.'),
-                  backgroundColor: Colors.orange),
+                  backgroundColor: Theme.of(context).colorScheme.secondary),
             );
           }
         } catch (refundError) {
@@ -134,10 +135,10 @@ class _BookingDialogState extends ConsumerState<BookingDialog> {
               error: refundError);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text(
+              SnackBar(
+                  content: const Text(
                       'CRITICAL: Booking failed AND refund failed. Please contact support.'),
-                  backgroundColor: Colors.red),
+                  backgroundColor: Theme.of(context).colorScheme.error),
             );
           }
         }
@@ -146,13 +147,15 @@ class _BookingDialogState extends ConsumerState<BookingDialog> {
           showDialog(
             context: context,
             builder: (ctx) => AlertDialog(
+              backgroundColor: Theme.of(context).cardTheme.color,
               title: const Text("Booking Failed"),
               content: SelectableText("Error: ${e.toString()}"),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text("Close"),
-                )
+                  child: Text("Cancel",
+                      style: TextStyle(color: Theme.of(context).disabledColor)),
+                ),
               ],
             ),
           );
@@ -193,19 +196,21 @@ class _BookingDialogState extends ConsumerState<BookingDialog> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
+                    color: theme.colorScheme.tertiary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border:
-                        Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                    border: Border.all(
+                        color: theme.colorScheme.tertiary.withOpacity(0.3)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.attach_money, color: Colors.green),
+                      Icon(Icons.attach_money,
+                          color: theme.colorScheme.tertiary),
                       const SizedBox(width: 8),
                       Text(
                         "Rate: \$${cost.toStringAsFixed(2)} / hr",
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, color: Colors.green),
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.tertiary),
                       ),
                     ],
                   ),
@@ -220,10 +225,22 @@ class _BookingDialogState extends ConsumerState<BookingDialog> {
                       icon:
                           Icon(Icons.calendar_today, color: theme.primaryColor),
                       label: FittedBox(
-                        child: Text(
-                          _selectedDate == null
-                              ? "Select Date"
-                              : "${_selectedDate!.month}/${_selectedDate!.day}",
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _selectedDate == null
+                                  ? "Select Date"
+                                  : DateFormat('EEE, MMM d')
+                                      .format(_selectedDate!),
+                            ),
+                            if (_selectedDate != null)
+                              Text(DateFormat('MMM d').format(_selectedDate!),
+                                  style: TextStyle(
+                                      color: theme.textTheme.bodySmall?.color
+                                          ?.withOpacity(0.4),
+                                      fontSize: 12)),
+                          ],
                         ),
                       ),
                       style: OutlinedButton.styleFrom(
@@ -259,14 +276,16 @@ class _BookingDialogState extends ConsumerState<BookingDialog> {
                 decoration: InputDecoration(
                   hintText: "Reason / Topic (e.g. Calculus Help)",
                   hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.textTheme.bodyMedium?.color
-                          ?.withValues(alpha: 0.5)),
+                      color:
+                          theme.textTheme.bodyMedium?.color?.withOpacity(0.5)),
                   filled: true,
                   fillColor: theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.3),
+                      .withOpacity(0.3),
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide:
+                        BorderSide(color: theme.dividerColor.withOpacity(0.1)),
+                  ),
                 ),
                 maxLines: 2,
               ),
@@ -276,8 +295,9 @@ class _BookingDialogState extends ConsumerState<BookingDialog> {
                 child: FilledButton(
                   onPressed: _isLoading ? null : _submitRequest,
                   style: FilledButton.styleFrom(
-                      backgroundColor:
-                          cost > 0 ? Colors.green : theme.primaryColor,
+                      backgroundColor: cost > 0
+                          ? theme.colorScheme.tertiary
+                          : theme.primaryColor,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16))),

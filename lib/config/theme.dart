@@ -28,12 +28,30 @@ class AppTheme {
         error: _errorSystem,
         tertiary: _successSystem,
         onSurface: Colors.white,
+        primaryContainer: Color(0xFF2C2C2E),
+        onPrimaryContainer: Colors.white,
+        surfaceContainerHighest: Color(0xFF3A3A3C),
       ),
       textTheme: GoogleFonts.outfitTextTheme(ThemeData.dark().textTheme),
       appBarTheme: const AppBarTheme(
-        backgroundColor: _surfaceDark,
+        backgroundColor: _backgroundDark, // Pure black for OLED
         elevation: 0,
         centerTitle: true,
+        iconTheme: IconThemeData(color: Colors.white),
+      ),
+      dividerColor: Colors.white10,
+      cardTheme: CardThemeData(
+        color: _surfaceDark,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: _surfaceDark,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
       ),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
@@ -57,15 +75,33 @@ class AppTheme {
         error: _errorSystem,
         tertiary: _successSystem,
         onSurface: Colors.black,
+        primaryContainer: Color(0xFFE5E5EA),
+        onPrimaryContainer: Colors.black,
+        surfaceContainerHighest: Color(0xFFE5E5EA),
       ),
       textTheme: GoogleFonts.outfitTextTheme(ThemeData.light().textTheme),
       appBarTheme: const AppBarTheme(
-        backgroundColor: _surfaceLight,
+        backgroundColor: _backgroundLight,
         elevation: 0,
         centerTitle: true,
         iconTheme: IconThemeData(color: Colors.black),
         titleTextStyle: TextStyle(
             color: Colors.black, fontSize: 20, fontWeight: FontWeight.w600),
+      ),
+      dividerColor: Colors.black12,
+      cardTheme: CardThemeData(
+        color: Colors.white,
+        elevation: 2,
+        shadowColor: Colors.black.withValues(alpha: 0.1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: _surfaceLight,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
       ),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {

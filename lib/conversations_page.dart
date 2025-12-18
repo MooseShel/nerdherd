@@ -148,7 +148,8 @@ class _ConversationsPageState extends State<ConversationsPage> {
                           color: theme.colorScheme.error,
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: const Icon(Icons.delete, color: Colors.white),
+                        child: Icon(Icons.delete,
+                            color: theme.colorScheme.onError),
                       ),
                       confirmDismiss: (direction) async {
                         return await showDialog(
@@ -259,8 +260,8 @@ class _ConversationsPageState extends State<ConversationsPage> {
                                   ),
                                   child: Text(
                                     unread.toString(),
-                                    style: const TextStyle(
-                                      color: Colors.white,
+                                    style: TextStyle(
+                                      color: theme.colorScheme.onPrimary,
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
                                     ),

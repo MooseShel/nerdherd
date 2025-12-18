@@ -111,7 +111,9 @@ class _SchedulePageState extends ConsumerState<SchedulePage> {
 
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(msg),
-          backgroundColor: newStatus == 'confirmed' ? Colors.green : Colors.red,
+          backgroundColor: newStatus == 'confirmed'
+              ? Theme.of(context).colorScheme.tertiary
+              : Theme.of(context).colorScheme.error,
         ));
       }
     } catch (e) {
@@ -168,9 +170,9 @@ class _SchedulePageState extends ConsumerState<SchedulePage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text("Rescheduled! Sent for approval."),
-              backgroundColor: Colors.amber),
+          SnackBar(
+              content: const Text("Rescheduled! Sent for approval."),
+              backgroundColor: Theme.of(context).primaryColor),
         );
       }
     } catch (e) {
@@ -234,9 +236,9 @@ class _SchedulePageState extends ConsumerState<SchedulePage> {
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Review submitted!"),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Text("Review submitted!"),
+            backgroundColor: Theme.of(context).colorScheme.tertiary,
           ),
         );
       } catch (e) {
@@ -245,7 +247,9 @@ class _SchedulePageState extends ConsumerState<SchedulePage> {
             ? "You have already reviewed this session."
             : "Error submitting review: $e";
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text(msg),
+              backgroundColor: Theme.of(context).colorScheme.error),
         );
       }
     }
@@ -509,10 +513,10 @@ class _SchedulePageState extends ConsumerState<SchedulePage> {
     switch (status) {
       case 'confirmed':
       case 'completed':
-        color = Colors.green;
+        color = theme.colorScheme.tertiary;
         break;
       case 'pending':
-        color = Colors.orange;
+        color = theme.colorScheme.secondary;
         break;
       case 'completion_pending':
         color = Colors.amber;
@@ -524,7 +528,7 @@ class _SchedulePageState extends ConsumerState<SchedulePage> {
         color = theme.colorScheme.error;
         break;
       default:
-        color = Colors.grey;
+        color = theme.disabledColor;
     }
 
     return Container(
@@ -550,8 +554,9 @@ class _SchedulePageState extends ConsumerState<SchedulePage> {
             Expanded(
                 child: FilledButton(
                     onPressed: () => _updateStatus(appt.id, 'confirmed'),
-                    style:
-                        FilledButton.styleFrom(backgroundColor: Colors.green),
+                    style: FilledButton.styleFrom(
+                        backgroundColor:
+                            Theme.of(context).colorScheme.tertiary),
                     child: const Text("Accept"))),
             const SizedBox(width: 12),
             Expanded(
@@ -609,7 +614,8 @@ class _SchedulePageState extends ConsumerState<SchedulePage> {
                 onPressed: () => _updateStatus(appt.id, 'completed'),
                 icon: const Icon(Icons.thumb_up, size: 16),
                 label: const Text("Confirm"),
-                style: FilledButton.styleFrom(backgroundColor: Colors.green),
+                style: FilledButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.tertiary),
               ),
             ),
             const SizedBox(width: 12),

@@ -22,16 +22,15 @@ class _RatingDialogState extends State<RatingDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return AlertDialog(
-      backgroundColor: const Color(0xFF1E1E1E),
-      title: Text("Rate ${widget.tutorName}",
-          style: const TextStyle(color: Colors.white)),
+      title: Text("Rate ${widget.tutorName}"),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
+          Text(
             "How was your session?",
-            style: TextStyle(color: Colors.white70),
+            style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
           Row(
@@ -52,13 +51,29 @@ class _RatingDialogState extends State<RatingDialog> {
           const SizedBox(height: 16),
           TextField(
             controller: _commentController,
-            style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(
+            style: theme.textTheme.bodyMedium,
+            decoration: InputDecoration(
               hintText: "Leave a comment...",
-              hintStyle: TextStyle(color: Colors.white38),
+              hintStyle: theme.textTheme.bodySmall?.copyWith(
+                  color:
+                      theme.textTheme.bodySmall?.color?.withValues(alpha: 0.5)),
               filled: true,
-              fillColor: Colors.black26,
-              border: OutlineInputBorder(),
+              fillColor: theme.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.3),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                    color: theme.dividerColor.withValues(alpha: 0.1)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                    color: theme.dividerColor.withValues(alpha: 0.1)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: theme.primaryColor),
+              ),
             ),
             maxLines: 3,
           ),
@@ -67,15 +82,18 @@ class _RatingDialogState extends State<RatingDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+          child: Text("Cancel", style: TextStyle(color: theme.disabledColor)),
         ),
         ElevatedButton(
           onPressed: _rating > 0
               ? () => widget.onSubmit(_rating, _commentController.text)
               : null,
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.cyanAccent,
-            foregroundColor: Colors.black,
+            backgroundColor: theme.primaryColor,
+            foregroundColor: theme.colorScheme.onPrimary,
+            elevation: 0,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
           child: const Text("Submit"),
         ),

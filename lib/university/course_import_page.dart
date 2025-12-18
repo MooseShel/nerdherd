@@ -75,7 +75,7 @@ class _CourseImportPageState extends ConsumerState<CourseImportPage> {
         hapticService.heavyImpact();
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text("Updated: +$added added, -$removed removed."),
-          backgroundColor: Colors.green,
+          backgroundColor: Theme.of(context).colorScheme.tertiary,
         ));
         // Refresh profile classes
         ref.invalidate(myEnrollmentsProvider);
@@ -90,8 +90,9 @@ class _CourseImportPageState extends ConsumerState<CourseImportPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text("Error: $e"),
+            backgroundColor: Theme.of(context).colorScheme.error));
       }
     }
   }
@@ -186,13 +187,16 @@ class _CourseImportPageState extends ConsumerState<CourseImportPage> {
   Widget _buildStatusIcon(bool original, bool current) {
     if (original && !current) {
       // Marked for removal
-      return const Icon(Icons.remove_circle_outline, color: Colors.red);
+      return Icon(Icons.remove_circle_outline,
+          color: Theme.of(context).colorScheme.error);
     } else if (!original && current) {
       // Marked for addition
-      return const Icon(Icons.add_circle, color: Colors.green);
+      return Icon(Icons.add_circle,
+          color: Theme.of(context).colorScheme.tertiary);
     } else if (original && current) {
       // Enrolled and staying enrolled
-      return const Icon(Icons.check_circle, color: Colors.blue);
+      return Icon(Icons.check_circle,
+          color: Theme.of(context).colorScheme.secondary);
     } else {
       // Not enrolled
       return const Icon(Icons.circle_outlined);

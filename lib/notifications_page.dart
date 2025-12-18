@@ -147,17 +147,21 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFF0F111A),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text("Notifications"),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        foregroundColor: theme.textTheme.bodyLarge?.color,
         actions: [
           if (_notifications.isNotEmpty)
             TextButton(
               onPressed: _markAllAsRead,
-              style: TextButton.styleFrom(foregroundColor: Colors.white54),
+              style: TextButton.styleFrom(
+                  foregroundColor:
+                      theme.textTheme.bodyMedium?.color?.withOpacity(0.5)),
               child: const Text("Clear All"),
             ),
           IconButton(
@@ -169,9 +173,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _notifications.isEmpty
-              ? const Center(
+              ? Center(
                   child: Text("No notifications",
-                      style: TextStyle(color: Colors.white54)))
+                      style: TextStyle(
+                          color: theme.textTheme.bodyMedium?.color
+                              ?.withOpacity(0.5))))
               : ListView.builder(
                   itemCount: _notifications.length,
                   itemBuilder: (context, index) {
@@ -184,16 +190,16 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
                     if (note.type == 'message') {
                       icon = Icons.chat_bubble;
-                      iconColor = Colors.cyanAccent;
+                      iconColor = theme.colorScheme.secondary;
                     } else if (note.type.contains('appointment')) {
                       icon = Icons.calendar_month;
-                      iconColor = Colors.amberAccent;
+                      iconColor = Colors.amber;
                     } else if (note.type == 'appointment_cancelled') {
                       icon = Icons.cancel;
-                      iconColor = Colors.redAccent;
+                      iconColor = theme.colorScheme.error;
                     } else {
                       icon = Icons.notifications;
-                      iconColor = Colors.white;
+                      iconColor = theme.primaryColor;
                     }
 
                     return Dismissible(
@@ -201,10 +207,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       direction: DismissDirection.endToStart,
                       onDismissed: (_) => _deleteNotification(note.id),
                       background: Container(
-                        color: Colors.red,
+                        color: theme.colorScheme.error,
                         alignment: Alignment.centerRight,
                         padding: const EdgeInsets.only(right: 20),
-                        child: const Icon(Icons.delete, color: Colors.white),
+                        child: Icon(Icons.delete,
+                            color: theme.colorScheme.onError),
                       ),
                       child: ListTile(
                         leading: CircleAvatar(
@@ -214,7 +221,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                         title: Text(
                           note.title,
                           style: TextStyle(
-                              color: Colors.white,
+                              color: theme.textTheme.bodyLarge?.color,
                               fontWeight: note.read
                                   ? FontWeight.normal
                                   : FontWeight.bold),
@@ -225,23 +232,28 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             const SizedBox(height: 4),
                             Text(
                               note.body,
-                              style: const TextStyle(color: Colors.white70),
+                              style: TextStyle(
+                                  color: theme.textTheme.bodyMedium?.color
+                                      ?.withOpacity(0.7)),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 4),
                             Text(
                               timeStr,
-                              style: const TextStyle(
-                                  color: Colors.white30, fontSize: 12),
+                              style: TextStyle(
+                                  color: theme.textTheme.bodySmall?.color
+                                      ?.withOpacity(0.3),
+                                  fontSize: 12),
                             ),
                           ],
                         ),
                         isThreeLine: true,
                         onTap: () => _handleTap(note),
                         trailing: !note.read
-                            ? const CircleAvatar(
-                                radius: 5, backgroundColor: Colors.redAccent)
+                            ? CircleAvatar(
+                                radius: 5,
+                                backgroundColor: theme.colorScheme.error)
                             : null,
                       ),
                     );

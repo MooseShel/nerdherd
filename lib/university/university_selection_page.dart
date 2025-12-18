@@ -69,13 +69,17 @@ class _UniversitySelectionPageState
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.school_outlined,
-                            size: 64, color: Colors.grey[600]),
+                            size: 64,
+                            color: theme.textTheme.bodySmall?.color
+                                ?.withValues(alpha: 0.5)),
                         const SizedBox(height: 16),
                         Text(
                           _query.isEmpty
                               ? "Search for your school"
                               : "No schools found",
-                          style: TextStyle(color: Colors.grey[600]),
+                          style: TextStyle(
+                              color: theme.textTheme.bodySmall?.color
+                                  ?.withValues(alpha: 0.5)),
                         ),
                         if (_query.isNotEmpty)
                           TextButton(
@@ -91,12 +95,12 @@ class _UniversitySelectionPageState
                     final uni = universities[index];
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: Colors.white,
+                        backgroundColor: theme.colorScheme.surface,
                         backgroundImage: uni.logoUrl != null
                             ? AssetImage(uni.logoUrl!)
                             : null,
                         child: uni.logoUrl == null
-                            ? const Icon(Icons.school, color: Colors.black)
+                            ? Icon(Icons.school, color: theme.primaryColor)
                             : null,
                       ),
                       title: Text(uni.name,

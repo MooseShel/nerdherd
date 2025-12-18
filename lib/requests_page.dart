@@ -138,7 +138,9 @@ class _RequestsPageState extends State<RequestsPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(accept ? "Request Accepted!" : "Request Rejected"),
-            backgroundColor: accept ? Colors.green : Colors.grey,
+            backgroundColor: accept
+                ? Theme.of(context).colorScheme.tertiary
+                : Theme.of(context).disabledColor.withOpacity(0.5),
           ),
         );
       }
@@ -146,7 +148,10 @@ class _RequestsPageState extends State<RequestsPage> {
       logger.error("Error responding to request", error: e);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text("Error: $e"),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
         );
       }
     }
@@ -300,20 +305,20 @@ class _RequestsPageState extends State<RequestsPage> {
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: status == 'accepted'
-                          ? Colors.green.withValues(alpha: 0.1)
-                          : Colors.red.withValues(alpha: 0.1),
+                          ? theme.colorScheme.tertiary.withOpacity(0.1)
+                          : theme.colorScheme.error.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                           color: status == 'accepted'
-                              ? Colors.green
-                              : Colors.redAccent.withValues(alpha: 0.5)),
+                              ? theme.colorScheme.tertiary
+                              : theme.colorScheme.error.withOpacity(0.5)),
                     ),
                     child: Text(
                       status.toUpperCase(),
                       style: TextStyle(
                         color: status == 'accepted'
-                            ? Colors.green
-                            : Colors.redAccent,
+                            ? theme.colorScheme.tertiary
+                            : theme.colorScheme.error,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                       ),

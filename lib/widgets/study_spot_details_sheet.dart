@@ -17,10 +17,8 @@ class StudySpotDetailsSheet extends StatelessWidget {
     return GlassContainer(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       blur: 20,
-      opacity: isDark
-          ? 0.9 // Higher opacity for legibility
-          : 0.95,
-      color: theme.cardTheme.color,
+      opacity: isDark ? 0.9 : 1.0,
+      color: theme.scaffoldBackgroundColor,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -32,7 +30,7 @@ class StudySpotDetailsSheet extends StatelessWidget {
               height: 5,
               margin: const EdgeInsets.only(top: 12, bottom: 12),
               decoration: BoxDecoration(
-                color: isDark ? Colors.white30 : Colors.black26,
+                color: theme.dividerColor.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(2.5),
               ),
             ),
@@ -47,10 +45,10 @@ class StudySpotDetailsSheet extends StatelessWidget {
                     height: 200,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    placeholder: (_, __) => _buildPlaceholder(),
-                    errorWidget: (_, __, ___) => _buildPlaceholder(),
+                    placeholder: (_, __) => _buildPlaceholder(isDark),
+                    errorWidget: (_, __, ___) => _buildPlaceholder(isDark),
                   )
-                : _buildPlaceholder(),
+                : _buildPlaceholder(isDark),
           ),
 
           Padding(
@@ -89,17 +87,18 @@ class StudySpotDetailsSheet extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.amber,
+                          color: theme.colorScheme.secondary,
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Row(
+                        child: Row(
                           children: [
-                            Icon(Icons.stars, size: 16, color: Colors.black),
-                            SizedBox(width: 4),
+                            Icon(Icons.stars,
+                                size: 16, color: theme.colorScheme.onSecondary),
+                            const SizedBox(width: 4),
                             Text(
                               "VERIFIED",
                               style: TextStyle(
-                                  color: Colors.black,
+                                  color: theme.colorScheme.onSecondary,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12),
                             ),
@@ -118,7 +117,7 @@ class StudySpotDetailsSheet extends StatelessWidget {
                           children: [
                             Icon(Icons.public,
                                 size: 16,
-                                color: theme.iconTheme.color
+                                color: theme.textTheme.bodySmall?.color
                                     ?.withValues(alpha: 0.5)),
                             const SizedBox(width: 4),
                             Text(
@@ -149,14 +148,14 @@ class StudySpotDetailsSheet extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.local_offer,
-                            color: Colors.amber, size: 20),
+                        Icon(Icons.local_offer,
+                            color: theme.colorScheme.secondary, size: 20),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             spot.incentive!,
-                            style: const TextStyle(
-                              color: Colors.amberAccent,
+                            style: TextStyle(
+                              color: theme.colorScheme.secondary,
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
                             ),
@@ -241,12 +240,18 @@ class StudySpotDetailsSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildPlaceholder() {
+  Widget _buildPlaceholder(bool isDark) {
     return Container(
       height: 200,
-      color: Colors.white10,
-      child: const Center(
-        child: Icon(Icons.coffee, size: 64, color: Colors.white24),
+      color: isDark
+          ? Colors.white.withValues(alpha: 0.05)
+          : Colors.black.withValues(alpha: 0.05),
+      child: Center(
+        child: Icon(Icons.coffee,
+            size: 64,
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.1)
+                : Colors.black.withValues(alpha: 0.1)),
       ),
     );
   }

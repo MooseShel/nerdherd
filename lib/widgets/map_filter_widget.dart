@@ -71,7 +71,6 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -82,7 +81,8 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
           heroTag: "filter_toggle",
           onPressed: _toggleExpanded,
           backgroundColor: _isExpanded ? theme.primaryColor : theme.cardColor,
-          foregroundColor: _isExpanded ? Colors.white : theme.primaryColor,
+          foregroundColor:
+              _isExpanded ? theme.colorScheme.onPrimary : theme.primaryColor,
           child: Icon(_isExpanded ? Icons.close : Icons.filter_list),
         ),
 
@@ -98,16 +98,13 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
             maxHeight: _isExpanded ? 400 : 0,
           ),
           decoration: BoxDecoration(
-            color: theme.cardTheme.color?.withValues(alpha: 0.9) ??
-                (isDark
-                    ? const Color(0xFF0F111A).withValues(alpha: 0.9)
-                    : Colors.white.withValues(alpha: 0.9)),
+            color: theme.cardTheme.color?.withValues(alpha: 0.95),
             borderRadius: BorderRadius.circular(20),
             border:
                 Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
+                color: theme.shadowColor.withValues(alpha: 0.1),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -139,7 +136,7 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
                           _buildSwitch(
                             "Tutors",
                             widget.currentFilters.showTutors,
-                            Colors.amber, // Semantic color
+                            Colors.amber, // Semantic tutor color
                             (val) => _updateFilters(widget.currentFilters
                                 .copyWith(showTutors: val)),
                             theme,
@@ -155,7 +152,7 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
                           _buildSwitch(
                             "Classmates",
                             widget.currentFilters.showClassmates,
-                            Colors.purpleAccent,
+                            theme.colorScheme.secondary,
                             (val) => _updateFilters(widget.currentFilters
                                 .copyWith(showClassmates: val)),
                             theme,

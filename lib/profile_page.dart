@@ -249,7 +249,9 @@ class _ProfilePageState extends State<ProfilePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError ? Colors.redAccent : Colors.green,
+        backgroundColor: isError
+            ? Theme.of(context).colorScheme.error
+            : Theme.of(context).colorScheme.tertiary,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -570,7 +572,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     icon: Icons.notifications_active,
                     label: "Manage Requests",
                     count: _pendingRequestCount,
-                    countColor: Colors.redAccent,
+                    countColor: theme.colorScheme.error,
                     onTap: () async {
                       await Navigator.push(
                         context,

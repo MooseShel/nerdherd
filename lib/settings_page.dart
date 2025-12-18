@@ -9,6 +9,7 @@ import 'admin/admin_dashboard.dart';
 import 'reviews/reviews_history_page.dart';
 import 'providers/theme_provider.dart';
 import 'university/university_selection_page.dart';
+import 'providers/map_provider.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -303,6 +304,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 hapticService.selectionClick();
                 setState(() => _ghostMode = val);
                 _saveSetting('ghost_mode', val);
+
+                // Immediately update visibility if entering ghost mode
+                if (val) {
+                  ref
+                      .read(mapServiceProvider)
+                      .goGhost(supabase.auth.currentUser!.id);
+                }
               },
               activeThumbColor: theme.primaryColor,
             ),

@@ -165,21 +165,23 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1D2E),
-        title: const Text('Remove Connection?',
-            style: TextStyle(color: Colors.white)),
+        backgroundColor: Theme.of(context).cardTheme.color,
+        title: Text('Remove Connection?',
+            style: Theme.of(context).textTheme.titleLarge),
         content: Text(
           'Are you sure you want to remove ${user.fullName ?? user.intentTag ?? "this user"} from your connections?',
-          style: const TextStyle(color: Colors.white70),
+          style: Theme.of(context).textTheme.bodyMedium,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text('Cancel',
+                style: TextStyle(color: Theme.of(context).disabledColor)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error),
             child: const Text('Remove'),
           ),
         ],
@@ -251,8 +253,8 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                   right: 10,
                   child: Container(
                     padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.redAccent,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.error,
                       shape: BoxShape.circle,
                     ),
                     constraints: const BoxConstraints(

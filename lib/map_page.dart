@@ -62,8 +62,11 @@ class _MapPageState extends ConsumerState<MapPage> {
   DateTime? _lastBroadcastTime;
   int _unreadSystemCount = 0; // Unread system notifications
   int _unreadChatCount = 0; // Unread chat messages
+  bool _isUpdatingMarkers = false;
   RealtimeChannel? _notificationsChannel;
-  RealtimeChannel? _messagesChannel; // NEW
+  RealtimeChannel? _messagesChannel;
+  RealtimeChannel? _presenceChannel;
+  Set<String> _onlineUserIds = {};
 
   // Map Styles
   static const String _darkMapStyle =
@@ -78,6 +81,7 @@ class _MapPageState extends ConsumerState<MapPage> {
   bool _showSearchThisArea = false;
   LatLng? _lastFetchLocation;
   LatLng? _cameraTarget; // Track camera center
+  bool _initialSpotsFetched = false; // Simulation: auto-fetch on login
 
   @override
   void initState() {
@@ -96,7 +100,10 @@ class _MapPageState extends ConsumerState<MapPage> {
     _subscribeToRequests();
     _subscribeToNotifications();
     _subscribeToMessages();
+    _setupPresence();
     // _fetchStudySpots(); // REMOVED (Riverpod controls)
+    _checkForAnnouncements();
+
     _checkForAnnouncements();
   }
 
@@ -172,7 +179,8 @@ class _MapPageState extends ConsumerState<MapPage> {
 
   List<StudySpot> _studySpots = []; // NEW
 
-  Future<void> _fetchStudySpots({bool userTriggered = false}) async {
+  Future<void> _fetchStudySpots(
+      {bool userTriggered = false, double radius = 2000}) async {
     if (_isFetchingSpots) return;
 
     // Determine target location: Camera Center (if manual) or Current Location (auto)
@@ -186,7 +194,9 @@ class _MapPageState extends ConsumerState<MapPage> {
 
     try {
       // Use Provider
-      await ref.read(studySpotsProvider.notifier).search(target, radius: 2000);
+      await ref
+          .read(studySpotsProvider.notifier)
+          .search(target, radius: radius);
 
       // Local state update handled by ref.listen in build()
       if (mounted) {
@@ -370,7 +380,8 @@ class _MapPageState extends ConsumerState<MapPage> {
     _requestsSubscription?.cancel();
     // _locationSubscription?.cancel(); // Riverpod handles this
     _notificationsChannel?.unsubscribe();
-    _messagesChannel?.unsubscribe(); // NEW
+    _messagesChannel?.unsubscribe();
+    _presenceChannel?.unsubscribe();
     _stopBroadcast();
 
     super.dispose();
@@ -381,6 +392,20 @@ class _MapPageState extends ConsumerState<MapPage> {
   // static const _supabaseUrl = 'https://zzdasdmceaykwjsozums.supabase.co'; // UNUSED
   // static const _supabaseKey =
   //    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // UNUSED
+
+  void _updateOwnLocation(LatLng pos) {
+    if (!mounted) return;
+    if (_currentLocation != pos) {
+      setState(() => _currentLocation = pos);
+      _updateMapMarkers();
+
+      // Simulation: Auto-fetch spots within 500m on first valid location
+      if (!_initialSpotsFetched && mounted) {
+        _initialSpotsFetched = true;
+        _fetchStudySpots(radius: 500);
+      }
+    }
+  }
 
   Future<void> _checkLocationPermissions() async {
     hapticService.lightImpact();
@@ -403,28 +428,30 @@ class _MapPageState extends ConsumerState<MapPage> {
     logger.debug("📍 Permission status: $permission");
     if (permission == LocationPermission.whileInUse ||
         permission == LocationPermission.always) {
-      // OPTIMIZATION: Use cached stream location immediately if available
+      // 1. Zoom to cached location immediately for responsiveness
       if (_currentLocation != null && mapController != null) {
-        logger.debug("📍 Using cached location: $_currentLocation");
+        logger.debug("📍 Recentering to cached location: $_currentLocation");
         await mapController!.animateCamera(
           CameraUpdate.newLatLngZoom(_currentLocation!, 15),
           duration: const Duration(milliseconds: 800),
         );
-        return;
       }
 
-      // Fallback: Try to get fresh location if stream hasn't fired yet
+      // 2. ALWAYS try to get a fresh location to ensure accuracy
       try {
-        // Increased timeout to 10s for better Web reliability
+        logger.debug("📍 Fetching fresh position...");
         final position = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
             timeLimit: const Duration(seconds: 10));
-        logger.debug("📍 Got fresh position: $position");
+
+        final freshLatLng = LatLng(position.latitude, position.longitude);
+        logger.debug("📍 Got fresh position: $freshLatLng");
+
+        _updateOwnLocation(freshLatLng);
+
         if (mapController != null && mounted) {
           await mapController!.animateCamera(
-            CameraUpdate.newLatLngZoom(
-              LatLng(position.latitude, position.longitude),
-              15,
-            ),
+            CameraUpdate.newLatLngZoom(freshLatLng, 15),
             duration: const Duration(milliseconds: 800),
           );
         }
@@ -524,39 +551,82 @@ class _MapPageState extends ConsumerState<MapPage> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title:
-            const Text("Collab Request", style: TextStyle(color: Colors.white)),
-        content: Text(
-          "$senderName wants to collaborate!",
-          style: const TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              hapticService.lightImpact();
-              Navigator.pop(context);
-              _respondToRequest(request['id'], request['sender_id'], false);
-            },
-            child:
-                const Text("Reject", style: TextStyle(color: Colors.redAccent)),
+      builder: (context) {
+        final theme = Theme.of(context);
+        return AlertDialog(
+          backgroundColor: theme.dialogBackgroundColor,
+          title: Text("Collab Request", style: theme.textTheme.titleLarge),
+          content: Text(
+            "$senderName wants to collaborate!",
+            style: theme.textTheme.bodyMedium,
           ),
-          ElevatedButton(
-            onPressed: () {
-              hapticService.mediumImpact();
-              Navigator.pop(context);
-              _respondToRequest(request['id'], request['sender_id'], true);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isTutor ? Colors.amber : Colors.cyanAccent,
-              foregroundColor: Colors.black,
+          actions: [
+            TextButton(
+              onPressed: () {
+                hapticService.lightImpact();
+                Navigator.pop(context);
+                _respondToRequest(request['id'], request['sender_id'], false);
+              },
+              child: Text("Reject", style: TextStyle(color: Colors.redAccent)),
             ),
-            child: const Text("Accept"),
-          ),
-        ],
-      ),
+            ElevatedButton(
+              onPressed: () {
+                hapticService.mediumImpact();
+                Navigator.pop(context);
+                _respondToRequest(request['id'], request['sender_id'], true);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isTutor ? Colors.amber : Colors.cyanAccent,
+                foregroundColor: Colors.black,
+              ),
+              child: const Text("Accept"),
+            ),
+          ],
+        );
+      },
     );
+  }
+
+  void _setupPresence() {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    _presenceChannel = supabase.channel('map-presence');
+
+    _presenceChannel?.onPresenceSync((payload) {
+      if (!mounted) return;
+      final state = (_presenceChannel?.presenceState() ?? {}) as Map;
+      final onlineIds = <String>{};
+
+      for (var entry in state.entries) {
+        final list = entry.value as List;
+        for (var presence in list) {
+          final p = presence as Presence;
+          final id = p.payload['user_id'] as String?;
+          if (id != null) onlineIds.add(id);
+        }
+      }
+
+      setState(() => _onlineUserIds = onlineIds);
+      _updateMapMarkers();
+    });
+
+    _presenceChannel?.subscribe((status, error) {
+      if (status == 'SUBSCRIBED') {
+        _updatePresenceTracking();
+      }
+    });
+  }
+
+  void _updatePresenceTracking() {
+    final user = supabase.auth.currentUser;
+    if (user == null || _presenceChannel == null) return;
+
+    if (_isStudyMode) {
+      _presenceChannel?.track({'user_id': user.id});
+    } else {
+      _presenceChannel?.untrack();
+    }
   }
 
   Future<void> _respondToRequest(
@@ -600,19 +670,14 @@ class _MapPageState extends ConsumerState<MapPage> {
     }
   }
 
-  void _updateMapMarkers() async {
-    if (mapController == null || !_isStyleLoaded) {
-      // logger.warning("⚠️ Map/Style not ready, skipping marker update");
-      return;
-    }
+  Future<void> _updateMapMarkers() async {
+    if (!mounted || mapController == null || !_isStyleLoaded) return;
+    if (_isUpdatingMarkers) return; // Prevent overlapping updates
+
+    _isUpdatingMarkers = true;
 
     // Get latest profile snapshot (or watch it in build)
     final myProfile = ref.read(myProfileProvider).value;
-
-    if (!mounted) {
-      logger.warning("⚠️ Widget not mounted, skipping marker update");
-      return;
-    }
 
     try {
       logger.debug(
@@ -653,28 +718,10 @@ class _MapPageState extends ConsumerState<MapPage> {
           continue;
         }
 
-        // --- STALENESS FILTER (>30 mins) ---
-        // Don't show users who haven't updated their location recently (Ghosts)
-        if (peer.lastUpdated == null ||
-            DateTime.now().difference(peer.lastUpdated!).inMinutes > 30) {
-          // logger.debug("Skipping stale peer ${peer.fullName} (Last active: ${peer.lastUpdated})");
+        // --- INSTANT VISIBILITY FILTER (Presence) ---
+        // Only show users who are currently "Online" and NOT in Ghost Mode
+        if (!_onlineUserIds.contains(peer.userId)) {
           continue;
-        }
-
-        // --- DISTANCE FILTER (50km) ---
-        // Don't show users across the globe to avoid clutter/confusion
-        if (_currentLocation != null) {
-          final distanceInMeters = Geolocator.distanceBetween(
-            _currentLocation!.latitude,
-            _currentLocation!.longitude,
-            geometry.latitude,
-            geometry.longitude,
-          );
-          if (distanceInMeters > 50000) {
-            // 50km
-            // logger.debug("Skipping far peer ${peer.fullName} (${(distanceInMeters / 1000).toStringAsFixed(1)}km away)");
-            continue;
-          }
         }
 
         // --- FILTERS ---
@@ -742,25 +789,23 @@ class _MapPageState extends ConsumerState<MapPage> {
       }
 
       // 1. Draw "Me" (Local Loopback - Instant) - DRAW LAST (On Top)
-      if (_currentLocation != null && mapController != null) {
+      // ONLY draw if "Study Mode" (Ghost Mode Disabled) is ON
+      if (_isStudyMode && _currentLocation != null && mapController != null) {
         logger.debug("📍 Drawing my location at $_currentLocation");
 
         try {
-          // Only show PULSE effect if "Study Mode" (Ghost Mode Disabled) is ON
-          if (_isStudyMode) {
-            await mapController?.addCircle(
-              CircleOptions(
-                geometry: _currentLocation!,
-                circleColor: '#00FF00',
-                circleOpacity: 0.3,
-                circleRadius: 22,
-                circleStrokeWidth: 2,
-                circleStrokeColor: '#00FF00',
-                circleBlur: 0.6,
-              ),
-              {'is_me': true},
-            );
-          }
+          await mapController?.addCircle(
+            CircleOptions(
+              geometry: _currentLocation!,
+              circleColor: '#00FF00',
+              circleOpacity: 0.3,
+              circleRadius: 22,
+              circleStrokeWidth: 2,
+              circleStrokeColor: '#00FF00',
+              circleBlur: 0.6,
+            ),
+            {'is_me': true},
+          );
 
           // Core Dot (Always Visible)
           await mapController?.addCircle(
@@ -776,11 +821,13 @@ class _MapPageState extends ConsumerState<MapPage> {
         } catch (e) {
           logger.warning("⚠️ Failed to draw my location", error: e);
         }
-      } else {
+      } else if (_currentLocation == null) {
         logger.warning("⚠️ Current location is null, cannot draw");
       }
     } catch (e) {
       logger.error("❌ Error updating map markers", error: e);
+    } finally {
+      _isUpdatingMarkers = false;
     }
   }
 
@@ -828,6 +875,10 @@ class _MapPageState extends ConsumerState<MapPage> {
         logger.debug(
             "📍 Broadcaster: Upserting location ${pos.latitude}, ${pos.longitude}");
         try {
+          final freshLatLng = LatLng(pos.latitude, pos.longitude);
+          _updateOwnLocation(
+              freshLatLng); // Keep map dot in sync with broadcast
+
           final service = ref.read(mapServiceProvider);
           await service.updateLocation(user.id, pos.latitude, pos.longitude);
           _lastBroadcastLocation = currentLatLng;
@@ -897,9 +948,16 @@ class _MapPageState extends ConsumerState<MapPage> {
   Future<void> _goGhost() async {
     final user = supabase.auth.currentUser;
     if (user == null) return;
+
+    _updatePresenceTracking(); // UNTRACK instantly
+
     try {
       final service = ref.read(mapServiceProvider);
       await service.goGhost(user.id);
+
+      // Reset broadcast state so next broadcast is immediate when resumed
+      _lastBroadcastLocation = null;
+      _lastBroadcastTime = null;
     } catch (e) {
       // Logged in Service
     }
@@ -954,11 +1012,7 @@ class _MapPageState extends ConsumerState<MapPage> {
     // 1. Location
     ref.listen(userLocationProvider, (previous, next) {
       next.whenData((pos) {
-        // Only update if changed significantly or first time
-        if (_currentLocation == null || _currentLocation != pos) {
-          setState(() => _currentLocation = pos);
-          _updateMapMarkers();
-        }
+        _updateOwnLocation(pos);
       });
     });
 
@@ -1018,25 +1072,26 @@ class _MapPageState extends ConsumerState<MapPage> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: theme.primaryColor,
+                      color: theme.colorScheme.onPrimary,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withOpacity(isDark ? 0.5 : 0.2),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
                         )
                       ],
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.search, color: Colors.black, size: 18),
-                        SizedBox(width: 6),
+                        Icon(Icons.search,
+                            color: theme.colorScheme.primary, size: 18),
+                        const SizedBox(width: 6),
                         Text(
                           "Search This Area",
                           style: TextStyle(
-                            color: Colors.black,
+                            color: theme.colorScheme.primary,
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
@@ -1059,10 +1114,12 @@ class _MapPageState extends ConsumerState<MapPage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.black87,
+                    color: theme.colorScheme.surface.withOpacity(0.9),
                     borderRadius: BorderRadius.circular(20),
+                    border:
+                        Border.all(color: theme.dividerColor.withOpacity(0.1)),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       SizedBox(
@@ -1070,14 +1127,14 @@ class _MapPageState extends ConsumerState<MapPage> {
                         height: 14,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: theme.colorScheme.primary,
                         ),
                       ),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text(
                         "Loading spots...",
                         style: TextStyle(
-                          color: Colors.white,
+                          color: theme.colorScheme.onSurface,
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                         ),
@@ -1161,8 +1218,8 @@ class _MapPageState extends ConsumerState<MapPage> {
                         top: -2,
                         child: Container(
                           padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Colors.cyanAccent,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.secondary,
                             shape: BoxShape.circle,
                           ),
                           constraints: const BoxConstraints(
@@ -1171,8 +1228,8 @@ class _MapPageState extends ConsumerState<MapPage> {
                           ),
                           child: Text(
                             '$_unreadChatCount',
-                            style: const TextStyle(
-                              color: Colors.black,
+                            style: TextStyle(
+                              color: theme.colorScheme.onSecondary,
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                             ),
@@ -1211,8 +1268,8 @@ class _MapPageState extends ConsumerState<MapPage> {
                         top: -2,
                         child: Container(
                           padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Colors.red,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.error,
                             shape: BoxShape.circle,
                           ),
                           constraints: const BoxConstraints(
@@ -1221,8 +1278,8 @@ class _MapPageState extends ConsumerState<MapPage> {
                           ),
                           child: Text(
                             '$_unreadSystemCount',
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: theme.colorScheme.onError,
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                             ),
@@ -1252,10 +1309,15 @@ class _MapPageState extends ConsumerState<MapPage> {
 
                 if (_isStudyMode) {
                   _startBroadcast();
+                  _updatePresenceTracking();
                 } else {
                   _stopBroadcast();
                   _goGhost();
+                  _updatePresenceTracking();
                 }
+
+                // Immediate UI update to reflect mode change (e.g. hide pulse, change color)
+                _updateMapMarkers();
               },
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(30),

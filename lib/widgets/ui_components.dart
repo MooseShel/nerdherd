@@ -48,27 +48,30 @@ class SettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: theme.cardTheme.color,
+        color: theme.cardTheme.color ?? theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
+        border: Border.all(color: theme.dividerColor),
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: theme.shadowColor.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                )
+              ],
       ),
       child: ListTile(
         onTap: onTap,
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: (iconColor ?? theme.primaryColor).withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
+            color: theme.colorScheme.secondary,
+            borderRadius: BorderRadius.circular(20),
           ),
           child: Icon(icon, color: iconColor ?? theme.primaryColor, size: 20),
         ),
@@ -145,6 +148,8 @@ class _LoadingSkeletonState extends State<LoadingSkeleton>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
@@ -156,11 +161,17 @@ class _LoadingSkeletonState extends State<LoadingSkeleton>
             gradient: LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
-              colors: const [
-                Color(0xFF2A2A2A),
-                Color(0xFF3A3A3A),
-                Color(0xFF2A2A2A),
-              ],
+              colors: isDark
+                  ? const [
+                      Color(0xFF2A2A2A),
+                      Color(0xFF3A3A3A),
+                      Color(0xFF2A2A2A),
+                    ]
+                  : [
+                      theme.dividerColor.withValues(alpha: 0.1),
+                      theme.dividerColor.withValues(alpha: 0.2),
+                      theme.dividerColor.withValues(alpha: 0.1),
+                    ],
               stops: [
                 _animation.value - 0.3,
                 _animation.value,
@@ -235,8 +246,8 @@ class _SuccessAnimationState extends State<SuccessAnimation>
           child: Container(
             width: 80,
             height: 80,
-            decoration: const BoxDecoration(
-              color: Colors.green,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.tertiary,
               shape: BoxShape.circle,
             ),
             child: CustomPaint(
@@ -257,7 +268,7 @@ class _CheckmarkPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white
+      ..color = Colors.white // Keep white for checkmark on colored background
       ..strokeWidth = 4
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -299,12 +310,12 @@ void showErrorSnackBar(BuildContext context, String message) {
     SnackBar(
       content: Row(
         children: [
-          const Icon(Icons.error_outline, color: Colors.white),
+          const Icon(Icons.error_outline),
           const SizedBox(width: 8),
           Expanded(child: Text(message)),
         ],
       ),
-      backgroundColor: Colors.redAccent,
+      backgroundColor: Theme.of(context).colorScheme.error,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ),
@@ -317,12 +328,12 @@ void showSuccessSnackBar(BuildContext context, String message) {
     SnackBar(
       content: Row(
         children: [
-          const Icon(Icons.check_circle_outline, color: Colors.white),
+          const Icon(Icons.check_circle_outline),
           const SizedBox(width: 8),
           Expanded(child: Text(message)),
         ],
       ),
-      backgroundColor: Colors.green,
+      backgroundColor: Theme.of(context).colorScheme.tertiary,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ),
@@ -365,16 +376,15 @@ class GlassContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final effectiveRadius = borderRadius ?? BorderRadius.circular(24);
 
     // Default glass styling
-    final effectiveColor = color ??
-        (isDark ? Colors.white : Colors.black).withValues(alpha: opacity);
+    final effectiveColor =
+        color ?? theme.colorScheme.onSurface.withValues(alpha: opacity);
 
     final effectiveBorder = border ??
         Border.all(
-          color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.08),
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
           width: 0.5,
         );
 
@@ -441,12 +451,12 @@ class PrimaryButton extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (isLoading)
-          const SizedBox(
+          SizedBox(
             width: 20,
             height: 20,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: Colors.white,
+              color: theme.colorScheme.onPrimary,
             ),
           )
         else ...[
@@ -461,7 +471,7 @@ class PrimaryButton extends StatelessWidget {
 
     final buttonStyle = ElevatedButton.styleFrom(
       backgroundColor: theme.primaryColor,
-      foregroundColor: Colors.white,
+      foregroundColor: theme.colorScheme.onPrimary,
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
       elevation: 4,
       shadowColor: theme.primaryColor.withValues(alpha: 0.4),

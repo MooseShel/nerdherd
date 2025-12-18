@@ -18,58 +18,75 @@ class EmptyStateWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32.0),
+        padding: const EdgeInsets.symmetric(horizontal: 40),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // 1. Icon in a themed container
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.05),
+                color: theme.colorScheme.primary.withOpacity(0.1),
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                border: Border.all(
+                  color: theme.colorScheme.primary.withOpacity(0.2),
+                ),
               ),
               child: Icon(
                 icon,
-                size: 48,
-                color: Colors.cyanAccent.withValues(alpha: 0.8),
+                size: 64,
+                color: theme.colorScheme.primary.withOpacity(0.8),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
+
+            // 2. Title
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
+              style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 12),
+
+            // 3. Description
             Text(
               description,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 14,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
                 height: 1.5,
               ),
             ),
-            if (actionLabel != null && onAction != null) ...[
-              const SizedBox(height: 24),
-              FilledButton.tonal(
+            const SizedBox(height: 32),
+
+            // 4. Action Button (Optional)
+            if (onAction != null && actionLabel != null)
+              ElevatedButton(
                 onPressed: onAction,
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.cyanAccent.withValues(alpha: 0.1),
-                  foregroundColor: Colors.cyanAccent,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                  foregroundColor: theme.colorScheme.primary,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                        color: theme.colorScheme.primary.withOpacity(0.3)),
+                  ),
                 ),
-                child: Text(actionLabel!),
+                child: Text(
+                  actionLabel!,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
-            ],
           ],
         ),
       ),

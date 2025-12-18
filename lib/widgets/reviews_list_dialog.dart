@@ -53,19 +53,20 @@ class _ReviewsListDialogState extends State<ReviewsListDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return AlertDialog(
-      backgroundColor: const Color(0xFF1E1E2C),
-      title: Text("Reviews for ${widget.userName}",
-          style: const TextStyle(color: Colors.white)),
+      title: Text("Reviews for ${widget.userName}"),
       content: SizedBox(
         width: double.maxFinite,
         height: 400, // Fixed height for scrollable list
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _reviews.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text("No reviews yet.",
-                        style: TextStyle(color: Colors.white54)))
+                        style: theme.textTheme.bodySmall))
                 : ListView.builder(
                     itemCount: _reviews.length,
                     itemBuilder: (context, index) {
@@ -81,7 +82,9 @@ class _ReviewsListDialogState extends State<ReviewsListDialog> {
                       final avatarUrl = reviewer['avatar_url'];
 
                       return Card(
-                        color: Colors.white.withValues(alpha: 0.05),
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.05)
+                            : Colors.black.withValues(alpha: 0.05),
                         margin: const EdgeInsets.only(bottom: 12),
                         child: Padding(
                           padding: const EdgeInsets.all(12),
@@ -112,19 +115,22 @@ class _ReviewsListDialogState extends State<ReviewsListDialog> {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(reviewerName,
-                                            style: const TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold)),
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                                    fontWeight:
+                                                        FontWeight.bold)),
                                         Text(reviewerTag,
-                                            style: const TextStyle(
-                                                color: Colors.white54,
-                                                fontSize: 10)),
+                                            style: theme.textTheme.bodySmall
+                                                ?.copyWith(fontSize: 10)),
                                       ],
                                     ),
                                   ),
                                   Text(DateFormat('MMM d').format(date),
-                                      style: const TextStyle(
-                                          color: Colors.white24, fontSize: 12)),
+                                      style: TextStyle(
+                                          color: theme
+                                              .textTheme.bodySmall?.color
+                                              ?.withValues(alpha: 0.4),
+                                          fontSize: 12)),
                                 ],
                               ),
                               const SizedBox(height: 8),
@@ -141,7 +147,9 @@ class _ReviewsListDialogState extends State<ReviewsListDialog> {
                                 const SizedBox(height: 8),
                                 Text(
                                   comment,
-                                  style: const TextStyle(color: Colors.white70),
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.textTheme.bodyMedium?.color
+                                          ?.withOpacity(0.8)),
                                 ),
                               ],
                             ],
@@ -154,7 +162,7 @@ class _ReviewsListDialogState extends State<ReviewsListDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text("Close", style: TextStyle(color: Colors.white54)),
+          child: const Text("Close"),
         ),
       ],
     );

@@ -302,7 +302,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                                   ),
                                   decoration: BoxDecoration(
                                     color: isMine
-                                        ? colorScheme.primaryContainer
+                                        ? colorScheme.primary
                                         : colorScheme.surfaceContainerHighest,
                                     borderRadius: BorderRadius.circular(16),
                                   ),
@@ -346,7 +346,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                                           msg['content'] ?? '',
                                           style: TextStyle(
                                             color: isMine
-                                                ? colorScheme.onPrimaryContainer
+                                                ? colorScheme.onPrimary
                                                 : colorScheme.onSurface,
                                             fontSize: 15,
                                           ),
@@ -377,8 +377,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                                               size: 14,
                                               color: readAt != null
                                                   ? colorScheme.primary
-                                                  : colorScheme
-                                                      .onPrimaryContainer
+                                                  : colorScheme.onPrimary
                                                       .withOpacity(0.6),
                                             ),
                                           ],
