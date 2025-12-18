@@ -48,16 +48,13 @@ class _MapPageState extends ConsumerState<MapPage> {
   // bool _botsSpawned = false; // REMOVED
 
   Map<String, UserProfile> _peers = {};
-  // StreamSubscription? _peersSubscription; // REMOVED
   StreamSubscription? _requestsSubscription;
-  // StreamSubscription? _locationSubscription; // REMOVED
-  Timer? _broadcastTimer;
   LatLng? _currentLocation;
 
   final Set<String> _seenRequests = {}; // Track shown requests
   MapFilters _filters = MapFilters(); // NEW: Filter State
 
-  // Optimization: Smart Broadcast
+  // Optimization: Reactive Broadcast State
   LatLng? _lastBroadcastLocation;
   DateTime? _lastBroadcastTime;
   int _unreadSystemCount = 0; // Unread system notifications
@@ -364,9 +361,8 @@ class _MapPageState extends ConsumerState<MapPage> {
     });
 
     if (_isStudyMode) {
-      _startBroadcast();
+      // Logic handled reactively in ref.listen
     } else {
-      _stopBroadcast(); // Ensure timer is stopped
       // Ensure we are hidden on startup if Ghost Mode is active
       _goGhost();
     }
@@ -382,7 +378,6 @@ class _MapPageState extends ConsumerState<MapPage> {
     _notificationsChannel?.unsubscribe();
     _messagesChannel?.unsubscribe();
     _presenceChannel?.unsubscribe();
-    _stopBroadcast();
 
     super.dispose();
   }
@@ -403,6 +398,53 @@ class _MapPageState extends ConsumerState<MapPage> {
       if (!_initialSpotsFetched && mounted) {
         _initialSpotsFetched = true;
         _fetchStudySpots(radius: 500);
+      }
+
+      // Reactive Broadcast
+      if (_isStudyMode) {
+        _broadcastLocationThrottle(pos);
+      }
+    }
+  }
+
+  Future<void> _broadcastLocationThrottle(LatLng pos) async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    final now = DateTime.now();
+    bool shouldUpdate = false;
+
+    // 1. Time Check (Heartbeat every 60s)
+    if (_lastBroadcastTime == null ||
+        now.difference(_lastBroadcastTime!).inSeconds >= 60) {
+      shouldUpdate = true;
+    }
+
+    // 2. Distance Check (Move > 10m)
+    if (!shouldUpdate && _lastBroadcastLocation != null) {
+      final dist = Geolocator.distanceBetween(
+        _lastBroadcastLocation!.latitude,
+        _lastBroadcastLocation!.longitude,
+        pos.latitude,
+        pos.longitude,
+      );
+      if (dist > 10) {
+        shouldUpdate = true;
+      }
+    } else if (_lastBroadcastLocation == null) {
+      shouldUpdate = true; // First update
+    }
+
+    if (shouldUpdate) {
+      logger.debug(
+          "📍 Broadcaster (Reactive): Upserting location ${pos.latitude}, ${pos.longitude}");
+      try {
+        final service = ref.read(mapServiceProvider);
+        await service.updateLocation(user.id, pos.latitude, pos.longitude);
+        _lastBroadcastLocation = pos;
+        _lastBroadcastTime = now;
+      } catch (e) {
+        // Logged in Service
       }
     }
   }
@@ -831,70 +873,6 @@ class _MapPageState extends ConsumerState<MapPage> {
     }
   }
 
-  void _startBroadcast() {
-    _broadcastTimer?.cancel();
-    // Check more frequently (e.g. 5s) but only WRITE if threshold met
-    _broadcastTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
-      // SAFETY CHECK: Stop this timer if we are in Ghost Mode or widget disposed
-      if (!mounted || !_isStudyMode) {
-        timer.cancel();
-        return;
-      }
-
-      final pos = await Geolocator.getCurrentPosition();
-      final user = supabase.auth.currentUser;
-      if (user == null) return;
-
-      final currentLatLng = LatLng(pos.latitude, pos.longitude);
-      final now = DateTime.now();
-
-      bool shouldUpdate = false;
-
-      // 1. Time Check (Heartbeat every 60s)
-      if (_lastBroadcastTime == null ||
-          now.difference(_lastBroadcastTime!).inSeconds >= 60) {
-        shouldUpdate = true;
-      }
-
-      // 2. Distance Check (Move > 10m)
-      if (!shouldUpdate && _lastBroadcastLocation != null) {
-        final dist = Geolocator.distanceBetween(
-          _lastBroadcastLocation!.latitude,
-          _lastBroadcastLocation!.longitude,
-          pos.latitude,
-          pos.longitude,
-        );
-        if (dist > 10) {
-          shouldUpdate = true;
-        }
-      } else if (_lastBroadcastLocation == null) {
-        shouldUpdate = true; // First update
-      }
-
-      if (shouldUpdate) {
-        logger.debug(
-            "📍 Broadcaster: Upserting location ${pos.latitude}, ${pos.longitude}");
-        try {
-          final freshLatLng = LatLng(pos.latitude, pos.longitude);
-          _updateOwnLocation(
-              freshLatLng); // Keep map dot in sync with broadcast
-
-          final service = ref.read(mapServiceProvider);
-          await service.updateLocation(user.id, pos.latitude, pos.longitude);
-          _lastBroadcastLocation = currentLatLng;
-          _lastBroadcastTime = now;
-        } catch (e) {
-          // Logs handled in service, but we can log context here if needed
-        }
-      }
-    });
-  }
-
-  void _stopBroadcast() {
-    logger.debug("🛑 Broadcaster: Stopped");
-    _broadcastTimer?.cancel();
-  }
-
   void _onCircleTapped(Circle circle) {
     hapticService.selectionClick();
     if (circle.data != null) {
@@ -1308,10 +1286,11 @@ class _MapPageState extends ConsumerState<MapPage> {
                 });
 
                 if (_isStudyMode) {
-                  _startBroadcast();
                   _updatePresenceTracking();
+                  if (_currentLocation != null) {
+                    _broadcastLocationThrottle(_currentLocation!);
+                  }
                 } else {
-                  _stopBroadcast();
                   _goGhost();
                   _updatePresenceTracking();
                 }
