@@ -37,6 +37,7 @@ Spots are color-coded for quick identification:
 - **Bell Icon**: Shows system alerts (Booking requests, Announcements).
 - **Chat Icon**: Shows unread message counts.
 - **Badges**: Look for Red (System) and Cyan (Chat) badges on the map screen.
+- **Push Notifications**: Receive alerts for new messages and collaboration requests even when the app is closed. *Note: Requires granting permission on first launch.*
 
 ## 📅 Scheduling & bookings
 ### Booking a Tutor

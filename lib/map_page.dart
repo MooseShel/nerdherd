@@ -281,9 +281,13 @@ class _MapPageState extends ConsumerState<MapPage> {
             event: PostgresChangeEvent.all,
             schema: 'public',
             table: 'notifications',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'user_id',
+              value: user.id,
+            ),
             callback: (payload) async {
-              final newRecord = payload.newRecord;
-              if (newRecord['user_id'] != user.id) return;
+              // newRecord might be empty on DELETE, handled by count fetch below
 
               // Refresh count on any change
               final newCount = await supabase
@@ -318,22 +322,23 @@ class _MapPageState extends ConsumerState<MapPage> {
             event: PostgresChangeEvent.all,
             schema: 'public',
             table: 'messages',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'receiver_id',
+              value: user.id,
+            ),
             callback: (payload) async {
               // We just refresh the count on any message event involving us as receiver
               // A new message (INSERT receiver=me)
               // A read message (UPDATE receiver=me read_at=now)
-              final newRec = payload.newRecord;
-              final oldRec = payload.oldRecord;
+              // With strict filter, we know it involves us.
 
               // Check if relevant to me
               bool relevant = false;
-              if (newRec.isNotEmpty && newRec['receiver_id'] == user.id) {
-                relevant = true;
-              }
-              // If update, check old record too (though receiver_id shouldn't change)
-              if (oldRec.isNotEmpty && oldRec['receiver_id'] == user.id) {
-                relevant = true;
-              }
+              // Even with filter, safely check logic or just assume relevant?
+              // The filter is receiver_id=me.
+              // So inserts are relevant. Updates where receiver_id=me are relevant.
+              relevant = true;
 
               if (relevant) {
                 final newCount = await supabase

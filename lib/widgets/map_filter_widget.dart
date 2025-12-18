@@ -11,7 +11,7 @@ class MapFilters {
   MapFilters({
     this.showTutors = true,
     this.showStudents = true,
-    this.showClassmates = false,
+    this.showClassmates = true,
     this.selectedSubjects = const [],
   });
 
