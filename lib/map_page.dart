@@ -637,20 +637,68 @@ class _MapPageState extends ConsumerState<MapPage> {
 
     _presenceChannel?.onPresenceSync((payload) {
       if (!mounted) return;
-      final state = (_presenceChannel?.presenceState() ?? {}) as Map;
-      final onlineIds = <String>{};
 
-      for (var entry in state.entries) {
-        final list = entry.value as List;
-        for (var presence in list) {
-          final p = presence as Presence;
-          final id = p.payload['user_id'] as String?;
-          if (id != null) onlineIds.add(id);
+      try {
+        final dynamic rawState = _presenceChannel?.presenceState();
+
+        final onlineIds = <String>{};
+
+        // Handle Map<String, List<Presence>> (Standard)
+        if (rawState is Map) {
+          for (var entry in rawState.entries) {
+            // entry.value is usually List<Presence>
+            if (entry.value is List) {
+              final list = entry.value as List;
+              for (var item in list) {
+                // item is Presence
+                if (item is Presence) {
+                  if (item.payload != null && item.payload['user_id'] != null) {
+                    onlineIds.add(item.payload['user_id'].toString());
+                  }
+                } else if (item is Map) {
+                  // Fallback if it's a raw Map
+                  if (item['user_id'] != null) {
+                    onlineIds.add(item['user_id'].toString());
+                  }
+                }
+              }
+            }
+          }
         }
-      }
+        // Handle List<Presence> (Edge case or specific library version)
+        else if (rawState is List) {
+          for (var item in rawState) {
+            // Access dynamically to support SinglePresenceState structure
+            final dItem = item as dynamic;
+            try {
+              // SinglePresenceState has 'presences' list
+              // Check if it has 'presences' property
+              var presences = <dynamic>[];
+              try {
+                presences = dItem.presences as List? ?? [];
+              } catch (_) {
+                // May actually be a list of Presence directly?
+                if (item is Presence) presences.add(item);
+              }
 
-      setState(() => _onlineUserIds = onlineIds);
-      _updateMapMarkers();
+              for (var p in presences) {
+                final pDyn = p as dynamic;
+                final payload = pDyn.payload;
+                if (payload != null && payload['user_id'] != null) {
+                  onlineIds.add(payload['user_id'].toString());
+                }
+              }
+            } catch (e2) {
+              // ignore
+            }
+          }
+        }
+
+        setState(() => _onlineUserIds = onlineIds);
+        _updateMapMarkers();
+      } catch (e) {
+        logger.warning("Error parsing presence state", error: e);
+      }
     });
 
     _presenceChannel?.subscribe((status, error) {
@@ -864,7 +912,8 @@ class _MapPageState extends ConsumerState<MapPage> {
           logger.warning("⚠️ Failed to draw my location", error: e);
         }
       } else if (_currentLocation == null) {
-        logger.warning("⚠️ Current location is null, cannot draw");
+        // Normal during startup, no need to warn
+        logger.debug("⏳ Waiting for location to draw 'Me' circle...");
       }
     } catch (e) {
       logger.error("❌ Error updating map markers", error: e);

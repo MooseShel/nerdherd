@@ -39,18 +39,34 @@ class StudySpot {
   }
 
   // Helper for OSM
+  // Helper for OSM
   factory StudySpot.fromOSM(Map<String, dynamic> json) {
+    double lat = 0.0;
+    double lon = 0.0;
+
+    // Handle 'node' vs 'way' (center)
+    if (json.containsKey('lat') && json.containsKey('lon')) {
+      lat = (json['lat'] as num).toDouble();
+      lon = (json['lon'] as num).toDouble();
+    } else if (json.containsKey('center')) {
+      final center = json['center'];
+      if (center != null) {
+        lat = (center['lat'] as num).toDouble();
+        lon = (center['lon'] as num).toDouble();
+      }
+    }
+
     return StudySpot(
       id: json['id'].toString(),
-      name: json['tags']['name'] ?? 'Unknown Place',
-      latitude: json['lat'].toDouble(),
-      longitude: json['lon'].toDouble(),
+      name: json['tags']?['name'] ?? 'Unknown Place',
+      latitude: lat,
+      longitude: lon,
       isVerified: false,
       source: 'osm',
-      type: json['tags']['amenity'] ?? 'other',
-      imageUrl: json['tags']['image'] ??
+      type: json['tags']?['amenity'] ?? 'other',
+      imageUrl: json['tags']?['image'] ??
           getOSMImageUrl(
-              json['tags']['amenity'] ?? 'other', json['id'].toString()),
+              json['tags']?['amenity'] ?? 'other', json['id'].toString()),
       perks: [],
     );
   }

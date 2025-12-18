@@ -12,12 +12,20 @@ import 'package:nerd_herd/providers/auth_provider.dart' as app_auth;
   MockSpec<User>(),
 ])
 import 'auth_provider_test.mocks.dart';
+import 'package:nerd_herd/services/logger_service.dart';
+import 'package:logger/logger.dart';
+
+class SilentOutput extends LogOutput {
+  @override
+  void output(OutputEvent event) {}
+}
 
 void main() {
   late MockSupabaseClient mockSupabase;
   late MockGoTrueClient mockAuth;
 
   setUp(() {
+    logger.initialize(output: SilentOutput());
     mockSupabase = MockSupabaseClient();
     mockAuth = MockGoTrueClient();
     when(mockSupabase.auth).thenReturn(mockAuth);

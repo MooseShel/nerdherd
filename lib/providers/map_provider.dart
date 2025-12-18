@@ -4,7 +4,6 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/study_spot.dart';
 import '../models/user_profile.dart';
-import '../services/places_service.dart';
 import '../services/map_service.dart';
 import 'auth_provider.dart';
 
@@ -14,7 +13,7 @@ part 'map_provider.g.dart';
 @Riverpod(keepAlive: true)
 MapService mapService(MapServiceRef ref) {
   final supabase = ref.watch(supabaseClientProvider);
-  return MapService(supabase, PlacesService());
+  return MapService(supabase);
 }
 
 // 2. User Location Provider (Stream)

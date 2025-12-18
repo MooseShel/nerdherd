@@ -29,11 +29,18 @@ class ChatNotifier extends _$ChatNotifier {
       final currentList = List<Map<String, dynamic>>.from(state.value!);
 
       if (payload.eventType == PostgresChangeEvent.insert) {
-        // Only add if relevant (ChatService filter should handle this but double check)
         final newMsg = payload.newRecord;
-        // Check if already exists?
+
+        // STRICT FILTER: Ensure message belongs to this conversation
+        final senderId = newMsg['sender_id'];
+        final receiverId = newMsg['receiver_id'];
+        final isRelevant = (senderId == myId && receiverId == otherUserId) ||
+            (senderId == otherUserId && receiverId == myId);
+
+        if (!isRelevant) return;
+
+        // Check if already exists
         if (!currentList.any((m) => m['id'] == newMsg['id'])) {
-          // Newest first: Prepend
           state = AsyncValue.data([newMsg, ...currentList]);
         }
       } else if (payload.eventType == PostgresChangeEvent.update) {

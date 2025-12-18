@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -28,14 +29,45 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   bool _isUploading = false;
   Timer? _typingTimer;
 
+  bool _isConnected = false;
+  bool _isCheckingConnection = true;
+
   @override
   void initState() {
     super.initState();
+    _checkConnection();
     _scrollController.addListener(_onScroll);
     // Initial read mark
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _markAsRead();
     });
+  }
+
+  Future<void> _checkConnection() async {
+    final myId = ref.read(authStateProvider).value?.id;
+    if (myId == null) {
+      if (mounted) setState(() => _isCheckingConnection = false);
+      return;
+    }
+
+    try {
+      final supabase = Supabase.instance.client;
+      final connection = await supabase
+          .from('connections')
+          .select()
+          .or('and(user_id_1.eq.$myId,user_id_2.eq.${widget.otherUser.userId}),and(user_id_1.eq.${widget.otherUser.userId},user_id_2.eq.$myId)')
+          .maybeSingle();
+
+      if (mounted) {
+        setState(() {
+          _isConnected = connection != null;
+          _isCheckingConnection = false;
+        });
+      }
+    } catch (e) {
+      logger.error("Error checking connection for chat", error: e);
+      if (mounted) setState(() => _isCheckingConnection = false);
+    }
   }
 
   @override
@@ -88,6 +120,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   Future<void> _sendMessage({String? imageUrl}) async {
+    if (!_isConnected) return; // double-check
     HapticFeedback.lightImpact();
     final content = _messageController.text.trim();
     if (content.isEmpty && imageUrl == null) return;
@@ -123,6 +156,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   Future<void> _pickAndSendImage() async {
+    if (!_isConnected) return;
     HapticFeedback.mediumImpact();
     try {
       final picker = ImagePicker();
@@ -149,15 +183,28 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
   }
 
+  bool _isTypingLocal = false; // To track what we sent to DB
+
   void _onTextChanged(String text) {
     if (text.isNotEmpty) {
-      _updateTypingStatus(true);
+      if (!_isTypingLocal) {
+        _isTypingLocal = true;
+        _updateTypingStatus(true);
+      }
+
       _typingTimer?.cancel();
       _typingTimer = Timer(const Duration(seconds: 2), () {
-        _updateTypingStatus(false);
+        if (_isTypingLocal) {
+          _isTypingLocal = false;
+          _updateTypingStatus(false);
+        }
       });
     } else {
-      _updateTypingStatus(false);
+      if (_isTypingLocal) {
+        _isTypingLocal = false;
+        _updateTypingStatus(false);
+      }
+      _typingTimer?.cancel();
     }
   }
 
@@ -176,6 +223,18 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     // 1. Messages State
     final messagesAsync =
         ref.watch(chatNotifierProvider(widget.otherUser.userId));
+
+    // REAL-TIME READ MARK
+    ref.listen(chatNotifierProvider(widget.otherUser.userId), (previous, next) {
+      if (next.hasValue && next.value!.isNotEmpty) {
+        final newest = next.value!.first;
+        // If newest message is from OTHER and not read, mark it!
+        if (newest['sender_id'] == widget.otherUser.userId &&
+            newest['read_at'] == null) {
+          _markAsRead();
+        }
+      }
+    });
 
     // 2. Typing Status State
     final typingAsync =
@@ -280,11 +339,16 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                               final msg = messages[index];
                               final isMine = msg['sender_id'] == myId;
                               final timestamp =
-                                  DateTime.tryParse(msg['created_at']) ??
+                                  DateTime.tryParse(msg['created_at'])
+                                          ?.toLocal() ??
                                       DateTime.now();
                               final messageType = msg['message_type'] ?? 'text';
                               final mediaUrl = msg['media_url'];
                               final readAt = msg['read_at'];
+
+                              // Format time (e.g. 10:30 AM)
+                              final timeStr = TimeOfDay.fromDateTime(timestamp)
+                                  .format(context);
 
                               return Align(
                                 alignment: isMine
@@ -357,7 +421,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Text(
-                                            "${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}",
+                                            timeStr,
                                             style: TextStyle(
                                               color: isMine
                                                   ? colorScheme
@@ -457,72 +521,105 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             ),
           ),
 
-          // Input Field
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: theme.scaffoldBackgroundColor, // or surface logic
-              border: Border(
-                top: BorderSide(color: theme.dividerColor.withOpacity(0.1)),
+          // Input Field (Conditionally Rendered)
+          if (_isCheckingConnection)
+            Container(
+              padding: const EdgeInsets.all(20),
+              child: const Center(child: CircularProgressIndicator()),
+            )
+          else if (!_isConnected)
+            Container(
+              padding: const EdgeInsets.all(16),
+              color: theme.scaffoldBackgroundColor,
+              child: Center(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.lock_outline,
+                          size: 20, color: colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 8),
+                      Text(
+                        "You must be connected to chat.",
+                        style: TextStyle(color: colorScheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.scaffoldBackgroundColor, // or surface logic
+                border: Border(
+                  top: BorderSide(color: theme.dividerColor.withOpacity(0.1)),
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_isUploading)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: LinearProgressIndicator(
+                        backgroundColor: Colors.transparent,
+                        color: colorScheme.primary,
+                        minHeight: 2,
+                      ),
+                    ),
+                  Row(
+                    children: [
+                      // Image picker button
+                      IconButton(
+                        icon: Icon(Icons.image, color: colorScheme.primary),
+                        onPressed: _pickAndSendImage,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: TextField(
+                          controller: _messageController,
+                          style: TextStyle(color: colorScheme.onSurface),
+                          decoration: InputDecoration(
+                            hintText: "Type a message...",
+                            hintStyle:
+                                TextStyle(color: colorScheme.onSurfaceVariant),
+                            filled: true,
+                            fillColor: colorScheme.surfaceContainerHighest,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 12),
+                          ),
+                          onChanged: _onTextChanged,
+                          onSubmitted: (_) => _sendMessage(),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          icon: Icon(Icons.send, color: colorScheme.onPrimary),
+                          onPressed: () => _sendMessage(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_isUploading)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: LinearProgressIndicator(
-                      backgroundColor: Colors.transparent,
-                      color: colorScheme.primary,
-                      minHeight: 2,
-                    ),
-                  ),
-                Row(
-                  children: [
-                    // Image picker button
-                    IconButton(
-                      icon: Icon(Icons.image, color: colorScheme.primary),
-                      onPressed: _pickAndSendImage,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: TextField(
-                        controller: _messageController,
-                        style: TextStyle(color: colorScheme.onSurface),
-                        decoration: InputDecoration(
-                          hintText: "Type a message...",
-                          hintStyle:
-                              TextStyle(color: colorScheme.onSurfaceVariant),
-                          filled: true,
-                          fillColor: colorScheme.surfaceContainerHighest,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 12),
-                        ),
-                        onChanged: _onTextChanged,
-                        onSubmitted: (_) => _sendMessage(),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: colorScheme.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        icon: Icon(Icons.send, color: colorScheme.onPrimary),
-                        onPressed: () => _sendMessage(),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );

@@ -3,14 +3,12 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/study_spot.dart';
 import '../models/user_profile.dart';
-import 'places_service.dart';
 import 'logger_service.dart';
 
 class MapService {
   final SupabaseClient _supabase;
-  final PlacesService _placesService;
 
-  MapService(this._supabase, this._placesService);
+  MapService(this._supabase);
 
   // 1. Fetch Study Spots
   Future<List<StudySpot>> fetchStudySpots(LatLng center,
@@ -33,18 +31,7 @@ class MapService {
         return dist <= radius;
       }).toList();
 
-      // 2. Load OSM Spots (API) - Slower
-      try {
-        final osmSpots = await _placesService.fetchNearbyPOIs(
-          center.latitude,
-          center.longitude,
-          radius: radius,
-        );
-        return [...verifiedSpots, ...osmSpots];
-      } catch (e) {
-        logger.warning("Failed to fetch OSM spots", error: e);
-        return verifiedSpots;
-      }
+      return verifiedSpots;
     } catch (e) {
       logger.error("Error fetching study spots", error: e);
       return [];
