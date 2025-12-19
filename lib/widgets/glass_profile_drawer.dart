@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'rating_dialog.dart';
@@ -604,19 +605,133 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                   children: [
                     Expanded(
                       child: isMe
-                          ? SecondaryButton(
-                              label: "Edit Profile",
-                              icon: Icons.edit_outlined,
-                              onPressed: () {
-                                hapticService.mediumImpact();
-                                Navigator.pop(context); // Close drawer
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) =>
-                                          const ProfilePage()),
-                                );
-                              },
+                          ? Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                SecondaryButton(
+                                  label: "Edit Profile",
+                                  icon: Icons.edit_outlined,
+                                  onPressed: () {
+                                    hapticService.mediumImpact();
+                                    Navigator.pop(context); // Close drawer
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) =>
+                                              const ProfilePage()),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(height: 12),
+                                SecondaryButton(
+                                  label: "Debug Push",
+                                  icon: Icons.bug_report,
+                                  onPressed: () async {
+                                    // Navigator.pop(context); // Keep drawer open? No, dialog.
+
+                                    showDialog(
+                                      context: context,
+                                      barrierDismissible: false,
+                                      builder: (ctx) => const Center(
+                                          child: CircularProgressIndicator()),
+                                    );
+
+                                    try {
+                                      // 1. Check Permissions
+                                      final settings = await FirebaseMessaging
+                                          .instance
+                                          .requestPermission();
+
+                                      // 2. Check APNs (iOS Only)
+                                      String? apnsToken;
+                                      if (Theme.of(context).platform ==
+                                          TargetPlatform.iOS) {
+                                        apnsToken = await FirebaseMessaging
+                                            .instance
+                                            .getAPNSToken();
+                                      }
+
+                                      // 3. Get FCM
+                                      final fcmToken = await FirebaseMessaging
+                                          .instance
+                                          .getToken();
+
+                                      if (context.mounted)
+                                        Navigator.pop(context); // Pop loader
+
+                                      if (context.mounted) {
+                                        showDialog(
+                                          context: context,
+                                          builder: (ctx) => AlertDialog(
+                                            title:
+                                                const Text("Push Debug Info"),
+                                            content: SingleChildScrollView(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(
+                                                      "Auth Status: ${settings.authorizationStatus}"),
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                      "APNs Token: ${apnsToken == null ? 'NULL (Critical)' : 'OK'}"),
+                                                  if (apnsToken != null)
+                                                    Text(
+                                                        "APNs: ${apnsToken.substring(0, 5)}...",
+                                                        style: const TextStyle(
+                                                            fontFamily:
+                                                                'monospace')),
+                                                  const SizedBox(height: 8),
+                                                  const Divider(),
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                      "FCM Token: ${fcmToken == null ? 'NULL (Critical)' : 'OK'}"),
+                                                  if (fcmToken != null)
+                                                    SelectableText(
+                                                        "FCM: $fcmToken"),
+                                                  const SizedBox(height: 16),
+                                                  if (fcmToken == null)
+                                                    const Text(
+                                                        "⚠️ If APNs is NULL: Push Capability is missing in Developer Portal or Xcode.\n⚠️ If APNs is OK but FCM is NULL: Firebase config (GoogleService-Info.plist) is wrong.",
+                                                        style: TextStyle(
+                                                            color: Colors.red,
+                                                            fontSize: 12)),
+                                                ],
+                                              ),
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(ctx),
+                                                  child: const Text("Close"))
+                                            ],
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted)
+                                        Navigator.pop(context);
+                                      if (context.mounted) {
+                                        showDialog(
+                                          context: context,
+                                          builder: (ctx) => AlertDialog(
+                                            title: const Text("Debug Error"),
+                                            content: Text(e.toString()),
+                                            actions: [
+                                              TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(ctx),
+                                                  child: const Text("Close"))
+                                            ],
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                ),
+                              ],
                             )
                           : _isConnected
                               ? PrimaryButton(
