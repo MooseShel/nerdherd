@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_core/firebase_core.dart'; // Required for Firebase.apps check
 import 'package:flutter/material.dart'; // For MaterialPageRoute
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -74,6 +75,12 @@ class NotificationService {
   /// Initialize Firebase Cloud Messaging
   Future<void> _initFCM() async {
     try {
+      // Guard: If Firebase didn't initialize (e.g. on Desktop), skip FCM
+      if (Firebase.apps.isEmpty) {
+        logger.warning('Skipping FCM: No Firebase App initialized');
+        return;
+      }
+
       // Lazy access - will throw here if Firebase.initializeApp failed, but we catch it.
       final messaging = FirebaseMessaging.instance;
 

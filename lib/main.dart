@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -16,6 +17,8 @@ import 'config/theme.dart';
 
 import 'providers/theme_provider.dart';
 
+import 'firebase_options.dart';
+
 Future<void> main() async {
   runZonedGuarded<Future<void>>(() async {
     WidgetsFlutterBinding.ensureInitialized();
@@ -24,10 +27,12 @@ Future<void> main() async {
     logger.initialize();
     logger.info('🚀 Nerd Herd starting up...');
 
-    // Initialize Firebase (Skip on Web to avoid startup delay/timeout)
-    if (!kIsWeb) {
+    // Initialize Firebase (Only on Mobile to avoid desktop/web errors)
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
       try {
-        await Firebase.initializeApp();
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
       } catch (e) {
         logger.error(
             'Failed to initialize Firebase (Warning: Push notifications may not work)',

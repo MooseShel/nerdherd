@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'rating_dialog.dart';
@@ -11,6 +12,7 @@ import '../chat_page.dart';
 import '../services/logger_service.dart';
 import '../services/haptic_service.dart';
 
+import '../firebase_options.dart';
 import 'ui_components.dart';
 
 class GlassProfileDrawer extends StatefulWidget {
@@ -638,6 +640,21 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                     );
 
                                     try {
+                                      // 0. Ensure Init
+                                      try {
+                                        await Firebase.initializeApp(
+                                          options: DefaultFirebaseOptions
+                                              .currentPlatform,
+                                        );
+                                      } catch (e) {
+                                        print("Firebase Init Error: $e");
+                                      }
+
+                                      if (Firebase.apps.isEmpty) {
+                                        throw Exception(
+                                            "Firebase failed to initialize. Check console for details. (Likely missing config)");
+                                      }
+
                                       // 1. Check Permissions
                                       final settings = await FirebaseMessaging
                                           .instance
