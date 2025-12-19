@@ -14,7 +14,6 @@ import 'services/logger_service.dart';
 import 'services/haptic_service.dart';
 import 'package:flutter/foundation.dart'; // For kIsWeb
 
-import 'package:shared_preferences/shared_preferences.dart';
 import 'widgets/map_filter_widget.dart';
 import 'notifications_page.dart';
 import 'conversations_page.dart'; // NEW
@@ -25,6 +24,7 @@ import 'widgets/study_spot_details_sheet.dart'; // NEW
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nerd_herd/providers/map_provider.dart';
+import 'providers/ghost_mode_provider.dart';
 
 // Services
 
@@ -43,9 +43,12 @@ class _MapPageState extends ConsumerState<MapPage> {
   // Wait, `places_service.dart` usually exposes a singleton or simple class.
   // Let's assume we can create it.
 
-  bool _isStudyMode = false;
-
   // bool _botsSpawned = false; // REMOVED
+
+  // Getter for Study Mode (Visible) derived from Ghost Mode (Invisible)
+  // Default to true (Visible) if loading, to ensure we broadcast if we have location.
+  // If we turn out to be Ghost, the listener will correct it immediately.
+  bool get _isStudyMode => !(ref.read(ghostModeProvider).value ?? false);
 
   Map<String, UserProfile> _peers = {};
   StreamSubscription? _requestsSubscription;
@@ -87,7 +90,9 @@ class _MapPageState extends ConsumerState<MapPage> {
     // _placesService = ...
     // _mapService = ...
 
-    _loadSettings();
+    // _mapService = ...
+
+    // _loadSettings(); // REMOVED: Managed by ghostModeProvider
     _loadInitialLocation(); // Fast load
 
     _checkLocationPermissions();
@@ -350,27 +355,6 @@ class _MapPageState extends ConsumerState<MapPage> {
               }
             })
         .subscribe();
-  }
-
-  Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-
-    // Settings: "Ghost Mode" (Toggle). True = Hidden.
-    // Map: "_isStudyMode" (Toggle). True = Live/Visible.
-    // So: _isStudyMode = !ghostMode.
-    final ghostMode = prefs.getBool('ghost_mode') ?? false;
-
-    setState(() {
-      _isStudyMode = !ghostMode;
-    });
-
-    if (_isStudyMode) {
-      // Logic handled reactively in ref.listen
-    } else {
-      // Ensure we are hidden on startup if Ghost Mode is active
-      _goGhost();
-    }
   }
 
   // SupabaseClient? _botClient; // UNUSED since switching to local bots
@@ -1078,6 +1062,9 @@ class _MapPageState extends ConsumerState<MapPage> {
       });
     });
 
+    // Watch Ghost Mode to ensure rebuilds
+    ref.watch(ghostModeProvider);
+
     // 2. Peers
     ref.listen(peersProvider, (previous, next) {
       next.whenData((data) {
@@ -1105,6 +1092,28 @@ class _MapPageState extends ConsumerState<MapPage> {
     });
 
     final availableSubjectsAsync = ref.watch(availableSubjectsProvider);
+
+    // Listen to Ghost Mode changes
+    ref.listen<AsyncValue<bool>>(ghostModeProvider, (prev, next) {
+      final wasGhost = prev?.value ?? false; // Default false (Visible)
+      final isGhost = next.value ?? false;
+
+      // Check for transition
+      if (wasGhost != isGhost) {
+        if (isGhost) {
+          logger.debug("👻 Ghost Mode Enabled: Clearing location and presence");
+          _goGhost(); // Clear from DB
+          _updatePresenceTracking();
+        } else {
+          logger.debug("👻 Ghost Mode Disabled: Broadcasting location");
+          // Becoming visible
+          if (_currentLocation != null) {
+            _broadcastLocationThrottle(_currentLocation!);
+          }
+          _updatePresenceTracking();
+        }
+      }
+    });
 
     return Scaffold(
       body: Stack(
@@ -1238,7 +1247,9 @@ class _MapPageState extends ConsumerState<MapPage> {
                       context,
                       MaterialPageRoute(
                           builder: (context) => const ProfilePage()),
-                    ).then((_) => _loadSettings());
+                    ).then((_) {
+                      // Settings handled by provider
+                    });
                   },
                   child:
                       (_peers[supabase.auth.currentUser?.id]?.avatarUrl != null)
@@ -1366,26 +1377,14 @@ class _MapPageState extends ConsumerState<MapPage> {
             right: 20,
             child: GestureDetector(
               onTap: () {
-                setState(() {
-                  _isStudyMode = !_isStudyMode;
-                });
+                final currentGhost = ref.read(ghostModeProvider).value ?? false;
+                final newGhost = !currentGhost;
+
                 hapticService.mediumImpact();
-                SharedPreferences.getInstance().then((prefs) {
-                  prefs.setBool('ghost_mode', !_isStudyMode);
-                });
+                ref.read(ghostModeProvider.notifier).setGhostMode(newGhost);
 
-                if (_isStudyMode) {
-                  _updatePresenceTracking();
-                  if (_currentLocation != null) {
-                    _broadcastLocationThrottle(_currentLocation!);
-                  }
-                } else {
-                  _goGhost();
-                  _updatePresenceTracking();
-                }
-
-                // Immediate UI update to reflect mode change (e.g. hide pulse, change color)
-                _updateMapMarkers();
+                // Note: Logic for broadcast/goGhost is handled by ref.listen in build.
+                // UI update specific to mode is handled by ref.watch triggering rebuild.
               },
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(30),

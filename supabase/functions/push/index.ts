@@ -25,11 +25,10 @@ console.log("Hello from Push Function!");
 
 serve(async (req) => {
     try {
-        const { record } = await req.json(); // Payload from Database Webhook (if used) or direct invoke
-        // If triggered by pg_net, payload format might differ. 
-        // Let's support { user_id, title, body, data } input.
-
         const payload = await req.json();
+
+        // If payload has 'record', it's likely a DB webhook.
+        // If it has direct keys, it's direct invoke.
         // If payload has 'record', it's likely a DB webhook.
         // If it has direct keys, it's direct invoke.
 

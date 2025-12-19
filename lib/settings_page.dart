@@ -9,7 +9,8 @@ import 'admin/admin_dashboard.dart';
 import 'reviews/reviews_history_page.dart';
 import 'providers/theme_provider.dart';
 import 'university/university_selection_page.dart';
-import 'providers/map_provider.dart';
+
+import 'providers/ghost_mode_provider.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -20,7 +21,6 @@ class SettingsPage extends ConsumerStatefulWidget {
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   final supabase = Supabase.instance.client;
-  bool _ghostMode = false;
   bool _notificationsEnabled = true;
   bool _isAdmin = false;
 
@@ -33,7 +33,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _ghostMode = prefs.getBool('ghost_mode') ?? false;
       _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
     });
 
@@ -299,18 +298,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             title: 'Ghost Mode',
             subtitle: 'Hide your location from everyone',
             trailing: Switch(
-              value: _ghostMode,
+              value: ref.watch(ghostModeProvider).value ?? false,
               onChanged: (val) {
                 hapticService.selectionClick();
-                setState(() => _ghostMode = val);
-                _saveSetting('ghost_mode', val);
-
-                // Immediately update visibility if entering ghost mode
-                if (val) {
-                  ref
-                      .read(mapServiceProvider)
-                      .goGhost(supabase.auth.currentUser!.id);
-                }
+                ref.read(ghostModeProvider.notifier).setGhostMode(val);
               },
               activeThumbColor: theme.primaryColor,
             ),

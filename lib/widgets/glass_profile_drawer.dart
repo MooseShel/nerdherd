@@ -11,6 +11,8 @@ import '../profile_page.dart';
 import '../chat_page.dart';
 import '../services/logger_service.dart';
 import '../services/haptic_service.dart';
+import 'package:flutter/foundation.dart'; // For kIsWeb
+import 'dart:io' show Platform;
 
 import '../firebase_options.dart';
 import 'ui_components.dart';
@@ -641,20 +643,51 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                       );
 
                                       try {
-                                        // 0. Ensure Init
+                                        // 0. Ensure Init & Platform Check
+                                        // Guard against Web/Windows where Firebase might not be configured
+                                        if (kIsWeb ||
+                                            (!Platform.isIOS &&
+                                                !Platform.isAndroid)) {
+                                          if (context.mounted)
+                                            Navigator.pop(
+                                                context); // Pop loader
+                                          if (context.mounted) {
+                                            showDialog(
+                                              context: context,
+                                              builder: (ctx) => AlertDialog(
+                                                title:
+                                                    const Text("Not Supported"),
+                                                content: const Text(
+                                                    "Push Notifications (FCM) are only supported on iOS and Android devices.\n\nPlease test this on a real phone or emulator."),
+                                                actions: [
+                                                  TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.pop(ctx),
+                                                      child: const Text("OK"))
+                                                ],
+                                              ),
+                                            );
+                                          }
+                                          return;
+                                        }
+
                                         try {
                                           await Firebase.initializeApp(
                                             options: DefaultFirebaseOptions
                                                 .currentPlatform,
                                           );
                                         } catch (e) {
-                                          logger.error("Firebase Init Error",
-                                              error: e);
+                                          // Ignore if already initialized
+                                          if (Firebase.apps.isEmpty) {
+                                            logger.error("Firebase Init Error",
+                                                error: e);
+                                            throw e;
+                                          }
                                         }
 
                                         if (Firebase.apps.isEmpty) {
                                           throw Exception(
-                                              "Firebase failed to initialize. Check console for details. (Likely missing config)");
+                                              "Firebase failed to initialize. Check console for details.");
                                         }
 
                                         // 1. Check Permissions
