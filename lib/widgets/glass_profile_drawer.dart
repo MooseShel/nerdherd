@@ -625,129 +625,137 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                     );
                                   },
                                 ),
-                                const SizedBox(height: 12),
-                                SecondaryButton(
-                                  label: "Debug Push",
-                                  icon: Icons.bug_report,
-                                  onPressed: () async {
-                                    // Navigator.pop(context); // Keep drawer open? No, dialog.
+                                if (widget.profile.isAdmin) ...[
+                                  const SizedBox(height: 12),
+                                  SecondaryButton(
+                                    label: "Debug Push",
+                                    icon: Icons.bug_report,
+                                    onPressed: () async {
+                                      // Navigator.pop(context); // Keep drawer open? No, dialog.
 
-                                    showDialog(
-                                      context: context,
-                                      barrierDismissible: false,
-                                      builder: (ctx) => const Center(
-                                          child: CircularProgressIndicator()),
-                                    );
+                                      showDialog(
+                                        context: context,
+                                        barrierDismissible: false,
+                                        builder: (ctx) => const Center(
+                                            child: CircularProgressIndicator()),
+                                      );
 
-                                    try {
-                                      // 0. Ensure Init
                                       try {
-                                        await Firebase.initializeApp(
-                                          options: DefaultFirebaseOptions
-                                              .currentPlatform,
-                                        );
-                                      } catch (e) {
-                                        print("Firebase Init Error: $e");
-                                      }
+                                        // 0. Ensure Init
+                                        try {
+                                          await Firebase.initializeApp(
+                                            options: DefaultFirebaseOptions
+                                                .currentPlatform,
+                                          );
+                                        } catch (e) {
+                                          logger.error("Firebase Init Error",
+                                              error: e);
+                                        }
 
-                                      if (Firebase.apps.isEmpty) {
-                                        throw Exception(
-                                            "Firebase failed to initialize. Check console for details. (Likely missing config)");
-                                      }
+                                        if (Firebase.apps.isEmpty) {
+                                          throw Exception(
+                                              "Firebase failed to initialize. Check console for details. (Likely missing config)");
+                                        }
 
-                                      // 1. Check Permissions
-                                      final settings = await FirebaseMessaging
-                                          .instance
-                                          .requestPermission();
-
-                                      // 2. Check APNs (iOS Only)
-                                      String? apnsToken;
-                                      if (Theme.of(context).platform ==
-                                          TargetPlatform.iOS) {
-                                        apnsToken = await FirebaseMessaging
+                                        // 1. Check Permissions
+                                        final settings = await FirebaseMessaging
                                             .instance
-                                            .getAPNSToken();
-                                      }
+                                            .requestPermission();
 
-                                      // 3. Get FCM
-                                      final fcmToken = await FirebaseMessaging
-                                          .instance
-                                          .getToken();
+                                        // 2. Check APNs (iOS Only)
+                                        // 2. Check APNs (iOS Only)
+                                        String? apnsToken;
+                                        if (context.mounted &&
+                                            Theme.of(context).platform ==
+                                                TargetPlatform.iOS) {
+                                          apnsToken = await FirebaseMessaging
+                                              .instance
+                                              .getAPNSToken();
+                                        }
 
-                                      if (context.mounted)
-                                        Navigator.pop(context); // Pop loader
+                                        // 3. Get FCM
+                                        final fcmToken = await FirebaseMessaging
+                                            .instance
+                                            .getToken();
 
-                                      if (context.mounted) {
-                                        showDialog(
-                                          context: context,
-                                          builder: (ctx) => AlertDialog(
-                                            title:
-                                                const Text("Push Debug Info"),
-                                            content: SingleChildScrollView(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Text(
-                                                      "Auth Status: ${settings.authorizationStatus}"),
-                                                  const SizedBox(height: 8),
-                                                  Text(
-                                                      "APNs Token: ${apnsToken == null ? 'NULL (Critical)' : 'OK'}"),
-                                                  if (apnsToken != null)
+                                        if (context.mounted) {
+                                          Navigator.pop(context); // Pop loader
+                                        }
+
+                                        if (context.mounted) {
+                                          showDialog(
+                                            context: context,
+                                            builder: (ctx) => AlertDialog(
+                                              title:
+                                                  const Text("Push Debug Info"),
+                                              content: SingleChildScrollView(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
                                                     Text(
-                                                        "APNs: ${apnsToken.substring(0, 5)}...",
-                                                        style: const TextStyle(
-                                                            fontFamily:
-                                                                'monospace')),
-                                                  const SizedBox(height: 8),
-                                                  const Divider(),
-                                                  const SizedBox(height: 8),
-                                                  Text(
-                                                      "FCM Token: ${fcmToken == null ? 'NULL (Critical)' : 'OK'}"),
-                                                  if (fcmToken != null)
-                                                    SelectableText(
-                                                        "FCM: $fcmToken"),
-                                                  const SizedBox(height: 16),
-                                                  if (fcmToken == null)
-                                                    const Text(
-                                                        "⚠️ If APNs is NULL: Push Capability is missing in Developer Portal or Xcode.\n⚠️ If APNs is OK but FCM is NULL: Firebase config (GoogleService-Info.plist) is wrong.",
-                                                        style: TextStyle(
-                                                            color: Colors.red,
-                                                            fontSize: 12)),
-                                                ],
+                                                        "Auth Status: ${settings.authorizationStatus}"),
+                                                    const SizedBox(height: 8),
+                                                    Text(
+                                                        "APNs Token: ${apnsToken == null ? 'NULL (Critical)' : 'OK'}"),
+                                                    if (apnsToken != null)
+                                                      Text(
+                                                          "APNs: ${apnsToken.substring(0, 5)}...",
+                                                          style: const TextStyle(
+                                                              fontFamily:
+                                                                  'monospace')),
+                                                    const SizedBox(height: 8),
+                                                    const Divider(),
+                                                    const SizedBox(height: 8),
+                                                    Text(
+                                                        "FCM Token: ${fcmToken == null ? 'NULL (Critical)' : 'OK'}"),
+                                                    if (fcmToken != null)
+                                                      SelectableText(
+                                                          "FCM: $fcmToken"),
+                                                    const SizedBox(height: 16),
+                                                    if (fcmToken == null)
+                                                      const Text(
+                                                          "⚠️ If APNs is NULL: Push Capability is missing in Developer Portal or Xcode.\n⚠️ If APNs is OK but FCM is NULL: Firebase config (GoogleService-Info.plist) is wrong.",
+                                                          style: TextStyle(
+                                                              color: Colors.red,
+                                                              fontSize: 12)),
+                                                  ],
+                                                ),
                                               ),
+                                              actions: [
+                                                TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(ctx),
+                                                    child: const Text("Close"))
+                                              ],
                                             ),
-                                            actions: [
-                                              TextButton(
-                                                  onPressed: () =>
-                                                      Navigator.pop(ctx),
-                                                  child: const Text("Close"))
-                                            ],
-                                          ),
-                                        );
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          Navigator.pop(context);
+                                        }
+                                        if (context.mounted) {
+                                          showDialog(
+                                            context: context,
+                                            builder: (ctx) => AlertDialog(
+                                              title: const Text("Debug Error"),
+                                              content: Text(e.toString()),
+                                              actions: [
+                                                TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(ctx),
+                                                    child: const Text("Close"))
+                                              ],
+                                            ),
+                                          );
+                                        }
                                       }
-                                    } catch (e) {
-                                      if (context.mounted)
-                                        Navigator.pop(context);
-                                      if (context.mounted) {
-                                        showDialog(
-                                          context: context,
-                                          builder: (ctx) => AlertDialog(
-                                            title: const Text("Debug Error"),
-                                            content: Text(e.toString()),
-                                            actions: [
-                                              TextButton(
-                                                  onPressed: () =>
-                                                      Navigator.pop(ctx),
-                                                  child: const Text("Close"))
-                                            ],
-                                          ),
-                                        );
-                                      }
-                                    }
-                                  },
-                                ),
+                                    },
+                                  ),
+                                ],
                               ],
                             )
                           : _isConnected
