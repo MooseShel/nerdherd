@@ -711,6 +711,28 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                             .instance
                                             .getToken();
 
+                                        // 4. VERIFY ON SERVER
+                                        String serverTokenStatus = "Unknown";
+                                        if (fcmToken != null) {
+                                          final profileData = await supabase
+                                              .from('profiles')
+                                              .select('fcm_token')
+                                              .eq('user_id', currentUser!.id)
+                                              .maybeSingle();
+
+                                          if (profileData != null &&
+                                              profileData['fcm_token'] ==
+                                                  fcmToken) {
+                                            serverTokenStatus = "Synced ✅";
+                                          } else if (profileData != null &&
+                                              profileData['fcm_token'] !=
+                                                  null) {
+                                            serverTokenStatus = "Mismatch ⚠️";
+                                          } else {
+                                            serverTokenStatus = "Missing ❌";
+                                          }
+                                        }
+
                                         if (context.mounted) {
                                           Navigator.pop(context); // Pop loader
                                         }
@@ -747,6 +769,13 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                                     if (fcmToken != null)
                                                       SelectableText(
                                                           "FCM: $fcmToken"),
+                                                    const SizedBox(height: 8),
+                                                    Text(
+                                                        "Server Sync: $serverTokenStatus",
+                                                        style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold)),
                                                     const SizedBox(height: 16),
                                                     if (fcmToken == null)
                                                       const Text(

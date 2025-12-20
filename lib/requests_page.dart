@@ -140,7 +140,7 @@ class _RequestsPageState extends State<RequestsPage> {
             content: Text(accept ? "Request Accepted!" : "Request Rejected"),
             backgroundColor: accept
                 ? Theme.of(context).colorScheme.tertiary
-                : Theme.of(context).disabledColor.withOpacity(0.5),
+                : Theme.of(context).disabledColor.withValues(alpha: 0.5),
           ),
         );
       }
@@ -305,13 +305,13 @@ class _RequestsPageState extends State<RequestsPage> {
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: status == 'accepted'
-                          ? theme.colorScheme.tertiary.withOpacity(0.1)
-                          : theme.colorScheme.error.withOpacity(0.1),
+                          ? theme.colorScheme.tertiary.withValues(alpha: 0.1)
+                          : theme.colorScheme.error.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                           color: status == 'accepted'
                               ? theme.colorScheme.tertiary
-                              : theme.colorScheme.error.withOpacity(0.5)),
+                              : theme.colorScheme.error.withValues(alpha: 0.5)),
                     ),
                     child: Text(
                       status.toUpperCase(),

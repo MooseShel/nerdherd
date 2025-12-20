@@ -404,8 +404,8 @@ class _WalletPageState extends ConsumerState<WalletPage> {
                 Text(
                   t.createdAt.toString().split('.')[0], // Simple cleanup
                   style: theme.textTheme.bodySmall?.copyWith(
-                      color:
-                          theme.textTheme.bodySmall?.color?.withOpacity(0.5)),
+                      color: theme.textTheme.bodySmall?.color
+                          ?.withValues(alpha: 0.5)),
                 ),
               ],
             ),

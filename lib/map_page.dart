@@ -641,7 +641,7 @@ class _MapPageState extends ConsumerState<MapPage> {
               for (var item in list) {
                 // item is Presence
                 if (item is Presence) {
-                  if (item.payload != null && item.payload['user_id'] != null) {
+                  if (item.payload['user_id'] != null) {
                     onlineIds.add(item.payload['user_id'].toString());
                   }
                 } else if (item is Map) {
@@ -1027,7 +1027,7 @@ class _MapPageState extends ConsumerState<MapPage> {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           )
@@ -1038,7 +1038,7 @@ class _MapPageState extends ConsumerState<MapPage> {
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Material(
             color: (activeColor ?? (isDark ? Colors.black : Colors.white))
-                .withOpacity(0.7),
+                .withValues(alpha: 0.7),
             child: InkWell(
               onTap: onPressed,
               child: Center(child: child),
@@ -1102,12 +1102,28 @@ class _MapPageState extends ConsumerState<MapPage> {
       if (wasGhost != isGhost) {
         if (isGhost) {
           logger.debug("👻 Ghost Mode Enabled: Clearing location and presence");
-          _goGhost(); // Clear from DB
+
+          // Execute with error handling
+          _goGhost().catchError((e) {
+            logger.error("Failed to go ghost, reverting UI", error: e);
+            // Revert user-visible state
+            ref.read(ghostModeProvider.notifier).setGhostMode(false);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                    content: Text("Failed to enable Ghost Mode: $e"),
+                    backgroundColor: Colors.red),
+              );
+            }
+          });
+
           _updatePresenceTracking();
         } else {
           logger.debug("👻 Ghost Mode Disabled: Broadcasting location");
           // Becoming visible
           if (_currentLocation != null) {
+            // FORCE Update immediately (bypass throttle)
+            _lastBroadcastLocation = null;
             _broadcastLocationThrottle(_currentLocation!);
           }
           _updatePresenceTracking();
@@ -1152,7 +1168,8 @@ class _MapPageState extends ConsumerState<MapPage> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(isDark ? 0.5 : 0.2),
+                          color: Colors.black
+                              .withValues(alpha: isDark ? 0.5 : 0.2),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
                         )
@@ -1190,10 +1207,10 @@ class _MapPageState extends ConsumerState<MapPage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surface.withOpacity(0.9),
+                    color: theme.colorScheme.surface.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(20),
-                    border:
-                        Border.all(color: theme.dividerColor.withOpacity(0.1)),
+                    border: Border.all(
+                        color: theme.dividerColor.withValues(alpha: 0.1)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1397,11 +1414,11 @@ class _MapPageState extends ConsumerState<MapPage> {
                       color: (_isStudyMode
                               ? theme.primaryColor
                               : (isDark ? Colors.black : Colors.white))
-                          .withOpacity(0.7),
+                          .withValues(alpha: 0.7),
                       borderRadius: BorderRadius.circular(30),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         )

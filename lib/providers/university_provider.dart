@@ -17,7 +17,7 @@ UniversityService universityService(Ref ref) {
 // 2. Search Universities
 @riverpod
 Future<List<University>> searchUniversities(Ref ref, String query) async {
-  if (query.isEmpty) return [];
+  // if (query.isEmpty) return []; // Removed to allow listing all
   final service = ref.watch(universityServiceProvider);
   return service.searchUniversities(query);
 }

@@ -12,11 +12,13 @@ class UniversityService {
 
   Future<List<University>> searchUniversities(String query) async {
     try {
-      final data = await _supabase
-          .from('universities')
-          .select()
-          .ilike('name', '%$query%')
-          .limit(10);
+      var queryBuilder = _supabase.from('universities').select();
+
+      if (query.isNotEmpty) {
+        queryBuilder = queryBuilder.ilike('name', '%$query%');
+      }
+
+      final data = await queryBuilder.order('name', ascending: true).limit(50);
       return (data as List).map((e) => University.fromJson(e)).toList();
     } catch (e) {
       if (e is PostgrestException && e.code == 'PGRST205') {
@@ -155,7 +157,8 @@ class UniversityService {
           .insert({
             'name': 'Nerd Herd University',
             'domain': 'nerdherd.edu',
-            'logo_url': 'assets/images/university_logo.png'
+            'logo_url':
+                'https://img.freepik.com/free-vector/gradient-high-school-logo-design_23-2149626932.jpg'
           })
           .select()
           .single();

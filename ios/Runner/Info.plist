@@ -51,6 +51,8 @@
 		<string>We need your location to show you on the map and find nearby connections even when the app is in the background.</string>
 		<key>NSMicrophoneUsageDescription</key>
 		<string>We need access to your microphone for video capture.</string>
+		<key>NSFaceIDUsageDescription</key>
+		<string>We use Face ID to securely log you in without typing your password.</string>
 		<key>CADisableMinimumFrameDurationOnPhone</key>
 		<true/>
 		<key>UIApplicationSupportsIndirectInputEvents</key>

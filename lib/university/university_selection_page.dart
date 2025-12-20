@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/university_provider.dart';
 import '../providers/auth_provider.dart';
 import 'course_import_page.dart';
@@ -34,7 +35,8 @@ class _UniversitySelectionPageState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Select University"),
+        title: const Text("Select any university below or search for one",
+            style: TextStyle(fontSize: 16)), // Smaller font to fit
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -75,7 +77,7 @@ class _UniversitySelectionPageState
                         const SizedBox(height: 16),
                         Text(
                           _query.isEmpty
-                              ? "Search for your school"
+                              ? "No universities found"
                               : "No schools found",
                           style: TextStyle(
                               color: theme.textTheme.bodySmall?.color
@@ -89,24 +91,18 @@ class _UniversitySelectionPageState
                     ),
                   );
                 }
-                return ListView.builder(
+                return GridView.builder(
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 0.8,
+                  ),
                   itemCount: universities.length,
                   itemBuilder: (context, index) {
                     final uni = universities[index];
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: theme.colorScheme.surface,
-                        backgroundImage: uni.logoUrl != null
-                            ? AssetImage(uni.logoUrl!)
-                            : null,
-                        child: uni.logoUrl == null
-                            ? Icon(Icons.school, color: theme.primaryColor)
-                            : null,
-                      ),
-                      title: Text(uni.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text(uni.domain ?? "Verified Institution"),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    return InkWell(
                       onTap: () async {
                         hapticService.mediumImpact();
                         // Set university in profile
@@ -129,6 +125,80 @@ class _UniversitySelectionPageState
                                       CourseImportPage(university: uni)));
                         }
                       },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: theme.cardColor,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                              color: theme.dividerColor.withValues(alpha: 0.1)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            )
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 120,
+                              height: 120,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: theme.scaffoldBackgroundColor,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: theme.shadowColor
+                                        .withValues(alpha: 0.1),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 2),
+                                  )
+                                ],
+                              ),
+                              child: uni.logoUrl != null
+                                  ? Image(
+                                      image: uni.logoUrl!.startsWith('http')
+                                          ? CachedNetworkImageProvider(
+                                              uni.logoUrl!)
+                                          : AssetImage(uni.logoUrl!)
+                                              as ImageProvider,
+                                      fit: BoxFit.contain,
+                                    )
+                                  : Icon(Icons.school,
+                                      size: 50, color: theme.primaryColor),
+                            ),
+                            const SizedBox(height: 16),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 12),
+                              child: Text(
+                                uni.name,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (uni.domain != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                uni.domain!,
+                                style: TextStyle(
+                                  color: theme.textTheme.bodySmall?.color
+                                      ?.withValues(alpha: 0.7),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
                     );
                   },
                 );

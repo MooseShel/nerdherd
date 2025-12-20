@@ -160,8 +160,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
             TextButton(
               onPressed: _markAllAsRead,
               style: TextButton.styleFrom(
-                  foregroundColor:
-                      theme.textTheme.bodyMedium?.color?.withOpacity(0.5)),
+                  foregroundColor: theme.textTheme.bodyMedium?.color
+                      ?.withValues(alpha: 0.5)),
               child: const Text("Clear All"),
             ),
           IconButton(
@@ -177,7 +177,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   child: Text("No notifications",
                       style: TextStyle(
                           color: theme.textTheme.bodyMedium?.color
-                              ?.withOpacity(0.5))))
+                              ?.withValues(alpha: 0.5))))
               : ListView.builder(
                   itemCount: _notifications.length,
                   itemBuilder: (context, index) {
@@ -215,7 +215,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       ),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: iconColor.withOpacity(0.2),
+                          backgroundColor: iconColor.withValues(alpha: 0.2),
                           child: Icon(icon, color: iconColor, size: 20),
                         ),
                         title: Text(
@@ -234,7 +234,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               note.body,
                               style: TextStyle(
                                   color: theme.textTheme.bodyMedium?.color
-                                      ?.withOpacity(0.7)),
+                                      ?.withValues(alpha: 0.7)),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -243,7 +243,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               timeStr,
                               style: TextStyle(
                                   color: theme.textTheme.bodySmall?.color
-                                      ?.withOpacity(0.3),
+                                      ?.withValues(alpha: 0.3),
                                   fontSize: 12),
                             ),
                           ],
