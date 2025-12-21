@@ -30,8 +30,10 @@ Spots are color-coded for quick identification:
 
 ### Messaging Features
 - **Real-time Chat**: Instant messaging with peers.
+- **Typing Indicators**: See when the other person is typing in real-time.
 - **Image Sharing**: Share photos (notes, whiteboards) directly in chat.
-- **Read Receipts**: See when your messages are read.
+- **Read Receipts**: Visual feedback via checkmarks (Cyan double-check indicates message read).
+- **Smart Deletion**: Deleting messages or conversations syncs across all your devices instantly.
 
 ### Notifications
 - **Bell Icon**: Shows system alerts (Booking requests, Announcements).
@@ -59,4 +61,4 @@ Spots are color-coded for quick identification:
 - **Moderation**: Manage reports and bans.
 
 ---
-*Nerd Herd v1.1.0 - Built with Flutter & Riverpod*
+*Nerd Herd v1.0.6 - Built with Flutter & Riverpod*
