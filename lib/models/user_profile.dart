@@ -60,6 +60,12 @@ class UserProfile {
   /// Wallet balance of the user.
   final double walletBalance;
 
+  /// URL to the uploaded verification document.
+  final String? verificationDocumentUrl;
+
+  /// Current verification status (pending, verified, rejected).
+  final String verificationStatus;
+
   UserProfile({
     required this.userId,
     this.universityId,
@@ -80,6 +86,8 @@ class UserProfile {
     this.isAdmin = false,
     this.isBanned = false,
     this.walletBalance = 0.0,
+    this.verificationDocumentUrl,
+    this.verificationStatus = 'pending',
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -120,6 +128,8 @@ class UserProfile {
       isAdmin: json['is_admin'] ?? false,
       isBanned: json['is_banned'] ?? false,
       walletBalance: (json['wallet_balance'] as num?)?.toDouble() ?? 0.0,
+      verificationDocumentUrl: json['verification_document_url'],
+      verificationStatus: json['verification_status'] ?? 'pending',
     );
   }
 
@@ -141,6 +151,8 @@ class UserProfile {
       'is_admin': isAdmin,
       'is_banned': isBanned,
       'wallet_balance': walletBalance,
+      'verification_document_url': verificationDocumentUrl,
+      'verification_status': verificationStatus,
       if (location != null) 'lat': location!.latitude,
       if (location != null) 'long': location!.longitude,
       'last_updated': DateTime.now().toIso8601String(),

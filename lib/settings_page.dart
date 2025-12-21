@@ -9,7 +9,7 @@ import 'admin/admin_dashboard.dart';
 import 'reviews/reviews_history_page.dart';
 import 'providers/theme_provider.dart';
 import 'university/university_selection_page.dart';
-
+import 'legal_page.dart';
 import 'providers/ghost_mode_provider.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -361,6 +361,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             icon: Icons.lock_outline,
             title: 'Change Password',
             onTap: _changePassword,
+          ),
+          SettingsTile(
+            icon: Icons.info_outline,
+            title: 'Legal Information',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const LegalPage()),
+              );
+            },
           ),
           SettingsTile(
             icon: Icons.logout,

@@ -551,7 +551,8 @@ class _MapPageState extends ConsumerState<MapPage> {
                 Navigator.pop(context);
                 _respondToRequest(request['id'], request['sender_id'], false);
               },
-              child: Text("Reject", style: TextStyle(color: Colors.redAccent)),
+              child: const Text("Reject",
+                  style: TextStyle(color: Colors.redAccent)),
             ),
             ElevatedButton(
               onPressed: () {
@@ -644,7 +645,7 @@ class _MapPageState extends ConsumerState<MapPage> {
     });
 
     _presenceChannel?.subscribe((status, error) {
-      if (status == 'SUBSCRIBED') {
+      if (status == RealtimeSubscribeStatus.subscribed) {
         _updatePresenceTracking();
       }
     });
@@ -827,6 +828,13 @@ class _MapPageState extends ConsumerState<MapPage> {
             }
           }
           if (!matchesSubject) continue;
+        }
+
+        // 5. Min Rating
+        if (peer.isTutor &&
+            peer.averageRating != null &&
+            peer.averageRating! < _filters.minRating) {
+          continue;
         }
 
         try {

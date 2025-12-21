@@ -11,29 +11,92 @@ const corsHeaders = {
  * Strips PEM headers/footers and extra whitespace to extract the raw base64 key.
  */
 function sanitizePrivateKey(pem: string) {
-    let body = pem
-        .replace(/-----BEGIN PRIVATE KEY-----/g, '')
-        .replace(/-----END PRIVATE KEY-----/g, '');
+    if (!pem) return "";
 
-    const matched = body.match(/[A-Za-z0-9+/=_]+/g);
-    if (!matched) return "";
-    return matched.join('').replace(/-/g, '+').replace(/_/g, '/');
+    // 1. Try to extract strictly between headers first (handles multiline /s)
+    const headerRegex = /-----BEGIN[^-]*-----(.*)-----END[^-]*-----/s;
+    const match = pem.match(headerRegex);
+    let body = match ? match[1] : pem;
+
+    // 2. Remove all non-base64 characters
+    // We only keep A-Z, a-z, 0-9, +, /, =, -, _
+    let cleanBase64 = body.replace(/[^A-Za-z0-9+/=\-_]/g, '');
+
+    // 3. Robust header/footer stripping (in case regex failed or headers were mangled)
+    const keywords = ["BEGIN", "PRIVATE", "KEY", "END"];
+    keywords.forEach(word => {
+        if (cleanBase64.startsWith(word)) cleanBase64 = cleanBase64.substring(word.length);
+        if (cleanBase64.endsWith(word)) cleanBase64 = cleanBase64.substring(0, cleanBase64.length - word.length);
+    });
+
+    // 4. Normalize base64url to standard base64
+    return cleanBase64.replace(/-/g, '+').replace(/_/g, '/');
+}
+
+/**
+ * Robust JSON parser that handles potential unquoted keys or formatting issues
+ * from environment variables.
+ */
+function safeJsonParse(text: string, sourceName: string) {
+    console.log(`safeJsonParse: Parsing ${sourceName} (length: ${text?.length ?? 0}). Starts with: ${text?.substring(0, 40)}...`);
+    try {
+        return JSON.parse(text);
+    } catch {
+        try {
+            const fixed = text
+                .replace(/([{,])\s*([a-z0-9A-Z_]+)\s*:/g, '$1"$2":')
+                .replace(/:\s*([^"{\[][^,}\s]+)/g, ':"$1"');
+            return JSON.parse(fixed);
+        } catch (e: any) {
+            // Last resort: Extract fields with regex if the whole JSON is mangled
+            const extract = (key: string) => {
+                // This regex is now "greedier" and allows spaces/newlines until a comma/brace
+                const match = text.match(new RegExp(`"${key}"\\s*:\\s*"([^"]+)"`)) ||
+                    text.match(new RegExp(`'${key}'\\s*:\\s*'([^']+)'`)) ||
+                    text.match(new RegExp(`${key}\\s*:\\s*([^",}]+)`));
+                return match ? match[1].trim() : undefined;
+            };
+
+            if (sourceName === "FIREBASE_SERVICE_ACCOUNT") {
+                const extracted = {
+                    project_id: extract("project_id"),
+                    client_email: extract("client_email"),
+                    private_key: extract("private_key")?.replace(/\\n/g, '\n'),
+                    private_key_id: extract("private_key_id")
+                };
+                if (extracted.private_key && extracted.client_email) {
+                    console.log(`safeJsonParse: Fallback extracted email: ${extracted.client_email}, key length: ${extracted.private_key.length}`);
+                    return extracted;
+                }
+            }
+            throw new Error(`${sourceName} is not valid JSON.`);
+        }
+    }
 }
 
 /**
  * Imports a PKCS8 private key for RS256 signing.
  */
 async function importKey(pem: string): Promise<CryptoKey> {
+    console.log(`importKey: Received PEM of length ${pem?.length ?? 0}. Starts with: ${pem?.substring(0, 30)}...`);
     const cleanBase64 = sanitizePrivateKey(pem);
-    if (!cleanBase64) throw new Error("Invalid private key format.");
+    if (!cleanBase64) {
+        throw new Error(`Invalid private key format. (Received length: ${pem?.length ?? 0})`);
+    }
 
     let binaryStr;
     try {
+        console.log(`importKey: Decoding base64 (length: ${cleanBase64.length}, starts with: ${cleanBase64.substring(0, 20)}...)`);
         binaryStr = atob(cleanBase64);
-    } catch (e) {
-        // Handle potential base64 padding issues
-        const padded = cleanBase64.padEnd(cleanBase64.length + (4 - cleanBase64.length % 4) % 4, '=');
-        binaryStr = atob(padded);
+    } catch (e: any) {
+        console.warn("importKey: atob failed on cleanBase64, trying padding...");
+        try {
+            const padded = cleanBase64.padEnd(cleanBase64.length + (4 - cleanBase64.length % 4) % 4, '=');
+            binaryStr = atob(padded);
+        } catch (e2: any) {
+            console.error("importKey: atob failed even with padding. First 50 chars:", cleanBase64.substring(0, 50));
+            throw new Error(`Failed to decode base64: ${e2.message}`);
+        }
     }
 
     const der = new Uint8Array(binaryStr.length);
@@ -51,6 +114,11 @@ async function importKey(pem: string): Promise<CryptoKey> {
  * Exchanges a Service Account JWT for a Google OAuth2 Access Token.
  */
 async function getAccessToken(serviceAccount: any) {
+    if (!serviceAccount.client_email) {
+        throw new Error("Service Account JSON is missing 'client_email'");
+    }
+
+    console.log(`Getting access token for: ${serviceAccount.client_email}`);
     const key = await importKey(serviceAccount.private_key);
     const now = Math.floor(Date.now() / 1000);
 
@@ -85,7 +153,7 @@ async function getAccessToken(serviceAccount: any) {
     return data.access_token;
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
     // 1. Handle CORS
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
@@ -97,7 +165,18 @@ serve(async (req) => {
             return new Response("Method not allowed", { status: 405, headers: corsHeaders });
         }
 
-        const payload = await req.json();
+        let payload;
+        const bodyText = await req.text();
+        try {
+            payload = JSON.parse(bodyText);
+        } catch (e: any) {
+            console.error("Failed to parse request body:", bodyText);
+            return new Response(JSON.stringify({ error: "Invalid JSON in request body", details: e.message }), {
+                status: 400,
+                headers: { ...corsHeaders, "Content-Type": "application/json" }
+            });
+        }
+
         let targetUserId = payload.user_id;
 
         // Support database webhooks which pass the record in 'record'
@@ -132,7 +211,8 @@ serve(async (req) => {
         if (!serviceAccountJson) {
             throw new Error("FIREBASE_SERVICE_ACCOUNT environment variable is not set.");
         }
-        const serviceAccount = JSON.parse(serviceAccountJson);
+
+        const serviceAccount = safeJsonParse(serviceAccountJson, "FIREBASE_SERVICE_ACCOUNT");
         const accessToken = await getAccessToken(serviceAccount);
 
         // 6. Build FCM Message
@@ -204,7 +284,7 @@ serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Internal Push Error:", error.message);
         return new Response(JSON.stringify({ error: error.message }), {
             status: 500,

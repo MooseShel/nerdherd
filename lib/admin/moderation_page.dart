@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/report.dart';
+import '../providers/admin_provider.dart';
 
-class ModerationPage extends StatefulWidget {
+class ModerationPage extends ConsumerStatefulWidget {
   const ModerationPage({super.key});
 
   @override
-  State<ModerationPage> createState() => _ModerationPageState();
+  ConsumerState<ModerationPage> createState() => _ModerationPageState();
 }
 
-class _ModerationPageState extends State<ModerationPage> {
+class _ModerationPageState extends ConsumerState<ModerationPage> {
   final supabase = Supabase.instance.client;
   List<Report> _reports = [];
   bool _isLoading = true;
@@ -83,10 +85,8 @@ class _ModerationPageState extends State<ModerationPage> {
 
     if (confirmed == true) {
       try {
-        // 1. Ban User
-        await supabase
-            .from('profiles')
-            .update({'is_banned': true}).eq('user_id', userId);
+        // 1. Ban User via Provider
+        await ref.read(adminControllerProvider.notifier).banUser(userId);
 
         // 2. Resolve Report
         await supabase

@@ -1,103 +1,175 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/admin_provider.dart';
+import 'package:intl/intl.dart';
 
-class AnalyticsPage extends StatefulWidget {
+class AnalyticsPage extends ConsumerStatefulWidget {
   const AnalyticsPage({super.key});
 
   @override
-  State<AnalyticsPage> createState() => _AnalyticsPageState();
+  ConsumerState<AnalyticsPage> createState() => _AnalyticsPageState();
 }
 
-class _AnalyticsPageState extends State<AnalyticsPage> {
-  // Mock data for MVP demonstration
-  // In real implementation, fetch this from Supabase aggregation queries
-  final List<FlSpot> _userGrowthData = const [
-    FlSpot(0, 10),
-    FlSpot(1, 15),
-    FlSpot(2, 18),
-    FlSpot(3, 25),
-    FlSpot(4, 32),
-    FlSpot(5, 40),
-    FlSpot(6, 48),
-  ];
-
-  final List<double> _appointmentsPerDay = [5, 8, 12, 15, 10, 20, 25];
-
+class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final statsAsync = ref.watch(adminStatsProvider);
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text(
-          'Platform Analytics',
-          style: theme.textTheme.headlineSmall
-              ?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Last 7 Days Performance',
-          style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
-        ),
-        const SizedBox(height: 24),
-        _buildChartCard(
-          theme,
-          title: 'User Growth',
-          subtitle: '+12% vs last week',
-          chart: LineChart(
-            LineChartData(
-              gridData: const FlGridData(show: false),
-              titlesData: const FlTitlesData(show: false),
-              borderData: FlBorderData(show: false),
-              minX: 0,
-              maxX: 6,
-              minY: 0,
-              maxY: 60,
-              lineBarsData: [
-                LineChartBarData(
-                  spots: _userGrowthData,
-                  isCurved: true,
-                  color: Colors.blueAccent,
-                  barWidth: 4,
-                  isStrokeCapRound: true,
-                  dotData: const FlDotData(show: false),
-                  belowBarData: BarAreaData(
-                    show: true,
-                    color: Colors.blueAccent.withOpacity(0.2),
+    return statsAsync.when(
+      data: (stats) {
+        // Map user growth data to FlSpots
+        final userGrowthSpots = stats.userGrowth.asMap().entries.map((entry) {
+          return FlSpot(entry.key.toDouble(), entry.value.count.toDouble());
+        }).toList();
+
+        // Calculate max Y for growth
+        final maxUsers = stats.userGrowth.isNotEmpty
+            ? stats.userGrowth
+                .map((e) => e.count)
+                .reduce((a, b) => a > b ? a : b)
+            : 10;
+
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text(
+              'Platform Analytics',
+              style: theme.textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Real-time Performance',
+              style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+            _buildChartCard(
+              theme,
+              title: 'Total Revenue',
+              subtitle: 'From completed transactions',
+              chart: Center(
+                child: Text(
+                  '\$${NumberFormat('#,##0.00').format(stats.totalRevenue)}',
+                  style: theme.textTheme.displayMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.greenAccent,
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        _buildChartCard(
-          theme,
-          title: 'Appointments Created',
-          subtitle: 'Active engagement',
-          chart: BarChart(
-            BarChartData(
-              gridData: const FlGridData(show: false),
-              titlesData: const FlTitlesData(show: false),
-              borderData: FlBorderData(show: false),
-              barGroups: _appointmentsPerDay.asMap().entries.map((entry) {
-                return BarChartGroupData(
-                  x: entry.key,
-                  barRods: [
-                    BarChartRodData(
-                      toY: entry.value,
-                      color: Colors.purpleAccent,
-                      width: 16,
-                      borderRadius: BorderRadius.circular(4),
+            const SizedBox(height: 16),
+            _buildChartCard(
+              theme,
+              title: 'User Growth',
+              subtitle: 'Cumulative users over 7 days',
+              chart: LineChart(
+                LineChartData(
+                  gridData: const FlGridData(show: false),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          if (value % 1 != 0) return const SizedBox();
+                          final index = value.toInt();
+                          if (index < 0 || index >= stats.userGrowth.length)
+                            return const SizedBox();
+                          return Text(
+                            DateFormat('MM/dd')
+                                .format(stats.userGrowth[index].day),
+                            style: const TextStyle(fontSize: 10),
+                          );
+                        },
+                      ),
+                    ),
+                    leftTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  minX: 0,
+                  maxX: 6,
+                  minY: 0,
+                  maxY: (maxUsers * 1.2).toDouble(),
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: userGrowthSpots,
+                      isCurved: true,
+                      color: Colors.blueAccent,
+                      barWidth: 4,
+                      isStrokeCapRound: true,
+                      dotData: const FlDotData(show: true),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        color: Colors.blueAccent.withOpacity(0.2),
+                      ),
                     ),
                   ],
-                );
-              }).toList(),
+                ),
+              ),
             ),
-          ),
-        ),
-      ],
+            const SizedBox(height: 16),
+            _buildChartCard(
+              theme,
+              title: 'Daily Appointments',
+              subtitle: 'Last 7 days activity',
+              chart: BarChart(
+                BarChartData(
+                  gridData: const FlGridData(show: false),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          final index = value.toInt();
+                          if (index < 0 ||
+                              index >= stats.appointmentActivity.length)
+                            return const SizedBox();
+                          return Text(
+                            DateFormat('MM/dd')
+                                .format(stats.appointmentActivity[index].day),
+                            style: const TextStyle(fontSize: 10),
+                          );
+                        },
+                      ),
+                    ),
+                    leftTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  barGroups:
+                      stats.appointmentActivity.asMap().entries.map((entry) {
+                    return BarChartGroupData(
+                      x: entry.key,
+                      barRods: [
+                        BarChartRodData(
+                          toY: entry.value.count.toDouble(),
+                          color: Colors.purpleAccent,
+                          width: 16,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => Center(child: Text('Error: $err')),
     );
   }
 
@@ -106,7 +178,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       required String subtitle,
       required Widget chart}) {
     return Container(
-      height: 300,
+      height: 350,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: theme.cardTheme.color,
@@ -137,7 +209,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                           ?.copyWith(color: Colors.green)),
                 ],
               ),
-              Icon(Icons.show_chart,
+              Icon(Icons.analytics_outlined,
                   color: theme.primaryColor.withOpacity(0.5)),
             ],
           ),

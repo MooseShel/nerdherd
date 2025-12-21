@@ -222,6 +222,65 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     await service.updateTypingStatus(myId, widget.otherUser.userId, isTyping);
   }
 
+  Future<void> _showReportDialog() async {
+    final myId = ref.read(authStateProvider).value?.id;
+    if (myId == null) return;
+
+    final reasonController = TextEditingController();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Report ${widget.otherUser.fullName ?? "User"}?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Please describe the issue:'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: reasonController,
+              decoration:
+                  const InputDecoration(hintText: 'Spam, harassment, etc.'),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error),
+            child: const Text('REPORT'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && reasonController.text.isNotEmpty) {
+      try {
+        final supabase = Supabase.instance.client;
+        await supabase.from('reports').insert({
+          'reporter_id': myId,
+          'reported_id': widget.otherUser.userId,
+          'reason': reasonController.text,
+          'status': 'pending',
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Report submitted. We will investigate.'),
+              backgroundColor: Colors.orange));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Error: $e')));
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -303,6 +362,27 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             ),
           ],
         ),
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'report') {
+                _showReportDialog();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'report',
+                child: Row(
+                  children: [
+                    Icon(Icons.flag_outlined, color: Colors.red, size: 20),
+                    SizedBox(width: 8),
+                    Text('Report User'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: Column(
         children: [

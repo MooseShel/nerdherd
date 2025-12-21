@@ -5,6 +5,7 @@ class SupportTicket {
   final String message;
   final String status; // 'open', 'closed'
   final DateTime createdAt;
+  final String? adminReply;
 
   SupportTicket({
     required this.id,
@@ -13,6 +14,7 @@ class SupportTicket {
     required this.message,
     required this.status,
     required this.createdAt,
+    this.adminReply,
   });
 
   factory SupportTicket.fromJson(Map<String, dynamic> json) {
@@ -23,6 +25,7 @@ class SupportTicket {
       message: json['message'] ?? '',
       status: json['status'] ?? 'open',
       createdAt: DateTime.parse(json['created_at']),
+      adminReply: json['admin_reply'],
     );
   }
 
@@ -34,6 +37,7 @@ class SupportTicket {
       'message': message,
       'status': status,
       'created_at': createdAt.toIso8601String(),
+      'admin_reply': adminReply,
     };
   }
 }

@@ -28,7 +28,7 @@ class _TutorVerificationPageState extends State<TutorVerificationPage> {
           .from('profiles')
           .select()
           .eq('is_tutor', true)
-          .eq('is_verified_tutor', false)
+          .eq('verification_status', 'pending')
           .limit(50);
 
       final List<dynamic> data = response;
@@ -47,9 +47,10 @@ class _TutorVerificationPageState extends State<TutorVerificationPage> {
 
   Future<void> _verifyTutor(UserProfile tutor) async {
     try {
-      await supabase
-          .from('profiles')
-          .update({'is_verified_tutor': true}).eq('user_id', tutor.userId);
+      await supabase.from('profiles').update({
+        'is_verified_tutor': true,
+        'verification_status': 'verified',
+      }).eq('user_id', tutor.userId);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -69,9 +70,10 @@ class _TutorVerificationPageState extends State<TutorVerificationPage> {
     // For now, rejection just effectively does nothing or we could toggle is_tutor to false.
     // Let's toggle is_tutor to false to "reject" their application.
     try {
-      await supabase
-          .from('profiles')
-          .update({'is_tutor': false}).eq('user_id', tutor.userId);
+      await supabase.from('profiles').update({
+        'verification_status': 'rejected',
+        'is_verified_tutor': false,
+      }).eq('user_id', tutor.userId);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -140,6 +142,33 @@ class _TutorVerificationPageState extends State<TutorVerificationPage> {
                     _infoRow('Bio', tutor.bio ?? 'N/A'),
                     _infoRow('Classes', tutor.currentClasses.join(', ')),
                     _infoRow('Hourly Rate', '\$${tutor.hourlyRate}'),
+                    if (tutor.verificationDocumentUrl != null) ...[
+                      const SizedBox(height: 12),
+                      const Text('Verification Document:',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: GestureDetector(
+                          onTap: () {
+                            // Show full screen image
+                            showDialog(
+                              context: context,
+                              builder: (context) => Dialog(
+                                child: Image.network(
+                                    tutor.verificationDocumentUrl!),
+                              ),
+                            );
+                          },
+                          child: Image.network(
+                            tutor.verificationDocumentUrl!,
+                            height: 200,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,

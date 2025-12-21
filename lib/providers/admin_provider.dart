@@ -15,13 +15,33 @@ class AdminStats {
   final int bannedUsers;
   final int totalAppointments;
   final int totalSpots;
+  final double totalRevenue;
+  final List<TimeSeriesData> userGrowth;
+  final List<TimeSeriesData> appointmentActivity;
 
   AdminStats({
     required this.totalUsers,
     required this.bannedUsers,
     required this.totalAppointments,
     required this.totalSpots,
+    required this.totalRevenue,
+    required this.userGrowth,
+    required this.appointmentActivity,
   });
+}
+
+class TimeSeriesData {
+  final DateTime day;
+  final int count;
+
+  TimeSeriesData({required this.day, required this.count});
+
+  factory TimeSeriesData.fromJson(Map<String, dynamic> json) {
+    return TimeSeriesData(
+      day: DateTime.parse(json['day']),
+      count: json['count'] ?? 0,
+    );
+  }
 }
 
 // --- Providers ---
@@ -31,28 +51,35 @@ class AdminStats {
 Future<AdminStats> adminStats(AdminStatsRef ref) async {
   final supabase = ref.watch(supabaseClientProvider);
 
-  // Parallel execution for performance
-  final results = await Future.wait<dynamic>([
-    supabase.from('profiles').count(CountOption.exact),
-    supabase
-        .from('profiles')
-        .select()
-        .eq('is_banned', true)
-        .count(CountOption.exact),
-    supabase.from('appointments').count(CountOption.exact),
-    // Wrap potentially missing table in try-catch wrapper (though Future.wait might fail all)
-    // We'll assume table exists for now based on dashboard validation.
-    // If we want to be safe, we'd need individual error handling.
-    // For now, let's assume 'study_spots' exists as per previous context.
-    supabase.from('study_spots').count(CountOption.exact).catchError((_) => 0),
-  ]);
+  // Fetch complex stats via RPC
+  final rpcResponse = await supabase.rpc('get_platform_stats');
+  final data = rpcResponse as Map<String, dynamic>;
+
+  // Fetch banned count separately as it is not in the RPC yet (or we can add it to RPC)
+  // Let's stick to the RPC for everything eventually, but for now combine
+  final bannedResult = await supabase
+      .from('profiles')
+      .select()
+      .eq('is_banned', true)
+      .count(CountOption.exact);
+
+  final spotsCount = await supabase
+      .from('study_spots')
+      .count(CountOption.exact)
+      .catchError((_) => 0);
 
   return AdminStats(
-    totalUsers: results[0] as int,
-    bannedUsers: (results[1] as PostgrestResponse)
-        .count, // select().count() returns PostgrestResponse
-    totalAppointments: results[2] as int,
-    totalSpots: results[3] as int,
+    totalUsers: data['total_users'] ?? 0,
+    bannedUsers: bannedResult.count,
+    totalAppointments: data['total_appointments'] ?? 0,
+    totalSpots: spotsCount,
+    totalRevenue: (data['total_revenue'] ?? 0).toDouble(),
+    userGrowth: (data['user_growth'] as List)
+        .map((e) => TimeSeriesData.fromJson(e))
+        .toList(),
+    appointmentActivity: (data['appointment_activity'] as List)
+        .map((e) => TimeSeriesData.fromJson(e))
+        .toList(),
   );
 }
 
@@ -138,6 +165,20 @@ class AdminController extends _$AdminController {
       // The stream provider will auto-update because of the realtime subscription
     } catch (e) {
       logger.error("Failed to resolve ticket", error: e);
+      rethrow;
+    }
+  }
+
+  Future<void> banUser(String userId) async {
+    final supabase = ref.read(supabaseClientProvider);
+    try {
+      await supabase
+          .from('profiles')
+          .update({'is_banned': true}).eq('user_id', userId);
+      // Invalidate stats to reflect the new banned count
+      ref.invalidate(adminStatsProvider);
+    } catch (e) {
+      logger.error("Failed to ban user", error: e);
       rethrow;
     }
   }

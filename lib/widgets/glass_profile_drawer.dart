@@ -9,7 +9,7 @@ import '../profile_page.dart';
 import '../chat_page.dart';
 import '../services/logger_service.dart';
 import '../services/haptic_service.dart';
-import 'package:flutter/foundation.dart'; // For kIsWeb
+// For kIsWeb
 import 'ui_components.dart';
 
 class GlassProfileDrawer extends StatefulWidget {
@@ -137,14 +137,23 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
     setState(() => _isLoading = true);
 
     try {
-      await supabase.from('ratings').insert({
-        'rater_id': currentUser!.id,
-        'rated_id': widget.profile.userId,
+      // In a real app, link to specific appointment. Here we find latest valid one.
+      final latestAppt = await supabase
+          .from('appointments')
+          .select('id')
+          .eq('host_id', widget.profile.userId)
+          .eq('attendee_id', currentUser!.id)
+          .eq('status', 'confirmed')
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      await supabase.from('reviews').insert({
+        'reviewer_id': currentUser!.id,
+        'reviewee_id': widget.profile.userId,
         'rating': rating,
         'comment': comment,
-        // 'session_id': ... Ideally track which session, but for 'any valid session' check, this is fine for MVP.
-        // We verified a session EXISTS in _checkStatus. RLS will verify it again.
-        // To be strict, RLS needs to find ANY valid session. My RLS policy does check `EXISTS (select 1 from public.sessions ...)` so it works.
+        'appointment_id': latestAppt?['id'],
       });
 
       if (mounted) {

@@ -8,17 +8,21 @@ import 'connections_page.dart';
 import 'settings_page.dart';
 import 'schedule_page.dart';
 import 'services/logger_service.dart';
-import 'conversations_page.dart';
 import 'university/university_selection_page.dart';
+import 'conversations_page.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'providers/wallet_provider.dart';
+import 'wallet_page.dart';
+import 'package:intl/intl.dart';
 
-class ProfilePage extends StatefulWidget {
+class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
+  ConsumerState<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class _ProfilePageState extends ConsumerState<ProfilePage> {
   final _nameController = TextEditingController();
   final _intentController = TextEditingController();
   final _classesController = TextEditingController(); // Comma separated
@@ -29,6 +33,8 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _isLoading = true;
   int _connectionCount = 0;
   int _pendingRequestCount = 0;
+  String? _verificationDocUrl;
+  String _verificationStatus = 'pending';
 
   final supabase = Supabase.instance.client;
   final ImagePicker _picker = ImagePicker();
@@ -89,6 +95,8 @@ class _ProfilePageState extends State<ProfilePage> {
         _bioController.text = profile.bio ?? '';
         setState(() {
           _isTutor = profile.isTutor;
+          _verificationDocUrl = profile.verificationDocumentUrl;
+          _verificationStatus = profile.verificationStatus;
         });
       }
     } catch (e) {
@@ -191,6 +199,9 @@ class _ProfilePageState extends State<ProfilePage> {
         'hourly_rate': _isTutor && _hourlyRateController.text.isNotEmpty
             ? int.tryParse(_hourlyRateController.text.trim())
             : null,
+        'verification_document_url': _verificationDocUrl,
+        // We don't reset status here, but we could if doc changes.
+        // For now, let's just keep it as is.
         'last_updated': DateTime.now().toIso8601String(),
       });
 
@@ -320,6 +331,46 @@ class _ProfilePageState extends State<ProfilePage> {
       } catch (e) {
         if (mounted) _showSnack('Error submitting ticket: $e', isError: true);
       }
+    }
+  }
+
+  Future<void> _pickVerificationDoc() async {
+    try {
+      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+      if (image == null) return;
+
+      final user = supabase.auth.currentUser;
+      if (user == null) return;
+
+      setState(() => _isLoading = true);
+
+      final bytes = await image.readAsBytes();
+      final fileExt = image.path.split('.').last;
+      final fileName =
+          '${user.id}/verification_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+
+      await supabase.storage.from('verification_docs').uploadBinary(
+            fileName,
+            bytes,
+            fileOptions: FileOptions(contentType: image.mimeType),
+          );
+
+      final docUrl =
+          supabase.storage.from('verification_docs').getPublicUrl(fileName);
+
+      setState(() {
+        _verificationDocUrl = docUrl;
+        _verificationStatus = 'pending'; // Reset status if new doc uploaded
+      });
+
+      if (mounted) {
+        _showSnack('Verification document uploaded! Remember to Save.',
+            isError: false);
+      }
+    } catch (e) {
+      if (mounted) _showSnack('Upload failed: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -536,6 +587,85 @@ class _ProfilePageState extends State<ProfilePage> {
                         controller: _hourlyRateController,
                         hint: 'e.g. 25',
                         keyboardType: TextInputType.number),
+                    const SizedBox(height: 24),
+                    _buildLabel(context, 'Tutor Verification'),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: theme.cardTheme.color,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                            color: theme.dividerColor.withValues(alpha: 0.1)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Status:',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.bold)),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: (_verificationStatus == 'verified'
+                                          ? Colors.green
+                                          : _verificationStatus == 'rejected'
+                                              ? Colors.red
+                                              : Colors.orange)
+                                      .withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  _verificationStatus.toUpperCase(),
+                                  style: TextStyle(
+                                    color: _verificationStatus == 'verified'
+                                        ? Colors.green
+                                        : _verificationStatus == 'rejected'
+                                            ? Colors.red
+                                            : Colors.orange,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          if (_verificationDocUrl != null) ...[
+                            const Text('Verification Document:',
+                                style: TextStyle(fontSize: 12)),
+                            const SizedBox(height: 8),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: CachedNetworkImage(
+                                imageUrl: _verificationDocUrl!,
+                                height: 100,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => const Center(
+                                    child: CircularProgressIndicator()),
+                                errorWidget: (context, url, error) =>
+                                    const Icon(Icons.error),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: _pickVerificationDoc,
+                              icon: const Icon(Icons.upload_file),
+                              label: Text(_verificationDocUrl == null
+                                  ? 'Upload ID / Certificate'
+                                  : 'Update Document'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
 
                   const SizedBox(height: 20),
@@ -546,6 +676,45 @@ class _ProfilePageState extends State<ProfilePage> {
                       maxLines: 4),
 
                   const SizedBox(height: 32),
+
+                  // Wallet Button
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final balanceAsync = ref.watch(walletBalanceProvider);
+                      return _buildMenuButton(
+                        context,
+                        icon: Icons.account_balance_wallet_outlined,
+                        label: "My Wallet",
+                        count: balanceAsync.maybeWhen(
+                          data: (val) => null, // We'll show text instead
+                          orElse: () => null,
+                        ),
+                        trailing: balanceAsync.when(
+                          data: (val) => Text(
+                            "\$${NumberFormat('#,##0.00').format(val)}",
+                            style: TextStyle(
+                              color: theme.colorScheme.tertiary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          loading: () => const SizedBox(
+                              width: 15,
+                              height: 15,
+                              child: CircularProgressIndicator(strokeWidth: 2)),
+                          error: (_, __) => const Text("\$ --"),
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const WalletPage()),
+                          );
+                        },
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 16),
 
                   // My Connections Button
                   _buildMenuButton(
@@ -713,19 +882,28 @@ class _ProfilePageState extends State<ProfilePage> {
     required VoidCallback onTap,
     int? count,
     Color? countColor,
+    Widget? trailing,
   }) {
     final theme = Theme.of(context);
     return SizedBox(
       width: double.infinity,
       height: 56,
-      child: OutlinedButton.icon(
+      child: OutlinedButton(
         onPressed: onTap,
-        icon: Icon(icon, color: theme.iconTheme.color),
-        label: Row(
-          mainAxisSize: MainAxisSize.min,
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.2)),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+        child: Row(
           children: [
-            Text(label,
-                style: TextStyle(color: theme.textTheme.bodyLarge?.color)),
+            Icon(icon, color: theme.iconTheme.color),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(label,
+                  style: TextStyle(color: theme.textTheme.bodyLarge?.color)),
+            ),
             if (count != null && count > 0) ...[
               const SizedBox(width: 8),
               Container(
@@ -744,14 +922,12 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
             ],
+            if (trailing != null) trailing,
+            if (trailing == null)
+              Icon(Icons.chevron_right,
+                  size: 16,
+                  color: theme.iconTheme.color?.withValues(alpha: 0.3)),
           ],
-        ),
-        style: OutlinedButton.styleFrom(
-          side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.2)),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          alignment: Alignment.centerLeft,
         ),
       ),
     );

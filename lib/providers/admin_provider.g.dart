@@ -6,7 +6,7 @@ part of 'admin_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$adminStatsHash() => r'6f1c14671caca72289a581ef6e937e65d383d942';
+String _$adminStatsHash() => r'03a507d3ea245d09768859bdaca5b661b0ab64df';
 
 /// See also [adminStats].
 @ProviderFor(adminStats)
@@ -54,7 +54,7 @@ final ledgerProvider =
 );
 
 typedef _$Ledger = AsyncNotifier<List<Transaction>>;
-String _$adminControllerHash() => r'c4bfdd7a66a3fcb1390876d1a2bdf09bd0556863';
+String _$adminControllerHash() => r'0432f1ffd78a37d88d1d117b9c35d613a6fad983';
 
 /// See also [AdminController].
 @ProviderFor(AdminController)

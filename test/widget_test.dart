@@ -40,7 +40,7 @@ void main() {
     when(mockSupabase.auth).thenReturn(mockAuth);
     // Ensure onAuthStateChange returns an empty stream or initial state
     when(mockAuth.onAuthStateChange).thenAnswer((_) => Stream.value(
-        supabase.AuthState(supabase.AuthChangeEvent.signedOut, null)));
+        const supabase.AuthState(supabase.AuthChangeEvent.signedOut, null)));
   });
 
   testWidgets('App smoke test', (WidgetTester tester) async {

@@ -5,14 +5,16 @@ import '../services/haptic_service.dart';
 class MapFilters {
   final bool showTutors;
   final bool showStudents;
-  final bool showClassmates; // NEW
+  final bool showClassmates;
   final List<String> selectedSubjects;
+  final double minRating;
 
   MapFilters({
     this.showTutors = true,
     this.showStudents = true,
     this.showClassmates = false,
     this.selectedSubjects = const [],
+    this.minRating = 0.0,
   });
 
   MapFilters copyWith({
@@ -20,12 +22,14 @@ class MapFilters {
     bool? showStudents,
     bool? showClassmates,
     List<String>? selectedSubjects,
+    double? minRating,
   }) {
     return MapFilters(
       showTutors: showTutors ?? this.showTutors,
       showStudents: showStudents ?? this.showStudents,
       showClassmates: showClassmates ?? this.showClassmates,
       selectedSubjects: selectedSubjects ?? this.selectedSubjects,
+      minRating: minRating ?? this.minRating,
     );
   }
 }
@@ -95,7 +99,7 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
           width: _isExpanded ? 260 : 0,
           height: _isExpanded ? null : 0,
           constraints: BoxConstraints(
-            maxHeight: _isExpanded ? 400 : 0,
+            maxHeight: _isExpanded ? 500 : 0,
           ),
           decoration: BoxDecoration(
             color: theme.cardTheme.color?.withValues(alpha: 0.95),
@@ -136,7 +140,7 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
                           _buildSwitch(
                             "Tutors",
                             widget.currentFilters.showTutors,
-                            Colors.amber, // Semantic tutor color
+                            Colors.amber,
                             (val) => _updateFilters(widget.currentFilters
                                 .copyWith(showTutors: val)),
                             theme,
@@ -161,6 +165,44 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
                           const SizedBox(height: 16),
                           Divider(
                               color: theme.dividerColor.withValues(alpha: 0.1)),
+                          const SizedBox(height: 8),
+
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                "MIN RATING",
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.textTheme.labelSmall?.color
+                                      ?.withValues(alpha: 0.5),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
+                              Text(
+                                widget.currentFilters.minRating == 0
+                                    ? "Any"
+                                    : "${widget.currentFilters.minRating.toStringAsFixed(1)}+",
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                    color: Colors.amber,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                          Slider(
+                            value: widget.currentFilters.minRating,
+                            min: 0,
+                            max: 5,
+                            divisions: 10,
+                            activeColor: Colors.amber,
+                            onChanged: (val) {
+                              hapticService.lightImpact();
+                              _updateFilters(widget.currentFilters
+                                  .copyWith(minRating: val));
+                            },
+                          ),
+
                           const SizedBox(height: 8),
 
                           Text(
@@ -214,8 +256,7 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
                                 ),
                                 side: BorderSide.none,
                                 shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(
-                                        20)), // Rounded chips
+                                    borderRadius: BorderRadius.circular(20)),
                               );
                             }).toList(),
                           ),

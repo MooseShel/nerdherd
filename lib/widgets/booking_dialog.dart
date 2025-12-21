@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../providers/payment_provider.dart';
+import '../providers/wallet_provider.dart';
+import '../wallet_page.dart';
 import '../services/logger_service.dart';
 
 class BookingDialog extends ConsumerStatefulWidget {
@@ -65,6 +67,7 @@ class _BookingDialogState extends ConsumerState<BookingDialog> {
     }
 
     setState(() => _isLoading = true);
+    final theme = Theme.of(context);
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
@@ -80,9 +83,33 @@ class _BookingDialogState extends ConsumerState<BookingDialog> {
     final cost = widget.hourlyRate; // Assuming 1 hour block for MVP
 
     try {
+      // 1. Check current balance
+      final currentBalance = ref.read(walletBalanceProvider).value ?? 0.0;
+
       // Process Payment first if cost > 0
       if (cost > 0) {
-        // This will throw if insufficient funds
+        if (currentBalance < cost) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Insufficient funds. Please top up.'),
+                backgroundColor: theme.colorScheme.error,
+                action: SnackBarAction(
+                  label: 'TOP UP',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const WalletPage()));
+                  },
+                ),
+              ),
+            );
+          }
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        // This will throw if insufficient funds (double check)
         await ref.read(paymentServiceProvider).processPayment(
             user.id,
             widget.tutorId,
@@ -170,6 +197,7 @@ class _BookingDialogState extends ConsumerState<BookingDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cost = widget.hourlyRate;
+    final balanceAsync = ref.watch(walletBalanceProvider);
 
     return Dialog(
       backgroundColor: theme.cardTheme.color,
@@ -202,16 +230,48 @@ class _BookingDialogState extends ConsumerState<BookingDialog> {
                         color:
                             theme.colorScheme.tertiary.withValues(alpha: 0.3)),
                   ),
-                  child: Row(
+                  child: Column(
                     children: [
-                      Icon(Icons.attach_money,
-                          color: theme.colorScheme.tertiary),
-                      const SizedBox(width: 8),
-                      Text(
-                        "Rate: \$${cost.toStringAsFixed(2)} / hr",
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.tertiary),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.attach_money,
+                                  color: theme.colorScheme.tertiary),
+                              const SizedBox(width: 8),
+                              const Text("Rate:"),
+                            ],
+                          ),
+                          Text(
+                            "\$${cost.toStringAsFixed(2)} / hr",
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.tertiary),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text("Your Balance:"),
+                          balanceAsync.when(
+                            data: (val) => Text(
+                              "\$${val.toStringAsFixed(2)}",
+                              style: TextStyle(
+                                color: val < cost ? Colors.red : Colors.green,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            loading: () => const SizedBox(
+                                width: 12,
+                                height: 12,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2)),
+                            error: (_, __) => const Text("\$ --"),
+                          ),
+                        ],
                       ),
                     ],
                   ),
