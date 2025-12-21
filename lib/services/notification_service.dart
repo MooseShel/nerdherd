@@ -148,6 +148,31 @@ class NotificationService {
     }
   }
 
+  /// Manually trigger a token sync (useful after login)
+  Future<void> syncToken() async {
+    try {
+      if (Firebase.apps.isEmpty) return;
+      final messaging = FirebaseMessaging.instance;
+
+      // On iOS, we need to wait for APNs token first
+      if (Platform.isIOS) {
+        String? apnsToken = await messaging.getAPNSToken();
+        if (apnsToken == null) {
+          logger.info('Waiting for APNs token before FCM sync...');
+          await Future.delayed(const Duration(seconds: 3));
+        }
+      }
+
+      // Get token (FCM handles permissions internally or via initialize)
+      final token = await messaging.getToken();
+      if (token != null) {
+        await _saveTokenToDatabase(token);
+      }
+    } catch (e) {
+      logger.warning('FCM Manual Sync failed: $e');
+    }
+  }
+
   /// Save FCM token to Supabase profiles
   Future<void> _saveTokenToDatabase(String token) async {
     final userId = supabase.auth.currentUser?.id;

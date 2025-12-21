@@ -20,6 +20,7 @@ class AuthGate extends ConsumerWidget {
       data: (user) {
         if (user != null) {
           notificationService.subscribeToNotifications();
+          notificationService.syncToken(); // Sync token after login
           return const BiometricGuard(
             child: UniversityCheck(child: MapPage()),
           );
