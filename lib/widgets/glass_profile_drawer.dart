@@ -651,19 +651,174 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                           if (context.mounted)
                                             Navigator.pop(
                                                 context); // Pop loader
+
+                                          final tokenController =
+                                              TextEditingController();
                                           if (context.mounted) {
                                             showDialog(
                                               context: context,
                                               builder: (ctx) => AlertDialog(
-                                                title:
-                                                    const Text("Not Supported"),
-                                                content: const Text(
-                                                    "Push Notifications (FCM) are only supported on iOS and Android devices.\n\nPlease test this on a real phone or emulator."),
+                                                title: const Text(
+                                                    "Manual FCM Sync (Web)"),
+                                                content: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    const Text(
+                                                        "Paste the FCM Token from your phone's debug console below:"),
+                                                    const SizedBox(height: 16),
+                                                    TextField(
+                                                      controller:
+                                                          tokenController,
+                                                      decoration:
+                                                          const InputDecoration(
+                                                        border:
+                                                            OutlineInputBorder(),
+                                                        hintText:
+                                                            "Enter FCM Token",
+                                                      ),
+                                                      maxLines: 4,
+                                                    ),
+                                                  ],
+                                                ),
                                                 actions: [
                                                   TextButton(
                                                       onPressed: () =>
                                                           Navigator.pop(ctx),
-                                                      child: const Text("OK"))
+                                                      child:
+                                                          const Text("Cancel")),
+                                                  FilledButton(
+                                                    onPressed: () async {
+                                                      final token =
+                                                          tokenController.text
+                                                              .trim();
+                                                      if (token.isEmpty) return;
+
+                                                      Navigator.pop(ctx);
+                                                      showDialog(
+                                                        context: context,
+                                                        barrierDismissible:
+                                                            false,
+                                                        builder: (ctx) =>
+                                                            const Center(
+                                                                child:
+                                                                    CircularProgressIndicator()),
+                                                      );
+
+                                                      try {
+                                                        await supabase.rpc(
+                                                            'update_fcm_token',
+                                                            params: {
+                                                              'token': token
+                                                            });
+                                                        if (context.mounted)
+                                                          Navigator.pop(
+                                                              context);
+                                                        if (context.mounted) {
+                                                          ScaffoldMessenger.of(
+                                                                  context)
+                                                              .showSnackBar(
+                                                            const SnackBar(
+                                                                content: Text(
+                                                                    "✅ Token synced from Web! Ready for Test."),
+                                                                backgroundColor:
+                                                                    Colors
+                                                                        .green),
+                                                          );
+                                                        }
+                                                      } catch (e) {
+                                                        if (context.mounted)
+                                                          Navigator.pop(
+                                                              context);
+                                                        if (context.mounted) {
+                                                          ScaffoldMessenger.of(
+                                                                  context)
+                                                              .showSnackBar(
+                                                            SnackBar(
+                                                                content: Text(
+                                                                    "❌ Sync Error: $e"),
+                                                                backgroundColor:
+                                                                    Colors.red),
+                                                          );
+                                                        }
+                                                      }
+                                                    },
+                                                    child:
+                                                        const Text("Sync Now"),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () async {
+                                                      Navigator.pop(ctx);
+                                                      showDialog(
+                                                        context: context,
+                                                        barrierDismissible:
+                                                            false,
+                                                        builder: (ctx) =>
+                                                            const Center(
+                                                                child:
+                                                                    CircularProgressIndicator()),
+                                                      );
+                                                      try {
+                                                        final response =
+                                                            await supabase
+                                                                .functions
+                                                                .invoke(
+                                                          'push',
+                                                          body: {
+                                                            'user_id':
+                                                                currentUser!.id,
+                                                            'title':
+                                                                'Test Push',
+                                                            'body':
+                                                                'If you see this, FCM is working! 🚀'
+                                                          },
+                                                        );
+
+                                                        if (context.mounted)
+                                                          Navigator.pop(
+                                                              context);
+                                                        if (context.mounted) {
+                                                          ScaffoldMessenger.of(
+                                                                  context)
+                                                              .showSnackBar(
+                                                            SnackBar(
+                                                              content: Text(response
+                                                                          .status ==
+                                                                      200
+                                                                  ? "✅ Test Push Sent!"
+                                                                  : "⚠️ Function Error: ${response.status}"),
+                                                              backgroundColor:
+                                                                  response.status == 200
+                                                                      ? Colors
+                                                                          .green
+                                                                      : Colors
+                                                                          .orange,
+                                                            ),
+                                                          );
+                                                        }
+                                                      } catch (e) {
+                                                        if (context.mounted)
+                                                          Navigator.pop(
+                                                              context);
+                                                        if (context.mounted) {
+                                                          ScaffoldMessenger.of(
+                                                                  context)
+                                                              .showSnackBar(
+                                                            SnackBar(
+                                                                content: Text(
+                                                                    "❌ Test Failed: $e"),
+                                                                backgroundColor:
+                                                                    Colors.red),
+                                                          );
+                                                        }
+                                                      }
+                                                    },
+                                                    child: const Text(
+                                                        "Test Push",
+                                                        style: TextStyle(
+                                                            color:
+                                                                Colors.blue)),
+                                                  ),
                                                 ],
                                               ),
                                             );
@@ -787,6 +942,68 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                                 ),
                                               ),
                                               actions: [
+                                                if (fcmToken != null &&
+                                                    (serverTokenStatus.contains(
+                                                            "Missing") ||
+                                                        serverTokenStatus
+                                                            .contains(
+                                                                "Mismatch")))
+                                                  TextButton(
+                                                    onPressed: () async {
+                                                      Navigator.pop(ctx);
+                                                      showDialog(
+                                                        context: context,
+                                                        barrierDismissible:
+                                                            false,
+                                                        builder: (ctx) =>
+                                                            const Center(
+                                                                child:
+                                                                    CircularProgressIndicator()),
+                                                      );
+                                                      try {
+                                                        await supabase.rpc(
+                                                            'update_fcm_token',
+                                                            params: {
+                                                              'token': fcmToken
+                                                            });
+                                                        if (context.mounted)
+                                                          Navigator.pop(
+                                                              context); // Close loader
+                                                        if (context.mounted) {
+                                                          ScaffoldMessenger.of(
+                                                                  context)
+                                                              .showSnackBar(
+                                                            const SnackBar(
+                                                                content: Text(
+                                                                    "✅ Token synced successfully!"),
+                                                                backgroundColor:
+                                                                    Colors
+                                                                        .green),
+                                                          );
+                                                        }
+                                                      } catch (e) {
+                                                        if (context.mounted)
+                                                          Navigator.pop(
+                                                              context); // Close loader
+                                                        if (context.mounted) {
+                                                          ScaffoldMessenger.of(
+                                                                  context)
+                                                              .showSnackBar(
+                                                            SnackBar(
+                                                                content: Text(
+                                                                    "❌ Failed to sync: $e"),
+                                                                backgroundColor:
+                                                                    Colors.red),
+                                                          );
+                                                        }
+                                                      }
+                                                    },
+                                                    child: const Text(
+                                                        "Sync Now",
+                                                        style: TextStyle(
+                                                            color:
+                                                                Colors.green)),
+                                                  ),
                                                 TextButton(
                                                     onPressed: () =>
                                                         Navigator.pop(ctx),

@@ -6,7 +6,7 @@ part of 'map_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$mapServiceHash() => r'a1dbe4532fb3e5177e55a38e18e0c28a891c423b';
+String _$mapServiceHash() => r'0e49763181fc00637c08ce547cf0556283d67f93';
 
 /// See also [mapService].
 @ProviderFor(mapService)
@@ -22,7 +22,7 @@ final mapServiceProvider = Provider<MapService>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef MapServiceRef = ProviderRef<MapService>;
-String _$userLocationHash() => r'28193914fa28ba88b6cc6525cdbd81daef310331';
+String _$userLocationHash() => r'b028efeaaf79799f1fff6ef68b2955bc4f1aa944';
 
 /// See also [userLocation].
 @ProviderFor(userLocation)

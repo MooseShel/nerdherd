@@ -25,6 +25,7 @@ import 'widgets/study_spot_details_sheet.dart'; // NEW
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nerd_herd/providers/map_provider.dart';
 import 'providers/ghost_mode_provider.dart';
+import 'providers/chat_provider.dart';
 
 // Services
 
@@ -61,10 +62,10 @@ class _MapPageState extends ConsumerState<MapPage> {
   LatLng? _lastBroadcastLocation;
   DateTime? _lastBroadcastTime;
   int _unreadSystemCount = 0; // Unread system notifications
-  int _unreadChatCount = 0; // Unread chat messages
+  // int _unreadChatCount = 0; // REPLACED BY RIVERPOD
   bool _isUpdatingMarkers = false;
   RealtimeChannel? _notificationsChannel;
-  RealtimeChannel? _messagesChannel;
+  // RealtimeChannel? _messagesChannel; // REPLACED BY RIVERPOD
   RealtimeChannel? _presenceChannel;
   Set<String> _onlineUserIds = {};
 
@@ -101,7 +102,7 @@ class _MapPageState extends ConsumerState<MapPage> {
     // _subscribeToPeers(); // REMOVED (Riverpod)
     _subscribeToRequests();
     _subscribeToNotifications();
-    _subscribeToMessages();
+    // _subscribeToMessages(); // REPLACED BY RIVERPOD
     _setupPresence();
     // _fetchStudySpots(); // REMOVED (Riverpod controls)
     _checkForAnnouncements();
@@ -307,55 +308,7 @@ class _MapPageState extends ConsumerState<MapPage> {
         .subscribe();
   }
 
-  Future<void> _subscribeToMessages() async {
-    final user = supabase.auth.currentUser;
-    if (user == null) return;
-
-    // Initial fetch for CHAT messages (unread)
-    final count = await supabase
-        .from('messages')
-        .count(CountOption.exact)
-        .eq('receiver_id', user.id)
-        .filter('read_at', 'is', null);
-
-    if (mounted) setState(() => _unreadChatCount = count);
-
-    // Listen for new messages or reads
-    _messagesChannel = supabase
-        .channel('public:messages:${user.id}')
-        .onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
-            table: 'messages',
-            filter: PostgresChangeFilter(
-              type: PostgresChangeFilterType.eq,
-              column: 'receiver_id',
-              value: user.id,
-            ),
-            callback: (payload) async {
-              // We just refresh the count on any message event involving us as receiver
-              // A new message (INSERT receiver=me)
-              // A read message (UPDATE receiver=me read_at=now)
-              // With strict filter, we know it involves us.
-
-              // Check if relevant to me
-              bool relevant = false;
-              // Even with filter, safely check logic or just assume relevant?
-              // The filter is receiver_id=me.
-              // So inserts are relevant. Updates where receiver_id=me are relevant.
-              relevant = true;
-
-              if (relevant) {
-                final newCount = await supabase
-                    .from('messages')
-                    .count(CountOption.exact)
-                    .eq('receiver_id', user.id)
-                    .filter('read_at', 'is', null);
-                if (mounted) setState(() => _unreadChatCount = newCount);
-              }
-            })
-        .subscribe();
-  }
+  // _subscribeToMessages REMOVED - using totalUnreadMessagesProvider
 
   // SupabaseClient? _botClient; // UNUSED since switching to local bots
 
@@ -365,7 +318,7 @@ class _MapPageState extends ConsumerState<MapPage> {
     _requestsSubscription?.cancel();
     // _locationSubscription?.cancel(); // Riverpod handles this
     _notificationsChannel?.unsubscribe();
-    _messagesChannel?.unsubscribe();
+    // _messagesChannel?.unsubscribe();
     _presenceChannel?.unsubscribe();
 
     super.dispose();
@@ -1054,6 +1007,9 @@ class _MapPageState extends ConsumerState<MapPage> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    // Watch unread count
+    final unreadChatCount = ref.watch(totalUnreadMessagesProvider).value ?? 0;
+
     // RIVERPOD LISTENERS
     // 1. Location
     ref.listen(userLocationProvider, (previous, next) {
@@ -1300,14 +1256,14 @@ class _MapPageState extends ConsumerState<MapPage> {
                                 MaterialPageRoute(
                                     builder: (_) => const ConversationsPage()))
                             .then((_) {
-                          // Refresh message count on return
-                          _subscribeToMessages();
+                          // Refresh message count on return - Handled by Riverpod subscription
+                          ref.invalidate(totalUnreadMessagesProvider);
                         });
                       },
                       child: Icon(Icons.chat_bubble_outline,
                           color: isDark ? Colors.white : Colors.black87),
                     ),
-                    if (_unreadChatCount > 0)
+                    if (unreadChatCount > 0)
                       Positioned(
                         right: -2,
                         top: -2,
@@ -1322,7 +1278,7 @@ class _MapPageState extends ConsumerState<MapPage> {
                             minHeight: 18,
                           ),
                           child: Text(
-                            '$_unreadChatCount',
+                            '$unreadChatCount',
                             style: TextStyle(
                               color: theme.colorScheme.onSecondary,
                               fontSize: 10,

@@ -173,7 +173,7 @@ class _TypingStatusProviderElement extends StreamProviderElement<bool>
   String get otherUserId => (origin as TypingStatusProvider).otherUserId;
 }
 
-String _$chatNotifierHash() => r'd2493c95a9dd72fe4a3425544bfa6b1addb883f3';
+String _$chatNotifierHash() => r'c3749215eb2a47fb92c877a61740b39e8fc2c97e';
 
 abstract class _$ChatNotifier
     extends BuildlessAsyncNotifier<List<Map<String, dynamic>>> {
@@ -318,5 +318,23 @@ class _ChatNotifierProviderElement extends AsyncNotifierProviderElement<
   @override
   String get otherUserId => (origin as ChatNotifierProvider).otherUserId;
 }
+
+String _$totalUnreadMessagesHash() =>
+    r'cf6333dda7f5203301de35fe3dd0f56c2258f420';
+
+/// See also [TotalUnreadMessages].
+@ProviderFor(TotalUnreadMessages)
+final totalUnreadMessagesProvider =
+    AsyncNotifierProvider<TotalUnreadMessages, int>.internal(
+  TotalUnreadMessages.new,
+  name: r'totalUnreadMessagesProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$totalUnreadMessagesHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+typedef _$TotalUnreadMessages = AsyncNotifier<int>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

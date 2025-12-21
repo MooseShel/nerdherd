@@ -118,4 +118,46 @@ class ChatService {
         )
         .subscribe();
   }
+
+  // 7. Global Unread Count
+  Future<int> getUnreadCount(String myId) async {
+    try {
+      final response = await _supabase
+          .from('messages')
+          .select('id')
+          .eq('receiver_id', myId)
+          .isFilter('read_at', null);
+
+      return response.length;
+    } catch (e) {
+      logger.error("ChatService: Error getting unread count", error: e);
+      return 0;
+    }
+  }
+
+  RealtimeChannel subscribeToUnreadCount(
+      String myId, void Function(PostgresChangePayload) callback) {
+    return _supabase
+        .channel('unread-count:$myId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'messages',
+          // We filter in the callback or here if possible.
+          // Supabase Realtime filters are limited, so we handle relevance in the provider/service.
+          callback: (payload) {
+            final record = payload.newRecord;
+            final oldRecord = payload.oldRecord;
+
+            // Check if this message involves me as receiver
+            final isForMe = record['receiver_id'] == myId ||
+                (oldRecord.isNotEmpty && oldRecord['receiver_id'] == myId);
+
+            if (isForMe) {
+              callback(payload);
+            }
+          },
+        )
+        .subscribe();
+  }
 }

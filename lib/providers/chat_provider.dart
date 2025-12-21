@@ -128,3 +128,32 @@ Stream<bool> typingStatus(TypingStatusRef ref, String otherUserId) {
 
   return streamController.stream;
 }
+
+// GLOBAL UNREAD COUNT PROVIDER
+@Riverpod(keepAlive: true)
+class TotalUnreadMessages extends _$TotalUnreadMessages {
+  RealtimeChannel? _subscription;
+
+  @override
+  Future<int> build() async {
+    final myId = ref.watch(authStateProvider).value?.id;
+    if (myId == null) return 0;
+
+    final service = ref.read(chatServiceProvider);
+
+    // 1. Initial Count
+    final count = await service.getUnreadCount(myId);
+
+    // 2. Realtime Subscription
+    _subscription = service.subscribeToUnreadCount(myId, (payload) {
+      // Re-fetch on any change involving us (Insert new msg, Update read status)
+      ref.invalidateSelf();
+    });
+
+    ref.onDispose(() {
+      _subscription?.unsubscribe();
+    });
+
+    return count;
+  }
+}

@@ -6,7 +6,7 @@ part of 'university_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$universityServiceHash() => r'cce6cac1e21025957d8132280507ec00258b9e64';
+String _$universityServiceHash() => r'cd7853d2eba07e130b092017c4acdae1a73a867d';
 
 /// See also [universityService].
 @ProviderFor(universityService)
@@ -24,7 +24,7 @@ final universityServiceProvider = Provider<UniversityService>.internal(
 // ignore: unused_element
 typedef UniversityServiceRef = ProviderRef<UniversityService>;
 String _$searchUniversitiesHash() =>
-    r'9324fc817076df95ef2dbe24187846c7ef6ebdfc';
+    r'55cddee8b970ebe916a49136cd5c2a02c7b78e18';
 
 /// Copied from Dart SDK
 class _SystemHash {
@@ -177,7 +177,7 @@ class _SearchUniversitiesProviderElement
   String get query => (origin as SearchUniversitiesProvider).query;
 }
 
-String _$courseCatalogHash() => r'3a78dc731feb8049655eadabfe299cc9cf60c6ea';
+String _$courseCatalogHash() => r'474e05ad6d2a8684608f6edc4ec907daeed25e49';
 
 /// See also [courseCatalog].
 @ProviderFor(courseCatalog)
@@ -325,7 +325,7 @@ class _CourseCatalogProviderElement
   String? get query => (origin as CourseCatalogProvider).query;
 }
 
-String _$myEnrollmentsHash() => r'7980303530c82d1acf1787aad823955f4ec688a2';
+String _$myEnrollmentsHash() => r'335f73664fd52c24ecd4954f86b17fa9f8a35c11';
 
 /// See also [myEnrollments].
 @ProviderFor(myEnrollments)
