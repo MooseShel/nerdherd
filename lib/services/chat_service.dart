@@ -111,7 +111,8 @@ class ChatService {
     return _supabase
         .channel('typing:$otherId')
         .onPostgresChanges(
-          event: PostgresChangeEvent.update,
+          event: PostgresChangeEvent
+              .all, // Listen for insert and update (for upsert)
           schema: 'public',
           table: 'typing_status',
           callback: callback,

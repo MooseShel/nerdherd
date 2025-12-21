@@ -447,7 +447,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                                                   : Icons.done,
                                               size: 14,
                                               color: readAt != null
-                                                  ? colorScheme.primary
+                                                  ? Colors.cyanAccent
                                                   : colorScheme.onPrimary
                                                       .withOpacity(0.6),
                                             ),

@@ -50,6 +50,12 @@ class ChatNotifier extends _$ChatNotifier {
           currentList[index] = newMsg;
           state = AsyncValue.data(currentList);
         }
+      } else if (payload.eventType == PostgresChangeEvent.delete) {
+        final oldId = payload.oldRecord['id'];
+        if (oldId != null) {
+          state = AsyncValue.data(
+              currentList.where((m) => m['id'] != oldId).toList());
+        }
       }
     });
 
