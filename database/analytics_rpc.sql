@@ -15,7 +15,7 @@ BEGIN
     -- 1. Get Basic Totals
     SELECT COUNT(*) INTO total_users FROM public.profiles;
     SELECT COUNT(*) INTO total_appointments FROM public.appointments;
-    SELECT COALESCE(SUM(amount), 0) INTO total_revenue FROM public.transactions WHERE status = 'completed';
+    SELECT COALESCE(SUM(amount), 0) INTO total_revenue FROM public.transactions WHERE type = 'payment';
 
     -- 2. Get User Growth (Last 7 Days)
     SELECT json_agg(t) INTO user_growth

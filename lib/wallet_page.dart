@@ -78,6 +78,94 @@ class _WalletPageState extends ConsumerState<WalletPage> {
     }
   }
 
+  Future<void> _handleWithdraw() async {
+    final currentBalance = ref.read(walletBalanceProvider).value ?? 0.0;
+    if (currentBalance <= 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Insufficient funds to withdraw.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    final amountController = TextEditingController();
+    final result = await showDialog<double>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Withdraw Funds'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Available Balance: \$${currentBalance.toStringAsFixed(2)}'),
+            const SizedBox(height: 16),
+            const Text('Enter amount to withdraw:'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: amountController,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                prefixText: '\$ ',
+                hintText: '0.00',
+                border: OutlineInputBorder(),
+              ),
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              final amount = double.tryParse(amountController.text);
+              if (amount != null && amount > 0) {
+                if (amount > currentBalance) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Amount exceeds balance'),
+                        backgroundColor: Colors.red),
+                  );
+                } else {
+                  Navigator.pop(context, amount);
+                }
+              }
+            },
+            child: const Text('Withdraw'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null) {
+      setState(() => _isActionLoading = true);
+      try {
+        await ref.read(paymentControllerProvider.notifier).withdraw(result);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Withdrawal processed successfully!'),
+                backgroundColor: Colors.green),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isActionLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -122,13 +210,7 @@ class _WalletPageState extends ConsumerState<WalletPage> {
                       label: 'Withdraw',
                       icon: Icons.account_balance_wallet_outlined,
                       color: Colors.amber,
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'Payouts processed to your linked account.')),
-                        );
-                      },
+                      onTap: _handleWithdraw,
                     ),
                   ),
                 ],
