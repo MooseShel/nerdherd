@@ -74,7 +74,7 @@ Future<void> main() async {
   });
 }
 
-class NerdHerdApp extends ConsumerWidget {
+class NerdHerdApp extends ConsumerStatefulWidget {
   final bool hasSeenOnboarding;
 
   const NerdHerdApp({
@@ -83,7 +83,33 @@ class NerdHerdApp extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NerdHerdApp> createState() => _NerdHerdAppState();
+}
+
+class _NerdHerdAppState extends ConsumerState<NerdHerdApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Reset badge when app comes to foreground
+      notificationService.resetBadge();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final themeModeAsync = ref.watch(themeNotifierProvider);
 
     return MaterialApp(
@@ -92,7 +118,8 @@ class NerdHerdApp extends ConsumerWidget {
           ThemeMode.system, // Default to system if loading
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      home: hasSeenOnboarding ? const AuthGate() : const OnboardingPage(),
+      home:
+          widget.hasSeenOnboarding ? const AuthGate() : const OnboardingPage(),
       navigatorKey: navigatorKey,
     );
   }

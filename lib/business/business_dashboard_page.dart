@@ -50,10 +50,10 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Sponsor this Spot? 🌟"),
-        content: Column(
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
+          children: [
             Text("Upgrade to a Gold Marker and stand out on the map!"),
             SizedBox(height: 16),
             Text(
@@ -273,9 +273,9 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
                           : null,
                     ),
                     child: _selectedImage == null
-                        ? Column(
+                        ? const Column(
                             mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
+                            children: [
                               Icon(Icons.add_a_photo,
                                   size: 40, color: Colors.white54),
                               SizedBox(height: 8),
@@ -308,7 +308,7 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
 
                 // 3. Type Dropdown
                 DropdownButtonFormField<String>(
-                  value: selectedType,
+                  initialValue: selectedType,
                   decoration: const InputDecoration(
                     labelText: "Type",
                     border: OutlineInputBorder(),
@@ -558,11 +558,11 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
                                         // TODO: Implement full edit
                                         _showEditPromoDialog(spot);
                                       },
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
+                                      child: const Padding(
+                                        padding: EdgeInsets.symmetric(
                                             horizontal: 12, vertical: 6),
                                         child: Row(
-                                          children: const [
+                                          children: [
                                             Icon(Icons.edit,
                                                 color: Colors.white, size: 16),
                                             SizedBox(width: 4),
@@ -730,10 +730,10 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
                                         ),
                                         elevation: 2,
                                       ),
-                                      child: Row(
+                                      child: const Row(
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,
-                                        children: const [
+                                        children: [
                                           Icon(Icons.auto_awesome, size: 20),
                                           SizedBox(width: 8),
                                           Text(

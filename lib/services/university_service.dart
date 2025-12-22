@@ -145,47 +145,98 @@ class UniversityService {
 
   Future<void> seedSimulationData() async {
     try {
-      // Check if data exists
-      final existing = await _supabase.from('universities').select().limit(1);
-      if ((existing as List).isNotEmpty) return; // Already seeded
-
-      logger.info("🌱 Seeding Simulation Data for Universities...");
-
-      // 1. Create University
-      final uniRes = await _supabase
+      // 1. Seed Nerd Herd University (Default)
+      final nerdCheck = await _supabase
           .from('universities')
-          .insert({
-            'name': 'Nerd Herd University',
-            'domain': 'nerdherd.edu',
-            'logo_url':
-                'https://img.freepik.com/free-vector/gradient-high-school-logo-design_23-2149626932.jpg'
-          })
           .select()
-          .single();
+          .eq('name', 'Nerd Herd University')
+          .limit(1);
 
-      final uniId = uniRes['id'];
+      if ((nerdCheck as List).isEmpty) {
+        logger.info("🌱 Seeding Nerd Herd University...");
+        final uniRes = await _supabase
+            .from('universities')
+            .insert({
+              'name': 'Nerd Herd University',
+              'domain': 'nerdherd.edu',
+              'logo_url':
+                  'https://img.freepik.com/free-vector/gradient-high-school-logo-design_23-2149626932.jpg'
+            })
+            .select()
+            .single();
 
-      // 2. Create Courses
-      final courses = [
-        {
-          'code': 'CS101',
-          'title': 'Intro to Computer Science',
-          'term': 'Fall 2024'
-        },
-        {'code': 'CS201', 'title': 'Data Structures', 'term': 'Fall 2024'},
-        {'code': 'MATH101', 'title': 'Calculus I', 'term': 'Fall 2024'},
-        {'code': 'PHYS101', 'title': 'Physics I', 'term': 'Fall 2024'},
-        {'code': 'ENG101', 'title': 'English Composition', 'term': 'Fall 2024'},
-        {'code': 'ART101', 'title': 'Art History', 'term': 'Fall 2024'},
-      ];
+        final uniId = uniRes['id'];
 
-      for (var c in courses) {
-        await _supabase.from('courses').insert({
-          'university_id': uniId,
-          ...c,
-        });
+        // Create Courses for Nerd Herd U
+        final courses = [
+          {
+            'code': 'CS101',
+            'title': 'Intro to Computer Science',
+            'term': 'Fall 2024'
+          },
+          {'code': 'CS201', 'title': 'Data Structures', 'term': 'Fall 2024'},
+          {'code': 'MATH101', 'title': 'Calculus I', 'term': 'Fall 2024'},
+          {'code': 'PHYS101', 'title': 'Physics I', 'term': 'Fall 2024'},
+          {
+            'code': 'ENG101',
+            'title': 'English Composition',
+            'term': 'Fall 2024'
+          },
+          {'code': 'ART101', 'title': 'Art History', 'term': 'Fall 2024'},
+        ];
+
+        for (var c in courses) {
+          await _supabase.from('courses').insert({
+            'university_id': uniId,
+            ...c,
+          });
+        }
+        logger.info("🌱 Nerd Herd University Seeded!");
       }
-      logger.info("🌱 Seeding Complete!");
+
+      // 2. Seed Hogwarts (Requested Feature)
+      final hogwartsCheck = await _supabase
+          .from('universities')
+          .select()
+          .eq('name', 'Hogwarts School of Witchcraft and Wizardry')
+          .limit(1);
+
+      if ((hogwartsCheck as List).isEmpty) {
+        logger.info("🧙‍♂️ Seeding Hogwarts...");
+        final hogRes = await _supabase
+            .from('universities')
+            .insert({
+              'name': 'Hogwarts School of Witchcraft and Wizardry',
+              'domain': 'hogwarts.edu',
+              'logo_url': 'assets/images/hogwarts_icon.jpg'
+            })
+            .select()
+            .single();
+
+        final hogId = hogRes['id'];
+        final hogCourses = [
+          {'code': 'POTIONS101', 'title': 'Potions', 'term': 'Year 1'},
+          {
+            'code': 'DADA101',
+            'title': 'Defense Against the Dark Arts',
+            'term': 'Year 1'
+          },
+          {'code': 'CHARMS101', 'title': 'Charms', 'term': 'Year 1'},
+          {'code': 'TRANS101', 'title': 'Transfiguration', 'term': 'Year 1'},
+          {'code': 'HERB101', 'title': 'Herbology', 'term': 'Year 1'},
+          {'code': 'ASTRO101', 'title': 'Astronomy', 'term': 'Year 1'},
+          {'code': 'HISTM101', 'title': 'History of Magic', 'term': 'Year 1'},
+          {'code': 'FLY101', 'title': 'Flying', 'term': 'Year 1'},
+        ];
+
+        for (var c in hogCourses) {
+          await _supabase.from('courses').insert({
+            'university_id': hogId,
+            ...c,
+          });
+        }
+        logger.info("🧙‍♂️ Hogwarts Seeded!");
+      }
     } catch (e) {
       if (e is PostgrestException && e.code == 'PGRST205') {
         logger.error(

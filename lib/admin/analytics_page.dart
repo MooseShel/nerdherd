@@ -75,8 +75,9 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                         getTitlesWidget: (value, meta) {
                           if (value % 1 != 0) return const SizedBox();
                           final index = value.toInt();
-                          if (index < 0 || index >= stats.userGrowth.length)
+                          if (index < 0 || index >= stats.userGrowth.length) {
                             return const SizedBox();
+                          }
                           return Text(
                             DateFormat('MM/dd')
                                 .format(stats.userGrowth[index].day),
@@ -130,8 +131,9 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                         getTitlesWidget: (value, meta) {
                           final index = value.toInt();
                           if (index < 0 ||
-                              index >= stats.appointmentActivity.length)
+                              index >= stats.appointmentActivity.length) {
                             return const SizedBox();
+                          }
                           return Text(
                             DateFormat('MM/dd')
                                 .format(stats.appointmentActivity[index].day),

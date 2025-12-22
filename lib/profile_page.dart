@@ -41,8 +41,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   final ImagePicker _picker = ImagePicker();
   String? _verificationDocUrl;
   String _verificationStatus = 'pending';
-  double _averageRating = 0.0;
-  int _reviewCount = 0;
+  final double _averageRating = 0.0;
+  final int _reviewCount = 0;
 
   @override
   void initState() {

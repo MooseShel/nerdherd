@@ -13,6 +13,7 @@ import 'profile_page.dart';
 import 'services/logger_service.dart';
 import 'services/haptic_service.dart';
 import 'package:flutter/foundation.dart'; // For kIsWeb
+import 'services/simulation_service.dart'; // NEW
 
 import 'widgets/map_filter_widget.dart';
 import 'notifications_page.dart';
@@ -56,13 +57,13 @@ class _MapPageState extends ConsumerState<MapPage> {
   LatLng? _currentLocation;
 
   final Set<String> _seenRequests = {}; // Track shown requests
-  MapFilters _filters = MapFilters(); // NEW: Filter State
+  MapFilters _filters = MapFilters();
+  bool _isFilterExpanded = false; // NEW: Controlled state for filter
 
   // Optimization: Reactive Broadcast State
   LatLng? _lastBroadcastLocation;
   DateTime? _lastBroadcastTime;
   int _unreadSystemCount = 0; // Unread system notifications
-  // int _unreadChatCount = 0; // REPLACED BY RIVERPOD
   bool _isUpdatingMarkers = false;
   RealtimeChannel? _notificationsChannel;
   // RealtimeChannel? _messagesChannel; // REPLACED BY RIVERPOD
@@ -180,7 +181,9 @@ class _MapPageState extends ConsumerState<MapPage> {
     }
   }
 
+  final SimulationService _simulationService = SimulationService();
   List<StudySpot> _studySpots = []; // NEW
+  Map<String, UserProfile> _simulatedPeers = {}; // NEW
 
   Future<void> _fetchStudySpots(
       {bool userTriggered = false, double radius = 2000}) async {
@@ -347,10 +350,32 @@ class _MapPageState extends ConsumerState<MapPage> {
       setState(() => _currentLocation = pos);
       _updateMapMarkers();
 
-      // Simulation: Auto-fetch spots within 500m on first valid location
+      // Simulation & Initial Fetch: Auto-fetch spots and bots on first valid location
       if (!_initialSpotsFetched && mounted) {
         _initialSpotsFetched = true;
-        _fetchStudySpots(radius: 500);
+
+        // 1. Fetch Spots
+        _fetchStudySpots(radius: 2000);
+
+        // 2. Spawn Bots
+        _generateSimulation(pos);
+      } else {
+        // Respawn bots if we move far (e.g. > 1km) from their center
+        // For simplicity, we can just respawn them occasionally or keep them static for now.
+        // User requested: "if the user moves... they should re-appear close"
+        // Let's check distance from first bot center?
+        // Or simpler: just respawn if we moved > 500m from last generation.
+        if (_lastSimulationCenter != null) {
+          final dist = Geolocator.distanceBetween(
+              _lastSimulationCenter!.latitude,
+              _lastSimulationCenter!.longitude,
+              pos.latitude,
+              pos.longitude);
+          if (dist > 1000) {
+            // 1km
+            _generateSimulation(pos);
+          }
+        }
       }
 
       // Reactive Broadcast
@@ -358,6 +383,20 @@ class _MapPageState extends ConsumerState<MapPage> {
         _broadcastLocationThrottle(pos);
       }
     }
+  }
+
+  LatLng? _lastSimulationCenter;
+
+  void _generateSimulation(LatLng center) {
+    logger.info("🤖 Generating simulation around $center");
+    final bots = _simulationService.generateBots(center: center, count: 10);
+
+    setState(() {
+      _lastSimulationCenter = center;
+      _simulatedPeers = {for (var b in bots) b.userId: b};
+    });
+
+    _updateMapMarkers();
   }
 
   Future<void> _broadcastLocationThrottle(LatLng pos) async {
@@ -483,7 +522,8 @@ class _MapPageState extends ConsumerState<MapPage> {
   void _onMapCreated(MaplibreMapController controller) async {
     mapController = controller;
     controller.onCircleTapped.add(_onCircleTapped);
-    controller.onSymbolTapped.add(_onSymbolTapped); // NEW: Listen to symbols
+    controller.onSymbolTapped.add(_onSymbolTapped);
+    // Listen to background clicks to dismiss UI
 
     // Preload Images (None currently)
     // try {
@@ -754,6 +794,10 @@ class _MapPageState extends ConsumerState<MapPage> {
       });
 
       for (var spot in sortedSpots) {
+        // FILTER: Check Sponsored / Regular
+        if (spot.isSponsored && !_filters.showSponsoredSpots) continue;
+        if (!spot.isSponsored && !_filters.showRegularSpots) continue;
+
         try {
           await mapController?.addCircle(
             _getSpotStyle(spot, isDark: isDark),
@@ -772,7 +816,7 @@ class _MapPageState extends ConsumerState<MapPage> {
         }
       }
 
-      for (var peer in _peers.values) {
+      for (var peer in {..._peers, ..._simulatedPeers}.values) {
         final geometry = peer.location;
         if (geometry == null) {
           continue;
@@ -875,8 +919,8 @@ class _MapPageState extends ConsumerState<MapPage> {
             CircleOptions(
               geometry: geometry, // Safe local variable
               circleColor: peer.isTutor
-                  ? '#FFD700'
-                  : '#00FFFF', // Gold for Tutors, Cyan for Students
+                  ? '#D500F9' // Purple Accent for Tutors
+                  : '#00E676', // Green Accent for Students
               circleRadius: 8,
               circleStrokeWidth: 2,
               circleStrokeColor: '#FFFFFF',
@@ -1149,6 +1193,9 @@ class _MapPageState extends ConsumerState<MapPage> {
               trackCameraPosition: true,
               onCameraIdle: _onCameraIdle,
               onCameraMove: _onCameraMove,
+              onMapClick: (point, latlng) {
+                // Removed click-to-dismiss as per user request
+              },
             )
           else
             const Center(child: CircularProgressIndicator()),
@@ -1260,6 +1307,7 @@ class _MapPageState extends ConsumerState<MapPage> {
             top: 60,
             left: 20,
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildGlassControl(
                   isMini: true,
@@ -1339,9 +1387,7 @@ class _MapPageState extends ConsumerState<MapPage> {
                       ),
                   ],
                 ),
-                const SizedBox(height: 12),
 
-                const SizedBox(height: 12),
                 // Notifications Bell
                 Stack(
                   clipBehavior: Clip.none,
@@ -1389,89 +1435,45 @@ class _MapPageState extends ConsumerState<MapPage> {
                       ),
                   ],
                 ),
-              ],
-            ),
-          ),
-
-          // Floating "Study Mode" Toggle (Top Right)
-          Positioned(
-            top: 60,
-            right: 20,
-            child: GestureDetector(
-              onTap: () {
-                final currentGhost = ref.read(ghostModeProvider).value ?? false;
-                final newGhost = !currentGhost;
-
-                hapticService.mediumImpact();
-                ref.read(ghostModeProvider.notifier).setGhostMode(newGhost);
-
-                // Note: Logic for broadcast/goGhost is handled by ref.listen in build.
-                // UI update specific to mode is handled by ref.watch triggering rebuild.
-              },
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(30),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: (_isStudyMode
-                              ? theme.primaryColor
-                              : (isDark ? Colors.black : Colors.white))
-                          .withValues(alpha: 0.7),
-                      borderRadius: BorderRadius.circular(30),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        )
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _isStudyMode
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                          color: _isStudyMode
-                              ? Colors.white
-                              : (isDark ? Colors.white60 : Colors.black54),
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _isStudyMode ? "LIVE" : "GHOST",
-                          style: TextStyle(
-                            color: _isStudyMode
-                                ? Colors.white
-                                : (isDark ? Colors.white60 : Colors.black54),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
+                const SizedBox(height: 12),
+                // Live/Ghost Mode Toggle
+                _buildGlassControl(
+                  isMini: true,
+                  activeColor: _isStudyMode ? theme.primaryColor : null,
+                  onPressed: () {
+                    final currentGhost =
+                        ref.read(ghostModeProvider).value ?? false;
+                    final newGhost = !currentGhost;
+                    hapticService.mediumImpact();
+                    ref.read(ghostModeProvider.notifier).setGhostMode(newGhost);
+                  },
+                  child: Icon(
+                    _isStudyMode ? Icons.visibility : Icons.visibility_off,
+                    color: _isStudyMode
+                        ? Colors.white
+                        : (isDark ? Colors.white : Colors.black87),
                   ),
+                  tooltip: _isStudyMode ? "LIVE Mode" : "GHOST Mode",
                 ),
-              ),
-            ),
-          ),
 
-          // Filter Widget
-          Positioned(
-            top: 130,
-            right: 20,
-            child: MapFilterWidget(
-              currentFilters: _filters,
-              availableSubjects: availableSubjectsAsync.value ?? [],
-              onFilterChanged: (newFilters) {
-                setState(() => _filters = newFilters);
-                hapticService.mediumImpact();
-                _updateMapMarkers();
-              },
+                const SizedBox(height: 12),
+
+                // Map Filter Widget (Moved here for equal spacing)
+                MapFilterWidget(
+                  currentFilters: _filters,
+                  availableSubjects: availableSubjectsAsync.value ?? [],
+                  isExpanded: _isFilterExpanded,
+                  onToggle: () {
+                    hapticService.selectionClick();
+                    setState(() => _isFilterExpanded = !_isFilterExpanded);
+                  },
+                  onFilterChanged: (newFilters) {
+                    setState(() => _filters = newFilters);
+                    hapticService.mediumImpact();
+                    _updateMapMarkers();
+                  },
+                ),
+              ],
             ),
           ),
         ],

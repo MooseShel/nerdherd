@@ -20,25 +20,17 @@ class _UniversitySelectionPageState
   String _query = "";
 
   @override
-  void initState() {
-    super.initState();
-    // Auto-seed for MVP if needed (hacky but effective for demo)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(universityServiceProvider).seedSimulationData();
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final resultsAsync = ref.watch(searchUniversitiesProvider(_query));
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Select any university below or search for one",
-            style: TextStyle(fontSize: 16)), // Smaller font to fit
+        title: const Text("Select School",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        centerTitle: true,
       ),
       body: Column(
         children: [
@@ -47,17 +39,17 @@ class _UniversitySelectionPageState
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: "Search your school (e.g. Nerd Herd U)",
+                hintText: "Search your school...",
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
                 fillColor: theme.cardColor,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
                 ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20),
               ),
               onChanged: (val) {
-                // Debounce could be added here
                 setState(() => _query = val);
               },
             ),
@@ -84,20 +76,24 @@ class _UniversitySelectionPageState
                                   ?.withValues(alpha: 0.5)),
                         ),
                         if (_query.isNotEmpty)
-                          TextButton(
-                              onPressed: () {},
-                              child: const Text("Request School Addition"))
+                          Padding(
+                            padding: const EdgeInsets.only(top: 16.0),
+                            child: TextButton(
+                                onPressed: () {},
+                                child: const Text("Request School Addition")),
+                          )
                       ],
                     ),
                   );
                 }
+
                 return GridView.builder(
                   padding: const EdgeInsets.all(16),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
-                    childAspectRatio: 0.8,
+                    childAspectRatio: 0.85, // Taller cards
                   ),
                   itemCount: universities.length,
                   itemBuilder: (context, index) {
@@ -128,74 +124,114 @@ class _UniversitySelectionPageState
                       child: Container(
                         decoration: BoxDecoration(
                           color: theme.cardColor,
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                              color: theme.dividerColor.withValues(alpha: 0.1)),
+                          borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
-                              blurRadius: 10,
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 15,
                               offset: const Offset(0, 4),
                             )
                           ],
                         ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        clipBehavior: Clip.antiAlias,
+                        child: Stack(
+                          fit: StackFit.expand,
                           children: [
-                            Container(
-                              width: 120,
-                              height: 120,
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: theme.scaffoldBackgroundColor,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: theme.shadowColor
-                                        .withValues(alpha: 0.1),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 2),
-                                  )
+                            // Full background image
+                            if (uni.logoUrl != null)
+                              uni.logoUrl!.startsWith('http')
+                                  ? CachedNetworkImage(
+                                      imageUrl: uni.logoUrl!,
+                                      fit: BoxFit.cover,
+                                      placeholder: (context, url) => Container(
+                                        color: theme.disabledColor
+                                            .withValues(alpha: 0.1),
+                                        child: const Center(
+                                            child: CircularProgressIndicator()),
+                                      ),
+                                      errorWidget: (context, url, error) =>
+                                          Container(
+                                        color: theme.disabledColor
+                                            .withValues(alpha: 0.1),
+                                        child:
+                                            const Icon(Icons.school, size: 40),
+                                      ),
+                                    )
+                                  : Image.asset(
+                                      uni.logoUrl!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              Container(
+                                        color: theme.disabledColor
+                                            .withValues(alpha: 0.1),
+                                        child:
+                                            const Icon(Icons.school, size: 40),
+                                      ),
+                                    )
+                            else
+                              Container(
+                                color:
+                                    theme.primaryColor.withValues(alpha: 0.1),
+                                child: Icon(Icons.school,
+                                    size: 50, color: theme.primaryColor),
+                              ),
+
+                            // Gradient Overlay
+                            Positioned.fill(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.transparent,
+                                      Colors.black.withValues(alpha: 0.0),
+                                      Colors.black.withValues(alpha: 0.8),
+                                    ],
+                                    stops: const [0.0, 0.5, 1.0],
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // Text Content at Bottom
+                            Positioned(
+                              left: 12,
+                              right: 12,
+                              bottom: 12,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    uni.name,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      height: 1.2,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if (uni.domain != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(
+                                        uni.domain!,
+                                        style: TextStyle(
+                                          color: Colors.white
+                                              .withValues(alpha: 0.8),
+                                          fontSize: 12,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
                                 ],
                               ),
-                              child: uni.logoUrl != null
-                                  ? Image(
-                                      image: uni.logoUrl!.startsWith('http')
-                                          ? CachedNetworkImageProvider(
-                                              uni.logoUrl!)
-                                          : AssetImage(uni.logoUrl!)
-                                              as ImageProvider,
-                                      fit: BoxFit.contain,
-                                    )
-                                  : Icon(Icons.school,
-                                      size: 50, color: theme.primaryColor),
                             ),
-                            const SizedBox(height: 16),
-                            Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 12),
-                              child: Text(
-                                uni.name,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            if (uni.domain != null) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                uni.domain!,
-                                style: TextStyle(
-                                  color: theme.textTheme.bodySmall?.color
-                                      ?.withValues(alpha: 0.7),
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
                           ],
                         ),
                       ),

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/notification_service.dart'; // Add this
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../services/logger_service.dart';
 
@@ -33,6 +34,11 @@ class AuthState extends _$AuthState {
   // Helper method to sign out
   Future<void> signOut() async {
     final client = ref.read(supabaseClientProvider);
+    // Reset badge
+    try {
+      await NotificationService().resetBadge();
+    } catch (_) {}
+    state = const AsyncValue.data(null);
     await client.auth.signOut();
   }
 }

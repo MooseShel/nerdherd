@@ -6,6 +6,8 @@ class MapFilters {
   final bool showTutors;
   final bool showStudents;
   final bool showClassmates;
+  final bool showSponsoredSpots;
+  final bool showRegularSpots;
   final List<String> selectedSubjects;
   final double minRating;
 
@@ -13,6 +15,8 @@ class MapFilters {
     this.showTutors = true,
     this.showStudents = true,
     this.showClassmates = false,
+    this.showSponsoredSpots = true,
+    this.showRegularSpots = true,
     this.selectedSubjects = const [],
     this.minRating = 0.0,
   });
@@ -21,6 +25,8 @@ class MapFilters {
     bool? showTutors,
     bool? showStudents,
     bool? showClassmates,
+    bool? showSponsoredSpots,
+    bool? showRegularSpots,
     List<String>? selectedSubjects,
     double? minRating,
   }) {
@@ -28,6 +34,8 @@ class MapFilters {
       showTutors: showTutors ?? this.showTutors,
       showStudents: showStudents ?? this.showStudents,
       showClassmates: showClassmates ?? this.showClassmates,
+      showSponsoredSpots: showSponsoredSpots ?? this.showSponsoredSpots,
+      showRegularSpots: showRegularSpots ?? this.showRegularSpots,
       selectedSubjects: selectedSubjects ?? this.selectedSubjects,
       minRating: minRating ?? this.minRating,
     );
@@ -35,6 +43,8 @@ class MapFilters {
 }
 
 class MapFilterWidget extends StatefulWidget {
+  final bool isExpanded;
+  final VoidCallback onToggle;
   final MapFilters currentFilters;
   final Function(MapFilters) onFilterChanged;
   final List<String> availableSubjects;
@@ -43,6 +53,8 @@ class MapFilterWidget extends StatefulWidget {
     super.key,
     required this.currentFilters,
     required this.onFilterChanged,
+    required this.isExpanded,
+    required this.onToggle,
     this.availableSubjects = const [
       'Calculus',
       'Physics',
@@ -59,15 +71,6 @@ class MapFilterWidget extends StatefulWidget {
 
 class _MapFilterWidgetState extends State<MapFilterWidget>
     with SingleTickerProviderStateMixin {
-  bool _isExpanded = false;
-
-  void _toggleExpanded() {
-    hapticService.selectionClick();
-    setState(() {
-      _isExpanded = !_isExpanded;
-    });
-  }
-
   void _updateFilters(MapFilters newFilters) {
     widget.onFilterChanged(newFilters);
   }
@@ -78,16 +81,18 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
 
     return Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.start, // Left aligned
       children: [
         // Toggle Button
         FloatingActionButton.small(
           heroTag: "filter_toggle",
-          onPressed: _toggleExpanded,
-          backgroundColor: _isExpanded ? theme.primaryColor : theme.cardColor,
-          foregroundColor:
-              _isExpanded ? theme.colorScheme.onPrimary : theme.primaryColor,
-          child: Icon(_isExpanded ? Icons.close : Icons.filter_list),
+          onPressed: widget.onToggle,
+          backgroundColor:
+              widget.isExpanded ? theme.primaryColor : theme.cardColor,
+          foregroundColor: widget.isExpanded
+              ? theme.colorScheme.onPrimary
+              : theme.primaryColor,
+          child: Icon(widget.isExpanded ? Icons.close : Icons.filter_list),
         ),
 
         const SizedBox(height: 12),
@@ -96,11 +101,9 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
         AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOutCubic,
-          width: _isExpanded ? 260 : 0,
-          height: _isExpanded ? null : 0,
-          constraints: BoxConstraints(
-            maxHeight: _isExpanded ? 500 : 0,
-          ),
+          width: widget.isExpanded ? 260 : 0,
+          // Removed height animation to allow intrinsic sizing
+          // Added AnimatedSize internally if needed, but width 0 hides it effectively for now.
           decoration: BoxDecoration(
             color: theme.cardTheme.color?.withValues(alpha: 0.95),
             borderRadius: BorderRadius.circular(20),
@@ -114,156 +117,183 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
               ),
             ],
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-              child: _isExpanded
-                  ? SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "FILTER PEERS",
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.textTheme.labelSmall?.color
-                                  ?.withValues(alpha: 0.5),
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.5,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Type Toggles
-                          _buildSwitch(
-                            "Tutors",
-                            widget.currentFilters.showTutors,
-                            Colors.amber,
-                            (val) => _updateFilters(widget.currentFilters
-                                .copyWith(showTutors: val)),
-                            theme,
-                          ),
-                          _buildSwitch(
-                            "Students",
-                            widget.currentFilters.showStudents,
-                            theme.primaryColor,
-                            (val) => _updateFilters(widget.currentFilters
-                                .copyWith(showStudents: val)),
-                            theme,
-                          ),
-                          _buildSwitch(
-                            "Classmates",
-                            widget.currentFilters.showClassmates,
-                            theme.colorScheme.secondary,
-                            (val) => _updateFilters(widget.currentFilters
-                                .copyWith(showClassmates: val)),
-                            theme,
-                          ),
-
-                          const SizedBox(height: 16),
-                          Divider(
-                              color: theme.dividerColor.withValues(alpha: 0.1)),
-                          const SizedBox(height: 8),
-
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                "MIN RATING",
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.textTheme.labelSmall?.color
-                                      ?.withValues(alpha: 0.5),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.5,
-                                ),
-                              ),
-                              Text(
-                                widget.currentFilters.minRating == 0
-                                    ? "Any"
-                                    : "${widget.currentFilters.minRating.toStringAsFixed(1)}+",
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                    color: Colors.amber,
-                                    fontWeight: FontWeight.bold),
-                              ),
-                            ],
-                          ),
-                          Slider(
-                            value: widget.currentFilters.minRating,
-                            min: 0,
-                            max: 5,
-                            divisions: 10,
-                            activeColor: Colors.amber,
-                            onChanged: (val) {
-                              hapticService.lightImpact();
-                              _updateFilters(widget.currentFilters
-                                  .copyWith(minRating: val));
-                            },
-                          ),
-
-                          const SizedBox(height: 8),
-
-                          Text(
-                            "SUBJECTS",
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.textTheme.labelSmall?.color
-                                  ?.withValues(alpha: 0.5),
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.5,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-
-                          // Subject Chips
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: widget.availableSubjects.map((subject) {
-                              final isSelected = widget
-                                  .currentFilters.selectedSubjects
-                                  .contains(subject);
-                              return FilterChip(
-                                label: Text(subject),
-                                selected: isSelected,
-                                onSelected: (selected) {
-                                  hapticService.lightImpact();
-                                  final newSubjects = List<String>.from(
-                                      widget.currentFilters.selectedSubjects);
-                                  if (selected) {
-                                    newSubjects.add(subject);
-                                  } else {
-                                    newSubjects.remove(subject);
-                                  }
-                                  _updateFilters(widget.currentFilters
-                                      .copyWith(selectedSubjects: newSubjects));
-                                },
-                                backgroundColor: theme.cardTheme.color
+          child: GestureDetector(
+            onTap: () {
+              // Swallow clicks so they don't reach the map
+            },
+            behavior: HitTestBehavior.opaque,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: widget.isExpanded
+                    ? SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "FILTER PEERS",
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.textTheme.labelSmall?.color
                                     ?.withValues(alpha: 0.5),
-                                selectedColor:
-                                    theme.primaryColor.withValues(alpha: 0.2),
-                                labelStyle: TextStyle(
-                                  color: isSelected
-                                      ? theme.primaryColor
-                                      : theme.textTheme.bodyMedium?.color
-                                          ?.withValues(alpha: 0.7),
-                                  fontSize: 12,
-                                  fontWeight: isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.5,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Type Toggles
+                            _buildSwitch(
+                              "Tutors",
+                              widget.currentFilters.showTutors,
+                              Colors.purpleAccent,
+                              (val) => _updateFilters(widget.currentFilters
+                                  .copyWith(showTutors: val)),
+                              theme,
+                            ),
+                            _buildSwitch(
+                              "Students",
+                              widget.currentFilters.showStudents,
+                              Colors.greenAccent,
+                              (val) => _updateFilters(widget.currentFilters
+                                  .copyWith(showStudents: val)),
+                              theme,
+                            ),
+                            _buildSwitch(
+                              "Classmates",
+                              widget.currentFilters.showClassmates,
+                              theme.colorScheme.secondary,
+                              (val) => _updateFilters(widget.currentFilters
+                                  .copyWith(showClassmates: val)),
+                              theme,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildSwitch(
+                              "Sponsored Spots",
+                              widget.currentFilters.showSponsoredSpots,
+                              const Color(0xFFFFD700), // Gold
+                              (val) => _updateFilters(widget.currentFilters
+                                  .copyWith(showSponsoredSpots: val)),
+                              theme,
+                              iconData: Icons.star,
+                            ),
+                            _buildSwitch(
+                              "Regular Spots",
+                              widget.currentFilters.showRegularSpots,
+                              const Color(0xFF6200EE), // Purple
+                              (val) => _updateFilters(widget.currentFilters
+                                  .copyWith(showRegularSpots: val)),
+                              theme,
+                              iconData: Icons.place,
+                            ),
+
+                            const SizedBox(height: 16),
+                            Divider(
+                                color:
+                                    theme.dividerColor.withValues(alpha: 0.1)),
+                            const SizedBox(height: 8),
+
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "MIN RATING",
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: theme.textTheme.labelSmall?.color
+                                        ?.withValues(alpha: 0.5),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.5,
+                                  ),
                                 ),
-                                side: BorderSide.none,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20)),
-                              );
-                            }).toList(),
-                          ),
-                        ],
-                      ),
-                    )
-                  : const SizedBox.shrink(),
+                                Text(
+                                  widget.currentFilters.minRating == 0
+                                      ? "Any"
+                                      : "${widget.currentFilters.minRating.toStringAsFixed(1)}+",
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                      color: Colors.amber,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                            Slider(
+                              value: widget.currentFilters.minRating,
+                              min: 0,
+                              max: 5,
+                              divisions: 10,
+                              activeColor: Colors.amber,
+                              onChanged: (val) {
+                                hapticService.lightImpact();
+                                _updateFilters(widget.currentFilters
+                                    .copyWith(minRating: val));
+                              },
+                            ),
+
+                            const SizedBox(height: 8),
+
+                            Text(
+                              "SUBJECTS",
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.textTheme.labelSmall?.color
+                                    ?.withValues(alpha: 0.5),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.5,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+
+                            // Subject Chips
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: widget.availableSubjects.map((subject) {
+                                final isSelected = widget
+                                    .currentFilters.selectedSubjects
+                                    .contains(subject);
+                                return FilterChip(
+                                  label: Text(subject),
+                                  selected: isSelected,
+                                  onSelected: (selected) {
+                                    hapticService.lightImpact();
+                                    final newSubjects = List<String>.from(
+                                        widget.currentFilters.selectedSubjects);
+                                    if (selected) {
+                                      newSubjects.add(subject);
+                                    } else {
+                                      newSubjects.remove(subject);
+                                    }
+                                    _updateFilters(widget.currentFilters
+                                        .copyWith(
+                                            selectedSubjects: newSubjects));
+                                  },
+                                  backgroundColor: theme.cardTheme.color
+                                      ?.withValues(alpha: 0.5),
+                                  selectedColor:
+                                      theme.primaryColor.withValues(alpha: 0.2),
+                                  labelStyle: TextStyle(
+                                    color: isSelected
+                                        ? theme.primaryColor
+                                        : theme.textTheme.bodyMedium?.color
+                                            ?.withValues(alpha: 0.7),
+                                    fontSize: 12,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                  side: BorderSide.none,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20)),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
             ),
           ),
         ),
@@ -272,7 +302,15 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
   }
 
   Widget _buildSwitch(String label, bool value, Color activeColor,
-      Function(bool) onChanged, ThemeData theme) {
+      Function(bool) onChanged, ThemeData theme,
+      {IconData? iconData}) {
+    IconData icon;
+    if (iconData != null) {
+      icon = iconData;
+    } else {
+      icon = label == "Tutors" ? Icons.school : Icons.person;
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -281,7 +319,7 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
           Row(
             children: [
               Icon(
-                label == "Tutors" ? Icons.school : Icons.person,
+                icon,
                 size: 16,
                 color: value
                     ? activeColor

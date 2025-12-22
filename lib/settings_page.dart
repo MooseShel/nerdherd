@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/haptic_service.dart';
+import 'services/notification_service.dart'; // Add this
 import 'widgets/ui_components.dart';
 
 import 'admin/admin_dashboard.dart';
@@ -236,6 +237,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       },
     ).then((confirm) async {
       if (confirm == true) {
+        // Reset badge before signing out
+        await notificationService.resetBadge();
         await supabase.auth.signOut();
         if (mounted) {
           Navigator.of(context).popUntil((route) => route.isFirst);
@@ -303,6 +306,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 hapticService.selectionClick();
                 setState(() => _notificationsEnabled = val);
                 _saveSetting('notifications_enabled', val);
+                // Sync with Service (Backend + Local Gate)
+                // We import notification_service.dart first or use the global instance if available
+                // Note: We need to import it at top of file.
+                // Assuming global `notificationService` is available.
+                notificationService.updatePushPermission(val);
               },
               activeThumbColor: theme.primaryColor,
             ),

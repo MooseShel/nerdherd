@@ -1,8 +1,11 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart'; // For kIsWeb
+import 'package:shared_preferences/shared_preferences.dart'; // Add this
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_core/firebase_core.dart'; // Required for Firebase.apps check
 import 'package:flutter/material.dart'; // For MaterialPageRoute
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_app_badger/flutter_app_badger.dart'; // Add this
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'logger_service.dart';
 import '../config/navigation.dart'; // For navigatorKey
@@ -33,6 +36,8 @@ class NotificationService {
 
   bool _initialized = false;
   RealtimeChannel? _notificationChannel;
+  bool _pushDisabled =
+      false; // Internal flag, synced via updatePushPermission or init
 
   /// Initialize the notification service
   Future<void> initialize() async {
@@ -62,20 +67,62 @@ class NotificationService {
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
+    // Check shared preference for push status
+    // If disabled, we do NOT init FCM or request permissions to avoid prompting user
+    // or generating tokens that shouldn't exist.
+    // However, for in-app logic, we might still want local permissions?
+    // Let's assume "Push Notifications" toggle controls BOTH system-level permission request AND token sync.
+
+    // Actually, "Push Notifications" usually implies remote.
+    // Local notifications are often needed for things like "Timer finished".
+    // But here the user implies "Silence".
+
+    // Better approach: Always init local notifications (done above).
+    // Only init FCM if enabled.
+
+    // Load preference
+    final prefs = await SharedPreferences.getInstance();
+    _pushDisabled = !(prefs.getBool('notifications_enabled') ?? true);
+
     // Request permissions (Local + FCM)
     await _requestPermissions();
 
-    // Init FCM
-    await _initFCM();
+    // Init FCM only if enabled (or if we have a token already, we might want to refresh)
+    // Actually, if disabled, we skip FCM init to avoid registering token.
+    if (!_pushDisabled) {
+      await _initFCM();
+    }
+
+    // Reset badge on app start
+    await resetBadge();
 
     _initialized = true;
-    logger.info('📬 Notification service initialized');
+    logger.info(
+        '📬 Notification service initialized (Push Disabled: $_pushDisabled)');
   }
 
   /// Initialize Firebase Cloud Messaging
   Future<void> _initFCM() async {
     try {
+      // Check Preference
+      // We use SharedPreferences directly here to ensure single source of truth
+      // without circular dependency on Riverpod or passing params around deeply.
+      // (Though cleaner to pass it in, this is a singleton service).
+      // Note: We need SharedPreferences instance.
+      // Using a quick creating instance here is fine for occasional calls.
+      try {
+        // Dynamic import workaround or just use package (it is imported in settings, not here yet... wait, not imported here)
+        // We need to import shared_preferences.
+        // Since I cannot add imports easily with multi_replace without breaking line numbers if I am not careful with top of file,
+        // I will rely on the caller `updatePushPermission` to handle the heavy lifting,
+        // and here I will just default to TRUE for initialization if I can't check easily,
+        // OR better: I will add the import.
+      } catch (e) {
+        // ignore
+      }
+
       // Guard: If Firebase didn't initialize (e.g. on Desktop), skip FCM
+
       if (Firebase.apps.isEmpty) {
         logger.warning('Skipping FCM: No Firebase App initialized');
         return;
@@ -148,6 +195,41 @@ class NotificationService {
     }
   }
 
+  /// Update Push Permission (Toggle)
+  /// If enabled: Initialize FCM, get token, save to DB.
+  /// If disabled: Delete token from DB (set to NULL).
+  Future<void> updatePushPermission(bool enabled) async {
+    _pushDisabled = !enabled; // Update local flag immediately
+
+    // Always reset badge if user is toggling things, good cleanup
+    if (!enabled) await resetBadge();
+
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
+    if (enabled) {
+      logger.info("🔔 Enabling Push Notifications...");
+      // Re-run init to ensure we have permission and token
+      await _initFCM();
+      // Force sync
+      await syncToken();
+    } else {
+      logger.info("🔕 Disabling Push Notifications...");
+      // Remove token from DB so server stops sending
+      try {
+        await supabase
+            .from('profiles')
+            .update({'fcm_token': null}).eq('user_id', userId);
+        logger.info('✅ FCM Token cleared from database');
+
+        // Optional: Delete instance ID (uncommon, usually just unlinking enough)
+        // await FirebaseMessaging.instance.deleteToken();
+      } catch (e) {
+        logger.error('Error clearing FCM token', error: e);
+      }
+    }
+  }
+
   /// Manually trigger a token sync (useful after login)
   Future<void> syncToken() async {
     try {
@@ -209,6 +291,9 @@ class NotificationService {
     final iosPlugin = _notifications.resolvePlatformSpecificImplementation<
         IOSFlutterLocalNotificationsPlugin>();
 
+    // Also reset badge if app was opened from terminated state
+    await resetBadge();
+
     if (iosPlugin != null) {
       await iosPlugin.requestPermissions(
         alert: true,
@@ -220,6 +305,10 @@ class NotificationService {
 
   /// Handle notification tap
   Future<void> _onNotificationTapped(NotificationResponse response) async {
+    // When user taps a notification, we assume they "saw" things.
+    // Reset badge.
+    await resetBadge();
+
     final payload = response.payload;
     if (payload == null) return;
 
@@ -313,6 +402,31 @@ class NotificationService {
     String body,
     Map<String, dynamic>? data,
   ) async {
+    // 1. Check Preference: Is Push (System) Notification enabled?
+    // We do this check locally to suppress the "Pop-up" / Tray notification
+    // if the user turned it off.
+    // Note: This relies on the caller ensuring we only get here for valid reasons.
+    // But for "Background" messages that wake the app up (data-only), we might still be here.
+    // However, `updatePushPermission(false)` clears the token, so we shouldn't receive them strictly speaking.
+    // BUT, broadcast messages or other triggers might still occur, or race conditions.
+    // So masking here is good double-protection.
+
+    // Since we don't have SharedPreferences imported, and I want to avoid adding an import if I can avoid it
+    // (to keep diff small), I will assume if the user cleared the token, they won't get the message.
+    // BUT, for LOCAL notifications (triggered by app logic, e.g. "Timer Done"), they might still want them?
+    // User said: "if someone has it turned off they will not receive push notifications, just in app notifications"
+    // "In App" usually means UI (Red Dot). "Push" means System Tray.
+    // So `_showNotification` (which posts to System Tray) should be gated.
+
+    // Let's imply we check a flag. I'll add a boolean `_suppressSystemTray` to the service,
+    // which `updatePushPermission` updates.
+    // Actually, `updatePushPermission` is async and called from settings.
+    // I can stick a static flag or singleton field here.
+    if (_pushDisabled) {
+      logger.info("🔕 Suppressing system notification: $title");
+      return;
+    }
+
     // Notification details
     const androidDetails = AndroidNotificationDetails(
       'nerd_herd_channel',
@@ -380,6 +494,23 @@ class NotificationService {
       details,
       payload: payload,
     );
+  }
+
+  /// Reset the app icon badge
+  Future<void> resetBadge() async {
+    // Badge is only supported on mobile/macOS, not Web or Windows/Linux
+    if (kIsWeb) return;
+    if (!Platform.isIOS && !Platform.isAndroid && !Platform.isMacOS) return;
+
+    try {
+      if (await FlutterAppBadger.isAppBadgeSupported()) {
+        await FlutterAppBadger.removeBadge();
+        logger.info("✅ App Badge Reset");
+      }
+    } catch (e) {
+      logger
+          .warning("Could not reset badge (platform might not support it): $e");
+    }
   }
 
   /// Mark notification as read in database
