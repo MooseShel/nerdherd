@@ -239,13 +239,24 @@ class _MapPageState extends ConsumerState<MapPage> {
     }
   }
 
-  // Helper for Verified vs General styling
+  // Helper for verified vs general styling
   CircleOptions _getSpotStyle(StudySpot spot, {required bool isDark}) {
-    if (spot.isVerified) {
+    if (spot.isSponsored) {
+      // Sponsored: Slightly Larger Yellow/Gold Marker
       return CircleOptions(
         geometry: LatLng(spot.latitude, spot.longitude),
-        circleColor: '#FFA500', // Gold/Orange (Visible on both)
-        circleRadius: 12,
+        circleColor: '#FFD700', // Gold
+        circleRadius:
+            12, // Reduced from 16, slightly bigger than verified (10) and normal (6)
+        circleStrokeWidth: 2,
+        circleStrokeColor: '#FFFFFF',
+        circleOpacity: 1.0,
+      );
+    } else if (spot.isVerified) {
+      return CircleOptions(
+        geometry: LatLng(spot.latitude, spot.longitude),
+        circleColor: '#FFA500', // Orange
+        circleRadius: 10,
         circleStrokeWidth: 2,
         circleStrokeColor: isDark ? '#FFFFFF' : '#000000',
         circleOpacity: 1.0,
@@ -469,9 +480,15 @@ class _MapPageState extends ConsumerState<MapPage> {
 
   bool _isStyleLoaded = false; // Guard for Annotation Manager
 
-  void _onMapCreated(MaplibreMapController controller) {
+  void _onMapCreated(MaplibreMapController controller) async {
     mapController = controller;
     controller.onCircleTapped.add(_onCircleTapped);
+    controller.onSymbolTapped.add(_onSymbolTapped); // NEW: Listen to symbols
+
+    // Preload Images (None currently)
+    // try {
+    //   await _loadImage('star_badge', 'assets/images/star_badge.png');
+    // } catch (e) { ... }
 
     // DELAY: Fix for Web "Unexpected null value" / style loading race condition
     // We wait for the style to load before allowing marker updates
@@ -484,6 +501,8 @@ class _MapPageState extends ConsumerState<MapPage> {
       }
     });
   }
+
+  // ... (lines 498-761 logic omitted, jumping to updateMapMarkers)
 
   // _startLocationUpdates REMOVED - using userLocationProvider in build()
 
@@ -717,15 +736,24 @@ class _MapPageState extends ConsumerState<MapPage> {
           "📍 Updating markers for ${_peers.length} peer(s) and ${_studySpots.length} spots");
       try {
         await mapController?.clearCircles();
+        await mapController?.clearSymbols();
       } catch (e) {
-        logger.debug("⚠️ clearCircles failed (ignoring)", error: e);
+        logger.debug("⚠️ clearCircles/Symbols failed (ignoring)", error: e);
       }
 
       // 0. Draw Study Spots (Bottom Layer)
       // Determine theme for marker colors
       final isDark = Theme.of(context).brightness == Brightness.dark;
 
-      for (var spot in _studySpots) {
+      // Sort: Sponsored LAST to render on top
+      final sortedSpots = List<StudySpot>.from(_studySpots);
+      sortedSpots.sort((a, b) {
+        if (a.isSponsored && !b.isSponsored) return 1;
+        if (!a.isSponsored && b.isSponsored) return -1;
+        return 0;
+      });
+
+      for (var spot in sortedSpots) {
         try {
           await mapController?.addCircle(
             _getSpotStyle(spot, isDark: isDark),
@@ -733,8 +761,12 @@ class _MapPageState extends ConsumerState<MapPage> {
               'is_study_spot': true,
               'spot_id': spot.id,
               'is_verified': spot.isVerified,
+              'is_sponsored': spot.isSponsored,
             },
           );
+
+          // REMOVED: Badge Symbol for Sponsored Spots as per user request
+          // if (spot.isSponsored) { ... }
         } catch (e) {
           logger.warning("Failed to draw study spot ${spot.name}", error: e);
         }
@@ -903,32 +935,41 @@ class _MapPageState extends ConsumerState<MapPage> {
   }
 
   void _onCircleTapped(Circle circle) {
-    hapticService.selectionClick();
     if (circle.data != null) {
-      final data = Map<String, dynamic>.from(circle.data as Map);
-
-      // Check for Study Spot
-      if (data['is_study_spot'] == true) {
-        final spotId = data['spot_id'];
-        final spot = _studySpots.firstWhere((s) => s.id == spotId,
-            orElse: () => _studySpots.first); // fallback safe
-        _showStudySpotDetails(spot);
-        return;
-      }
-
-      if (data['is_me'] == true) {
-        final myId = supabase.auth.currentUser?.id;
-        if (myId != null && _peers.containsKey(myId)) {
-          _showProfileDrawer(_peers[myId]!.toJson());
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Syncing profile... please wait.")),
-          );
-        }
-        return;
-      }
-      _showProfileDrawer(data);
+      _handleMarkerTap(Map<String, dynamic>.from(circle.data as Map));
     }
+  }
+
+  void _onSymbolTapped(Symbol symbol) {
+    if (symbol.data != null) {
+      _handleMarkerTap(Map<String, dynamic>.from(symbol.data as Map));
+    }
+  }
+
+  void _handleMarkerTap(Map<String, dynamic> data) {
+    hapticService.selectionClick();
+
+    // Check for Study Spot
+    if (data['is_study_spot'] == true) {
+      final spotId = data['spot_id'];
+      final spot = _studySpots.firstWhere((s) => s.id == spotId,
+          orElse: () => _studySpots.first); // fallback safe
+      _showStudySpotDetails(spot);
+      return;
+    }
+
+    if (data['is_me'] == true) {
+      final myId = supabase.auth.currentUser?.id;
+      if (myId != null && _peers.containsKey(myId)) {
+        _showProfileDrawer(_peers[myId]!.toJson());
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Syncing profile... please wait.")),
+        );
+      }
+      return;
+    }
+    _showProfileDrawer(data);
   }
 
   void _showStudySpotDetails(StudySpot spot) {

@@ -9,6 +9,9 @@ class StudySpot {
   final bool isVerified;
   final String source; // 'supabase' or 'osm'
   final String type; // 'cafe', 'library', 'restaurant', 'other'
+  final String? ownerId; // NEW
+  final bool isSponsored; // NEW
+  final String? promotionalText; // NEW
 
   StudySpot({
     required this.id,
@@ -21,6 +24,9 @@ class StudySpot {
     this.isVerified = true,
     this.source = 'supabase',
     this.type = 'other',
+    this.ownerId, // NEW
+    this.isSponsored = false, // NEW
+    this.promotionalText, // NEW
   });
 
   factory StudySpot.fromJson(Map<String, dynamic> json) {
@@ -35,6 +41,9 @@ class StudySpot {
       isVerified: json['is_verified'] ?? true, // Default to true for Supabase
       source: json['source'] ?? 'supabase',
       type: json['type'] ?? 'other',
+      ownerId: json['owner_id'], // NEW
+      isSponsored: json['is_sponsored'] ?? false, // NEW
+      promotionalText: json['promotional_text'], // NEW
     );
   }
 

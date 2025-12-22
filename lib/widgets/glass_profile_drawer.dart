@@ -9,8 +9,8 @@ import '../profile_page.dart';
 import '../chat_page.dart';
 import '../services/logger_service.dart';
 import '../services/haptic_service.dart';
-// For kIsWeb
 import 'ui_components.dart';
+import '../business/business_dashboard_page.dart'; // NEW
 
 class GlassProfileDrawer extends StatefulWidget {
   final UserProfile profile;
@@ -468,6 +468,25 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                 ),
                               ),
                             )
+                          else if (widget.profile.isBusinessOwner)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                    color: Colors.amber.withOpacity(0.5)),
+                              ),
+                              child: const Text(
+                                "Business Account",
+                                style: TextStyle(
+                                  color: Colors.amber,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            )
                           else
                             Text(
                               widget.profile.intentTag ?? "Hanging out",
@@ -574,13 +593,14 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                     ),
                   ),
 
-                const SectionHeader(title: "Current Classes"),
-                const SizedBox(height: 12),
-
-                if (widget.profile.currentClasses.isEmpty)
-                  Text("No classes listed",
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(fontStyle: FontStyle.italic)),
+                if (!widget.profile.isBusinessOwner) ...[
+                  const SectionHeader(title: "Current Classes"),
+                  const SizedBox(height: 12),
+                  if (widget.profile.currentClasses.isEmpty)
+                    Text("No classes listed",
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(fontStyle: FontStyle.italic)),
+                ],
 
                 Wrap(
                   spacing: 12,
@@ -631,6 +651,22 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                     );
                                   },
                                 ),
+                                if (widget.profile.isBusinessOwner) ...[
+                                  const SizedBox(height: 12),
+                                  PrimaryButton(
+                                    label: "Business Dashboard 💼",
+                                    onPressed: () {
+                                      hapticService.mediumImpact();
+                                      Navigator.pop(context);
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) =>
+                                                const BusinessDashboardPage()), // Requires import
+                                      );
+                                    },
+                                  ),
+                                ],
                               ],
                             )
                           : _isConnected

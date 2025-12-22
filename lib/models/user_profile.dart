@@ -12,6 +12,7 @@ class UserProfile {
 
   /// Whether the user is a tutor or not.
   final bool isTutor;
+  final bool isBusinessOwner; // NEW
 
   /// Whether the tutor is verified by admin.
   final bool isVerifiedTutor;
@@ -71,6 +72,7 @@ class UserProfile {
     this.universityId,
     this.universityName,
     this.isTutor = false,
+    this.isBusinessOwner = false, // NEW
     this.isVerifiedTutor = false,
     this.currentClasses = const [],
     this.intentTag,
@@ -109,6 +111,7 @@ class UserProfile {
       universityId: json['university_id'],
       universityName: uniName,
       isTutor: json['is_tutor'] ?? false,
+      isBusinessOwner: json['is_business_owner'] ?? false, // NEW
       isVerifiedTutor: json['is_verified_tutor'] ?? false,
       currentClasses: List<String>.from(json['current_classes'] ?? []),
       intentTag: json['intent_tag'],

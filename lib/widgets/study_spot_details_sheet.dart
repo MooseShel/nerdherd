@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // NEW
 import '../models/study_spot.dart';
 import '../services/haptic_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'ui_components.dart';
+import '../providers/user_profile_provider.dart'; // NEW
+import '../business/business_dashboard_page.dart'; // NEW for navigation
 
-class StudySpotDetailsSheet extends StatelessWidget {
+class StudySpotDetailsSheet extends ConsumerWidget {
+  // Changed to ConsumerWidget
   final StudySpot spot;
 
   const StudySpotDetailsSheet({super.key, required this.spot});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Added ref
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final myProfile = ref.watch(myProfileProvider).value; // Watch profile
 
     return GlassContainer(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -56,6 +62,35 @@ class StudySpotDetailsSheet extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // SPONSORED BANNER (If Sponsored)
+                if (spot.isSponsored)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                          colors: [Color(0xFFFFD700), Color(0xFFFFA500)]),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.star, color: Colors.black, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            spot.promotionalText?.isNotEmpty == true
+                                ? spot.promotionalText!
+                                : "Special Offer Available!",
+                            style: const TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                 // 2. Title & Badge
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -82,7 +117,34 @@ class StudySpotDetailsSheet extends StatelessWidget {
                         ],
                       ),
                     ),
-                    if (spot.isVerified)
+                    if (spot.isSponsored) // GOLD BADGE
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                            color: Colors.amber, // Gold
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: Colors.amber.withOpacity(0.4),
+                                  blurRadius: 8)
+                            ]),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.workspace_premium,
+                                size: 16, color: Colors.black),
+                            SizedBox(width: 4),
+                            Text(
+                              "SPONSORED",
+                              style: TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (spot.isVerified)
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
@@ -232,6 +294,32 @@ class StudySpotDetailsSheet extends StatelessWidget {
                     );
                   },
                 ),
+
+                // 5. Business Owner Action: Sponsor Request
+                if (myProfile != null &&
+                    myProfile.isBusinessOwner &&
+                    !spot.isSponsored) ...[
+                  const SizedBox(height: 12),
+                  SecondaryButton(
+                    label: "Claim & Sponsor This Spot",
+                    icon: Icons.monetization_on,
+                    fullWidth: true,
+                    onPressed: () {
+                      hapticService.mediumImpact();
+                      Navigator.pop(context);
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) =>
+                                  const BusinessDashboardPage()));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text(
+                                "Go to your Dashboard to register this spot (Mock Flow)")),
+                      );
+                    },
+                  )
+                ]
               ],
             ),
           ),

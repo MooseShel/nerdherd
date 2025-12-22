@@ -21,10 +21,10 @@ BEGIN
     SELECT json_agg(t) INTO user_growth
     FROM (
         SELECT 
-            d::date as day,
+            d.day::date as day,
             COUNT(p.user_id) as count
-        FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day') d
-        LEFT JOIN public.profiles p ON p.created_at::date <= d::date
+        FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day') as d(day)
+        LEFT JOIN public.profiles p ON p.last_updated::date <= d.day::date
         GROUP BY d.day
         ORDER BY d.day
     ) t;
@@ -33,10 +33,10 @@ BEGIN
     SELECT json_agg(t) INTO appointment_activity
     FROM (
         SELECT 
-            d::date as day,
+            d.day::date as day,
             COUNT(a.id) as count
-        FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day') d
-        LEFT JOIN public.appointments a ON a.created_at::date = d::date
+        FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day') as d(day)
+        LEFT JOIN public.appointments a ON a.created_at::date = d.day::date
         GROUP BY d.day
         ORDER BY d.day
     ) t;

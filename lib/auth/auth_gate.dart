@@ -8,11 +8,45 @@ import '../services/notification_service.dart';
 import '../services/logger_service.dart';
 import '../services/biometric_service.dart';
 
-class AuthGate extends ConsumerWidget {
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../config/app_config.dart';
+
+class AuthGate extends ConsumerStatefulWidget {
   const AuthGate({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends ConsumerState<AuthGate> {
+  @override
+  void initState() {
+    super.initState();
+    _attemptAutoLogin();
+  }
+
+  Future<void> _attemptAutoLogin() async {
+    final email = appConfig.testUserEmail;
+    final password = appConfig.testUserPassword;
+
+    // Only attempt if configured and no user is currently signed in
+    if (email != null &&
+        password != null &&
+        Supabase.instance.client.auth.currentSession == null) {
+      try {
+        logger.info("🤖 Auto-logging in test user: $email");
+        await Supabase.instance.client.auth.signInWithPassword(
+          email: email,
+          password: password,
+        );
+      } catch (e) {
+        logger.error("Auto-login failed", error: e);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // Watch auth state using Riverpod
     final authState = ref.watch(authStateProvider);
 

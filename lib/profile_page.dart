@@ -14,6 +14,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'providers/wallet_provider.dart';
 import 'wallet_page.dart';
 import 'package:intl/intl.dart';
+import 'reviews/reviews_history_page.dart';
+import 'business/business_dashboard_page.dart'; // NEW IMPORT
+
+final supabase = Supabase.instance.client;
 
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -30,75 +34,53 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   final _hourlyRateController = TextEditingController();
   final _bioController = TextEditingController();
   bool _isTutor = false;
+  bool _isBusinessOwner = false; // NEW
   bool _isLoading = true;
   int _connectionCount = 0;
   int _pendingRequestCount = 0;
+  final ImagePicker _picker = ImagePicker();
   String? _verificationDocUrl;
   String _verificationStatus = 'pending';
-
-  final supabase = Supabase.instance.client;
-  final ImagePicker _picker = ImagePicker();
+  double _averageRating = 0.0;
+  int _reviewCount = 0;
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
     _fetchConnectionCount();
-    _fetchReviewStats();
-  }
-
-  double _averageRating = 0.0;
-  int _reviewCount = 0;
-
-  Future<void> _fetchReviewStats() async {
-    final myId = supabase.auth.currentUser?.id;
-    if (myId == null) return;
-
-    try {
-      final data = await supabase
-          .from('reviews')
-          .select('rating')
-          .eq('reviewee_id', myId);
-
-      if (data.isNotEmpty) {
-        final List<dynamic> ratings = data.map((e) => e['rating']).toList();
-        final sum =
-            ratings.fold(0, (previous, current) => previous + (current as int));
-        setState(() {
-          _averageRating = sum / ratings.length;
-          _reviewCount = ratings.length;
-        });
-      }
-    } catch (e) {
-      logger.error("Error fetching review stats", error: e);
-    }
+    _fetchPendingRequestCount();
   }
 
   Future<void> _loadProfile() async {
     final user = supabase.auth.currentUser;
     if (user == null) return;
 
+    if (mounted) setState(() => _isLoading = true);
+
     try {
       final data = await supabase
           .from('profiles')
           .select()
           .eq('user_id', user.id)
-          .maybeSingle();
+          .single();
 
-      if (data != null) {
-        final profile = UserProfile.fromJson(data);
-        _nameController.text = profile.fullName ?? '';
-        _intentController.text = profile.intentTag ?? '';
-        _classesController.text = profile.currentClasses.join(', ');
-        _avatarController.text = profile.avatarUrl ?? '';
-        _hourlyRateController.text = profile.hourlyRate?.toString() ?? '';
-        _bioController.text = profile.bio ?? '';
-        setState(() {
-          _isTutor = profile.isTutor;
-          _verificationDocUrl = profile.verificationDocumentUrl;
-          _verificationStatus = profile.verificationStatus;
-        });
+      final profile = UserProfile.fromJson(data);
+
+      _nameController.text = profile.fullName ?? '';
+      _intentController.text = profile.intentTag ?? '';
+      _classesController.text = (profile.currentClasses ?? []).join(', ');
+      _avatarController.text = profile.avatarUrl ?? '';
+      _bioController.text = profile.bio ?? '';
+      if (profile.hourlyRate != null) {
+        _hourlyRateController.text = profile.hourlyRate.toString();
       }
+      setState(() {
+        _isTutor = profile.isTutor;
+        _isBusinessOwner = profile.isBusinessOwner; // NEW
+        _verificationDocUrl = profile.verificationDocumentUrl;
+        _verificationStatus = profile.verificationStatus;
+      });
     } catch (e) {
       if (mounted) {
         _showSnack('Could not load profile. Please refresh.', isError: true);
@@ -164,8 +146,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     if (user == null) return;
 
     // 1. Validation Logic
+    // 1. Validation Logic
+    // Intent is optional for Business Owners
     final intent = _intentController.text.trim();
-    if (intent.isEmpty) {
+    if (intent.isEmpty && !_isBusinessOwner) {
       _showSnack('Please enter your Status/Intent (e.g., "Studying Calculus").',
           isError: true);
       return;
@@ -514,159 +498,189 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       controller: _nameController, hint: 'e.g. John Doe'),
                   const SizedBox(height: 20),
 
-                  _buildLabel(context, 'Status / Intent'),
-                  _buildTextField(context,
-                      controller: _intentController,
-                      hint: 'e.g. Studying Calculus'),
                   const SizedBox(height: 20),
 
-                  _buildLabel(context, 'Current Classes'),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(
-                          context,
-                          controller: _classesController,
-                          hint: 'No classes imported',
-                          readOnly: true,
+                  // Business Dashboard Button
+                  if (_isBusinessOwner) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    const BusinessDashboardPage()),
+                          );
+                        },
+                        icon: const Icon(Icons.business_center),
+                        label: const Text("Business Dashboard"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.all(16),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.school),
-                        color: theme.primaryColor,
-                        tooltip: 'Import from University',
-                        onPressed: () async {
-                          // Navigate to University Selection
-                          await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) =>
-                                      const UniversitySelectionPage()));
-                          // Refresh profile on return to seeing updated classes
-                          _loadProfile();
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Avatar URL (Hidden or Optional Manual Input)
-                  ExpansionTile(
-                    title: Text("Advanced: Manual Avatar URL",
-                        style: theme.textTheme.bodySmall),
-                    children: [
-                      _buildTextField(context,
-                          controller: _avatarController,
-                          hint: 'https://...',
-                          onChanged: (val) => setState(() {})),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'I am a Tutor',
-                        style: theme.textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      Switch(
-                        value: _isTutor,
-                        onChanged: (val) => setState(() => _isTutor = val),
-                        activeThumbColor: Colors.amber,
-                      ),
-                    ],
-                  ),
-
-                  if (_isTutor) ...[
-                    const SizedBox(height: 20),
-                    _buildLabel(context, 'Hourly Rate (\$/hr)'),
-                    _buildTextField(context,
-                        controller: _hourlyRateController,
-                        hint: 'e.g. 25',
-                        keyboardType: TextInputType.number),
+                    ),
                     const SizedBox(height: 24),
-                    _buildLabel(context, 'Tutor Verification'),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: theme.cardTheme.color,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                            color: theme.dividerColor.withValues(alpha: 0.1)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Status:',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold)),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: (_verificationStatus == 'verified'
+                  ],
+
+                  // Business Owner Check
+                  if (!_isBusinessOwner) ...[
+                    _buildLabel(context, 'Status / Intent'),
+                    _buildTextField(context,
+                        controller: _intentController,
+                        hint: 'e.g. Studying Calculus'),
+                    const SizedBox(height: 20),
+
+                    _buildLabel(context, 'Current Classes'),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildTextField(
+                            context,
+                            controller: _classesController,
+                            hint: 'No classes imported',
+                            readOnly: true,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.school),
+                          color: theme.primaryColor,
+                          tooltip: 'Import from University',
+                          onPressed: () async {
+                            // Navigate to University Selection
+                            await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        const UniversitySelectionPage()));
+                            // Refresh profile on return to seeing updated classes
+                            _loadProfile();
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Avatar URL (Hidden or Optional Manual Input)
+                    ExpansionTile(
+                      title: Text("Advanced: Manual Avatar URL",
+                          style: theme.textTheme.bodySmall),
+                      children: [
+                        _buildTextField(context,
+                            controller: _avatarController,
+                            hint: 'https://...',
+                            onChanged: (val) => setState(() {})),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'I am a Tutor',
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        Switch(
+                          value: _isTutor,
+                          onChanged: (val) => setState(() => _isTutor = val),
+                          activeThumbColor: Colors.amber,
+                        ),
+                      ],
+                    ),
+
+                    if (_isTutor) ...[
+                      const SizedBox(height: 20),
+                      _buildLabel(context, 'Hourly Rate (\$/hr)'),
+                      _buildTextField(context,
+                          controller: _hourlyRateController,
+                          hint: 'e.g. 25',
+                          keyboardType: TextInputType.number),
+                      const SizedBox(height: 24),
+                      _buildLabel(context, 'Tutor Verification'),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: theme.cardTheme.color,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                              color: theme.dividerColor.withValues(alpha: 0.1)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Status:',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.bold)),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: (_verificationStatus == 'verified'
+                                            ? Colors.green
+                                            : _verificationStatus == 'rejected'
+                                                ? Colors.red
+                                                : Colors.orange)
+                                        .withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    _verificationStatus.toUpperCase(),
+                                    style: TextStyle(
+                                      color: _verificationStatus == 'verified'
                                           ? Colors.green
                                           : _verificationStatus == 'rejected'
                                               ? Colors.red
-                                              : Colors.orange)
-                                      .withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  _verificationStatus.toUpperCase(),
-                                  style: TextStyle(
-                                    color: _verificationStatus == 'verified'
-                                        ? Colors.green
-                                        : _verificationStatus == 'rejected'
-                                            ? Colors.red
-                                            : Colors.orange,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
+                                              : Colors.orange,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          if (_verificationDocUrl != null) ...[
-                            const Text('Verification Document:',
-                                style: TextStyle(fontSize: 12)),
-                            const SizedBox(height: 8),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: CachedNetworkImage(
-                                imageUrl: _verificationDocUrl!,
-                                height: 100,
-                                width: double.infinity,
-                                fit: BoxFit.cover,
-                                placeholder: (context, url) => const Center(
-                                    child: CircularProgressIndicator()),
-                                errorWidget: (context, url, error) =>
-                                    const Icon(Icons.error),
-                              ),
+                              ],
                             ),
                             const SizedBox(height: 12),
-                          ],
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: _pickVerificationDoc,
-                              icon: const Icon(Icons.upload_file),
-                              label: Text(_verificationDocUrl == null
-                                  ? 'Upload ID / Certificate'
-                                  : 'Update Document'),
+                            if (_verificationDocUrl != null) ...[
+                              const Text('Verification Document:',
+                                  style: TextStyle(fontSize: 12)),
+                              const SizedBox(height: 8),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: CachedNetworkImage(
+                                  imageUrl: _verificationDocUrl!,
+                                  height: 100,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => const Center(
+                                      child: CircularProgressIndicator()),
+                                  errorWidget: (context, url, error) =>
+                                      const Icon(Icons.error),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: _pickVerificationDoc,
+                                icon: const Icon(Icons.upload_file),
+                                label: Text(_verificationDocUrl == null
+                                    ? 'Upload ID / Certificate'
+                                    : 'Update Document'),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ], // End if (!_isBusinessOwner)
 
                   const SizedBox(height: 20),
                   _buildLabel(context, 'Bio / About Me'),
@@ -677,7 +691,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
                   const SizedBox(height: 32),
 
-                  // Wallet Button
+                  // Wallet Button (Keep for everyone)
                   Consumer(
                     builder: (context, ref, child) {
                       final balanceAsync = ref.watch(walletBalanceProvider);
@@ -714,75 +728,112 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     },
                   ),
 
+                  // Student Features (Hide for Business)
+                  if (!_isBusinessOwner) ...[
+                    const SizedBox(height: 16),
+                    // My Connections Button
+                    _buildMenuButton(
+                      context,
+                      icon: Icons.people,
+                      label: "My Connections",
+                      count: _connectionCount,
+                      countColor: theme.primaryColor,
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const ConnectionsPage()),
+                        );
+                        _fetchConnectionCount();
+                      },
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Requests Button
+                    _buildMenuButton(
+                      context,
+                      icon: Icons.notifications_active,
+                      label: "Manage Requests",
+                      count: _pendingRequestCount,
+                      countColor: theme.colorScheme.error,
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const RequestsPage()),
+                        );
+                        _fetchPendingRequestCount();
+                      },
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // My Chats Button
+                    _buildMenuButton(
+                      context,
+                      icon: Icons.chat_bubble_outline,
+                      label: "My Chats",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const ConversationsPage()),
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // My Schedule Button
+                    _buildMenuButton(
+                      context,
+                      icon: Icons.calendar_today,
+                      label: "My Schedule",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const SchedulePage()),
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // My Reviews Button
+                    _buildMenuButton(
+                      context,
+                      icon: Icons.history_edu,
+                      label: "My Reviews",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const ReviewsHistoryPage()),
+                        );
+                      },
+                    ),
+                  ],
+
                   const SizedBox(height: 16),
 
-                  // My Connections Button
-                  _buildMenuButton(
-                    context,
-                    icon: Icons.people,
-                    label: "My Connections",
-                    count: _connectionCount,
-                    countColor: theme.primaryColor,
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const ConnectionsPage()),
-                      );
-                      _fetchConnectionCount();
-                    },
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Requests Button
-                  _buildMenuButton(
-                    context,
-                    icon: Icons.notifications_active,
-                    label: "Manage Requests",
-                    count: _pendingRequestCount,
-                    countColor: theme.colorScheme.error,
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const RequestsPage()),
-                      );
-                      _fetchPendingRequestCount();
-                    },
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // My Chats Button
-                  _buildMenuButton(
-                    context,
-                    icon: Icons.chat_bubble_outline,
-                    label: "My Chats",
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const ConversationsPage()),
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // My Schedule Button
-                  _buildMenuButton(
-                    context,
-                    icon: Icons.calendar_today,
-                    label: "My Schedule",
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const SchedulePage()),
-                      );
-                    },
-                  ),
+                  // Manage Education Button
+                  if (!_isBusinessOwner)
+                    _buildMenuButton(
+                      context,
+                      icon: Icons.school,
+                      label: "Manage Education",
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) =>
+                                  const UniversitySelectionPage()),
+                        );
+                        _loadProfile();
+                      },
+                    ),
 
                   const SizedBox(height: 16),
 

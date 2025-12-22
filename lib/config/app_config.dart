@@ -38,6 +38,18 @@ class AppConfig {
   String get environment {
     return dotenv.env['ENVIRONMENT'] ?? 'dev';
   }
+
+  /// Test User Email (Debug Only)
+  String? get testUserEmail {
+    if (!isDebug) return null;
+    return dotenv.env['TEST_USER_EMAIL'];
+  }
+
+  /// Test User Password (Debug Only)
+  String? get testUserPassword {
+    if (!isDebug) return null;
+    return dotenv.env['TEST_USER_PASSWORD'];
+  }
 }
 
 // Global config instance

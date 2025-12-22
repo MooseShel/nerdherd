@@ -17,7 +17,8 @@ class _AuthPageState extends State<AuthPage> {
   final _addressController = TextEditingController();
   bool _isLoading = false;
   bool _isLogin = true;
-  bool _isTutor = false;
+  // removed unused _isTutor
+  String? _selectedRole; // Null initially to force selection
   bool _isRememberMe = false; // Default off
 
   Future<void> _handleAuth() async {
@@ -41,7 +42,8 @@ class _AuthPageState extends State<AuthPage> {
           data: {
             'full_name': _fullNameController.text,
             'address': _addressController.text,
-            'is_tutor': _isTutor,
+            'is_tutor': _selectedRole == 'tutor',
+            'is_business_owner': _selectedRole == 'business',
           },
         );
         if (mounted) {
@@ -224,14 +226,48 @@ class _AuthPageState extends State<AuthPage> {
                             icon: Icons.home_outlined,
                           ),
                           const SizedBox(height: 20),
-                          SwitchListTile.adaptive(
-                            title: Text('Register as Tutor?',
-                                style: theme.textTheme.bodyMedium
-                                    ?.copyWith(fontWeight: FontWeight.w600)),
-                            value: _isTutor,
-                            activeColor: theme.primaryColor,
-                            contentPadding: EdgeInsets.zero,
-                            onChanged: (val) => setState(() => _isTutor = val),
+                          const SizedBox(height: 20),
+                          // Role Selector
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: theme.cardColor.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color: theme.dividerColor.withOpacity(0.1)),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _selectedRole,
+                                hint: Text("Choose your Path 🐂",
+                                    style:
+                                        TextStyle(color: theme.primaryColor)),
+                                isExpanded: true,
+                                icon: Icon(Icons.arrow_drop_down,
+                                    color: theme.primaryColor),
+                                dropdownColor: theme.cardColor,
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: 'student',
+                                    child: Text("Student (Join the Herd)"),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'tutor',
+                                    child: Text("Tutor (Guide the Herd)"),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'business',
+                                    child: Text("Business (Feed the Herd)"),
+                                  ),
+                                ],
+                                onChanged: (val) {
+                                  setState(() {
+                                    _selectedRole = val;
+                                  });
+                                },
+                              ),
+                            ),
                           ),
                         ],
                         const SizedBox(height: 32),

@@ -11,6 +11,8 @@ import 'moderation_page.dart';
 import 'ledger_page.dart';
 import 'support_page.dart';
 
+import 'admin_financial_page.dart';
+
 class AdminDashboardPage extends ConsumerStatefulWidget {
   const AdminDashboardPage({super.key});
 
@@ -25,7 +27,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return DefaultTabController(
-      length: 10,
+      length: 11,
       child: Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
@@ -42,6 +44,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
             isScrollable: true,
             tabs: const [
               Tab(text: "OVERVIEW"),
+              Tab(text: "FINANCIALS"), // New Tab
               Tab(text: "ANALYTICS"),
               Tab(text: "REPORTS"), // Moderation
               Tab(text: "LEDGER"),
@@ -57,6 +60,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
         body: TabBarView(
           children: [
             _buildOverviewTab(theme),
+            const AdminFinancialPage(), // New Page
             const AnalyticsPage(),
             const ModerationPage(),
             const LedgerPage(),

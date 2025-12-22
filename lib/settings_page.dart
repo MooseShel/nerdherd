@@ -4,12 +4,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/haptic_service.dart';
 import 'widgets/ui_components.dart';
-import 'pay/wallet_page.dart';
+
 import 'admin/admin_dashboard.dart';
-import 'reviews/reviews_history_page.dart';
 import 'providers/theme_provider.dart';
-import 'university/university_selection_page.dart';
 import 'legal_page.dart';
+
 import 'providers/ghost_mode_provider.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -262,20 +261,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const SectionHeader(title: 'EDUCATION'),
-          SettingsTile(
-            icon: Icons.school,
-            title: 'Manage Education',
-            subtitle: 'University and Courses',
-            onTap: () {
-              // Always go to University Selection to allow switching
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                    builder: (_) => const UniversitySelectionPage()),
-              );
-            },
-          ),
-          const SizedBox(height: 24),
           const SectionHeader(title: 'APPEARANCE'),
           SettingsTile(
             icon: Icons.brightness_6,
@@ -334,27 +319,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 );
               },
             ),
-          const SectionHeader(title: 'PAYMENTS'),
-          SettingsTile(
-            icon: Icons.account_balance_wallet,
-            title: 'My Wallet',
-            iconColor: Colors.blueAccent,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const WalletPage()),
-              );
-            },
-          ),
-          SettingsTile(
-            icon: Icons.history_edu,
-            title: 'My Reviews',
-            iconColor: Colors.amber,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const ReviewsHistoryPage()),
-              );
-            },
-          ),
           const SizedBox(height: 24),
           const SectionHeader(title: 'ACCOUNT'),
           SettingsTile(

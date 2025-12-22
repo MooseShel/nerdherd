@@ -11,9 +11,14 @@ SECURITY DEFINER -- Runs with privileges of the creator (postgres/admin), bypass
 AS $$
 DECLARE
     v_sender_balance DECIMAL;
-    v_receiver_balance DECIMAL;
+    v_platform_fee DECIMAL;
+    v_payout_amount DECIMAL;
 BEGIN
-    -- 1. Check Sender Balance
+    -- 1. Calculate Fees (20% Platform Fee)
+    v_platform_fee := p_amount * 0.20;
+    v_payout_amount := p_amount - v_platform_fee;
+
+    -- 2. Check Sender Balance
     SELECT wallet_balance INTO v_sender_balance
     FROM public.profiles
     WHERE user_id = p_sender_id;
@@ -26,23 +31,27 @@ BEGIN
         RAISE EXCEPTION 'Insufficient funds';
     END IF;
 
-    -- 2. Deduct from Sender
+    -- 3. Deduct from Sender (Full Amount)
     UPDATE public.profiles
     SET wallet_balance = wallet_balance - p_amount
     WHERE user_id = p_sender_id;
 
-    -- 3. Add to Receiver
+    -- 4. Add to Receiver (Net Payout)
     UPDATE public.profiles
-    SET wallet_balance = wallet_balance + p_amount
+    SET wallet_balance = wallet_balance + v_payout_amount
     WHERE user_id = p_receiver_id;
 
-    -- 4. Log Transaction for Sender
+    -- 5. Log Transaction for Sender
     INSERT INTO public.transactions (user_id, amount, type, description)
     VALUES (p_sender_id, -p_amount, 'payment', 'Paid to Tutor: ' || p_description);
 
-    -- 5. Log Transaction for Receiver
+    -- 6. Log Transaction for Receiver
     INSERT INTO public.transactions (user_id, amount, type, description)
-    VALUES (p_receiver_id, p_amount, 'earnings', 'Received from Student: ' || p_description);
+    VALUES (p_receiver_id, v_payout_amount, 'earnings', 'Received from Student: ' || p_description);
+
+    -- 7. Log Platform Fee (System Transaction - No User ID)
+    INSERT INTO public.transactions (user_id, amount, type, description)
+    VALUES (NULL, v_platform_fee, 'platform_fee', 'Fee from transaction between ' || p_sender_id || ' and ' || p_receiver_id);
 
     -- Return success
     RETURN jsonb_build_object('success', true);
