@@ -31,7 +31,7 @@ workflows:
           flutter packages get
       - name: Install pods
         script: |
-          find . -name "Podfile" -exec dirNAME={} \; | xargs -n 1 pod install --project-directory
+          find . -name "Podfile" -exec dirname {} \; | xargs -n 1 pod install --project-directory
       - name: Build iOS Archive
         script: |
           flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
