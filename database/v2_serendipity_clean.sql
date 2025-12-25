@@ -1,13 +1,6 @@
--- Initial Database Schema for Nerd Herd V2
--- This creates the base tables needed for the Serendipity Engine
-
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "postgis";
-
--- ============================================
--- SERENDIPITY ENGINE TABLES
--- ============================================
 
 -- Struggle Signals: Track when users need help
 CREATE TABLE struggle_signals (
@@ -18,10 +11,7 @@ CREATE TABLE struggle_signals (
   confidence_level INT CHECK (confidence_level BETWEEN 1 AND 5),
   location GEOGRAPHY(POINT),
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  expires_at TIMESTAMPTZ DEFAULT NOW() + INTERVAL '2 hours',
-  
-  -- Index for proximity queries
-  CONSTRAINT valid_location CHECK (location IS NOT NULL)
+  expires_at TIMESTAMPTZ DEFAULT NOW() + INTERVAL '2 hours'
 );
 
 CREATE INDEX idx_struggle_signals_location ON struggle_signals USING GIST(location);
@@ -33,9 +23,8 @@ CREATE TABLE compatibility_scores (
   user_a UUID REFERENCES profiles(id) ON DELETE CASCADE,
   user_b UUID REFERENCES profiles(id) ON DELETE CASCADE,
   score FLOAT CHECK (score BETWEEN 0 AND 1),
-  factors JSONB, -- {"skill_complement": 0.9, "temporal_overlap": 0.8}
+  factors JSONB,
   last_updated TIMESTAMPTZ DEFAULT NOW(),
-  
   PRIMARY KEY (user_a, user_b),
   CONSTRAINT different_users CHECK (user_a != user_b)
 );
@@ -61,7 +50,7 @@ CREATE INDEX idx_serendipity_matches_user_b ON serendipity_matches(user_b);
 CREATE TABLE activity_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  event_type TEXT NOT NULL, -- 'app_open', 'study_session_start', etc.
+  event_type TEXT NOT NULL,
   metadata JSONB,
   timestamp TIMESTAMPTZ DEFAULT NOW()
 );
@@ -77,29 +66,25 @@ CREATE TABLE user_skills (
   competence_score FLOAT CHECK (competence_score BETWEEN 0 AND 1),
   endorsement_count INT DEFAULT 0,
   last_updated TIMESTAMPTZ DEFAULT NOW(),
-  
   UNIQUE(user_id, skill_tag)
 );
 
 CREATE INDEX idx_user_skills_user ON user_skills(user_id);
 CREATE INDEX idx_user_skills_tag ON user_skills(skill_tag);
 
--- ============================================
--- PROFILE EXTENSIONS
--- ============================================
-
 -- Add new columns to existing profiles table
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS serendipity_enabled BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS serendipity_radius_meters INT DEFAULT 100;
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS productivity_hours JSONB; -- [18, 19, 20] = 6-8 PM
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS productivity_hours JSONB;
 
--- ============================================
--- ROW LEVEL SECURITY
--- ============================================
-
--- Struggle Signals
+-- Enable Row Level Security
 ALTER TABLE struggle_signals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE compatibility_scores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE serendipity_matches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_skills ENABLE ROW LEVEL SECURITY;
 
+-- RLS Policies for struggle_signals
 CREATE POLICY "Users can view own struggle signals"
   ON struggle_signals FOR SELECT
   USING (auth.uid() = user_id);
@@ -112,16 +97,12 @@ CREATE POLICY "Users can delete own struggle signals"
   ON struggle_signals FOR DELETE
   USING (auth.uid() = user_id);
 
--- Compatibility Scores
-ALTER TABLE compatibility_scores ENABLE ROW LEVEL SECURITY;
-
+-- RLS Policies for compatibility_scores
 CREATE POLICY "Users can view their compatibility scores"
   ON compatibility_scores FOR SELECT
   USING (auth.uid() = user_a OR auth.uid() = user_b);
 
--- Serendipity Matches
-ALTER TABLE serendipity_matches ENABLE ROW LEVEL SECURITY;
-
+-- RLS Policies for serendipity_matches
 CREATE POLICY "Users can view their matches"
   ON serendipity_matches FOR SELECT
   USING (auth.uid() = user_a OR auth.uid() = user_b);
@@ -130,9 +111,7 @@ CREATE POLICY "Users can update their matches"
   ON serendipity_matches FOR UPDATE
   USING (auth.uid() = user_a OR auth.uid() = user_b);
 
--- Activity Logs
-ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
-
+-- RLS Policies for activity_logs
 CREATE POLICY "Users can view own activity logs"
   ON activity_logs FOR SELECT
   USING (auth.uid() = user_id);
@@ -141,18 +120,12 @@ CREATE POLICY "Users can insert own activity logs"
   ON activity_logs FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
--- User Skills
-ALTER TABLE user_skills ENABLE ROW LEVEL SECURITY;
-
+-- RLS Policies for user_skills
 CREATE POLICY "Anyone can view user skills"
   ON user_skills FOR SELECT
   USING (true);
 
--- ============================================
--- HELPER FUNCTIONS
--- ============================================
-
--- Get nearby struggle signals
+-- Helper function: Get nearby struggle signals
 CREATE OR REPLACE FUNCTION get_nearby_struggles(
   user_location GEOGRAPHY,
   radius_meters INT DEFAULT 100
@@ -181,7 +154,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Clean up expired struggle signals (run via cron)
+-- Helper function: Clean up expired struggle signals
 CREATE OR REPLACE FUNCTION cleanup_expired_struggles()
 RETURNS void AS $$
 BEGIN

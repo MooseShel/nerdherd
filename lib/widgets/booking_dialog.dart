@@ -83,6 +83,27 @@ class _BookingDialogState extends ConsumerState<BookingDialog> {
     final cost = widget.hourlyRate; // Assuming 1 hour block for MVP
 
     try {
+      // Validate that the tutor profile exists in the database
+      final tutorProfile = await Supabase.instance.client
+          .from('profiles')
+          .select('user_id')
+          .eq('user_id', widget.tutorId)
+          .maybeSingle();
+
+      if (tutorProfile == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                  'This tutor profile is not available. Please try again later.'),
+              backgroundColor: theme.colorScheme.error,
+            ),
+          );
+        }
+        setState(() => _isLoading = false);
+        return;
+      }
+
       // 1. Check current balance
       final currentBalance = ref.read(walletBalanceProvider).value ?? 0.0;
 
