@@ -16,38 +16,38 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   final List<Map<String, dynamic>> _pages = [
     {
-      'title': 'Welcome to Nerd Herd',
+      'title': 'Welcome to Nerd Herd 2.0',
       'description':
-          'Your ultimate campus companion. Find peers, book tutors, and ace your classes.',
-      'icon': Icons.school_rounded,
+          'Reimagined with intelligence. Experience the ultimate campus companion, now smarter than ever.',
+      'icon': Icons.rocket_launch_rounded,
       'color': Colors.indigoAccent,
     },
     {
-      'title': 'Find Your Squad',
+      'title': 'Serendipity Engine',
       'description':
-          'See who is studying nearby on the Map. Filter by major or class to find the perfect study buddy.',
-      'icon': Icons.map_rounded,
+          'Stuck on a problem? Tap the SOS button to signal your struggle and get matched with peers who can help instantly.',
+      'icon': Icons.auto_awesome_rounded,
+      'color': Color(0xFFFF6B00), // Serendipity Orange
+    },
+    {
+      'title': 'Ghost Mode',
+      'description':
+          'Control your visibility. Go "Ghost" to study in private, or "Live" to broadcast your location to friends.',
+      'icon': Icons.visibility_off_rounded,
+      'color': Colors.grey,
+    },
+    {
+      'title': 'Liquid Glass Design',
+      'description':
+          'A beautiful new interface designed for clarity and focus, optimized for both light and dark modes.',
+      'icon': Icons.water_drop_rounded,
       'color': Colors.cyanAccent,
     },
     {
-      'title': 'Book Verified Tutors',
+      'title': 'Verified Tutors & More',
       'description':
-          'Struggling with a concept? Book instant sessions with top-rated tutors directly through the app.',
+          'Find study spots, book top-rated tutors, and manage your classes all in one place.',
       'icon': Icons.verified_user_rounded,
-      'color': Colors.amberAccent,
-    },
-    {
-      'title': 'Manage Classes',
-      'description':
-          'Add your current schedule to get matched with classmates and receive tailored study recommendations.',
-      'icon': Icons.calendar_today_rounded,
-      'color': Colors.purpleAccent,
-    },
-    {
-      'title': 'Stay Connected',
-      'description':
-          'Chat with connections, receive session reminders, and stay in the loop with push notifications.',
-      'icon': Icons.chat_bubble_rounded,
       'color': Colors.greenAccent,
     },
   ];
