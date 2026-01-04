@@ -473,10 +473,10 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: Colors.amber.withOpacity(0.1),
+                                color: Colors.amber.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                    color: Colors.amber.withOpacity(0.5)),
+                                    color: Colors.amber.withValues(alpha: 0.5)),
                               ),
                               child: const Text(
                                 "Business Account",

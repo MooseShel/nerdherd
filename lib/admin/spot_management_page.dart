@@ -189,10 +189,11 @@ class _SpotManagementPageState extends State<SpotManagementPage> {
             style: theme.textTheme.bodyMedium,
             decoration: InputDecoration(
               prefixIcon: Icon(Icons.search,
-                  color: theme.iconTheme.color?.withOpacity(0.5)),
+                  color: theme.iconTheme.color?.withValues(alpha: 0.5)),
               hintText: 'Search spots...',
               hintStyle: TextStyle(
-                  color: theme.textTheme.bodyMedium?.color?.withOpacity(0.5)),
+                  color: theme.textTheme.bodyMedium?.color
+                      ?.withValues(alpha: 0.5)),
               filled: true,
               fillColor: theme.cardTheme.color,
               border: OutlineInputBorder(
@@ -220,14 +221,16 @@ class _SpotManagementPageState extends State<SpotManagementPage> {
                             color: theme.cardTheme.color,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                                color: theme.dividerColor.withOpacity(0.1)),
+                                color:
+                                    theme.dividerColor.withValues(alpha: 0.1)),
                           ),
                           child: ListTile(
                             leading: Container(
                                 width: 50,
                                 height: 50,
                                 decoration: BoxDecoration(
-                                    color: theme.primaryColor.withOpacity(0.1),
+                                    color: theme.primaryColor
+                                        .withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(8),
                                     image: spot.imageUrl != null
                                         ? DecorationImage(

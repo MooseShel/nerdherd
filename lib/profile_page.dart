@@ -69,7 +69,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
       _nameController.text = profile.fullName ?? '';
       _intentController.text = profile.intentTag ?? '';
-      _classesController.text = (profile.currentClasses ?? []).join(', ');
+      _classesController.text = profile.currentClasses.join(', ');
       _avatarController.text = profile.avatarUrl ?? '';
       _bioController.text = profile.bio ?? '';
       if (profile.hourlyRate != null) {

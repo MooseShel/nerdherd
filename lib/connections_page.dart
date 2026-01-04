@@ -273,7 +273,7 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: theme.primaryColor.withOpacity(0.2),
+                  color: theme.primaryColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: theme.primaryColor),
                 ),
@@ -300,7 +300,8 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
               decoration: InputDecoration(
                 hintText: 'Search connections...',
                 hintStyle: TextStyle(
-                    color: theme.textTheme.bodyMedium?.color?.withOpacity(0.5)),
+                    color: theme.textTheme.bodyMedium?.color
+                        ?.withValues(alpha: 0.5)),
                 prefixIcon: Icon(Icons.search, color: theme.primaryColor),
                 filled: true,
                 fillColor: theme.cardTheme.color,
@@ -310,8 +311,8 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide:
-                      BorderSide(color: theme.dividerColor.withOpacity(0.1)),
+                  borderSide: BorderSide(
+                      color: theme.dividerColor.withValues(alpha: 0.1)),
                 ),
               ),
               onChanged: (_) => _applyFilter(),
@@ -377,17 +378,17 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
         }
       },
       backgroundColor: theme.cardTheme.color,
-      selectedColor: theme.primaryColor.withOpacity(0.2),
+      selectedColor: theme.primaryColor.withValues(alpha: 0.2),
       labelStyle: TextStyle(
         color: isSelected
             ? theme.primaryColor
-            : theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+            : theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
       ),
       side: BorderSide(
         color: isSelected
             ? theme.primaryColor
-            : theme.dividerColor.withOpacity(0.1),
+            : theme.dividerColor.withValues(alpha: 0.1),
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     );
@@ -402,12 +403,12 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           )
         ],
-        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -418,7 +419,7 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
               tag: 'avatar_${conn.userId}',
               child: CircleAvatar(
                 radius: 30,
-                backgroundColor: theme.dividerColor.withOpacity(0.1),
+                backgroundColor: theme.dividerColor.withValues(alpha: 0.1),
                 backgroundImage: conn.avatarUrl != null
                     ? (conn.avatarUrl!.startsWith('assets/')
                         ? AssetImage(conn.avatarUrl!) as ImageProvider
@@ -457,8 +458,8 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: conn.isTutor
-                              ? Colors.amber.withOpacity(0.2)
-                              : theme.primaryColor.withOpacity(0.2),
+                              ? Colors.amber.withValues(alpha: 0.2)
+                              : theme.primaryColor.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -483,7 +484,7 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                         color: _isUnread(_lastMessages[conn.userId]!)
                             ? theme.textTheme.bodyMedium?.color
                             : theme.textTheme.bodyMedium?.color
-                                ?.withOpacity(0.7),
+                                ?.withValues(alpha: 0.7),
                         fontSize: 13,
                         fontWeight: _isUnread(_lastMessages[conn.userId]!)
                             ? FontWeight.bold
@@ -496,8 +497,8 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                     Text(
                       conn.intentTag ?? 'No status',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color:
-                            theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                        color: theme.textTheme.bodySmall?.color
+                            ?.withValues(alpha: 0.7),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -518,7 +519,7 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                       _formatTime(_lastMessages[conn.userId]!['created_at']),
                       style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.textTheme.bodySmall?.color
-                              ?.withOpacity(0.5),
+                              ?.withValues(alpha: 0.5),
                           fontSize: 10),
                     ),
                   ),
@@ -649,20 +650,20 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
           Icon(
             Icons.people_outline,
             size: 80,
-            color: theme.iconTheme.color?.withOpacity(0.2),
+            color: theme.iconTheme.color?.withValues(alpha: 0.2),
           ),
           const SizedBox(height: 16),
           Text(
             message,
             style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.textTheme.bodyLarge?.color?.withOpacity(0.6),
+              color: theme.textTheme.bodyLarge?.color?.withValues(alpha: 0.6),
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Send collaboration requests to build your network!',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.textTheme.bodySmall?.color?.withOpacity(0.4),
+              color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.4),
             ),
             textAlign: TextAlign.center,
           ),

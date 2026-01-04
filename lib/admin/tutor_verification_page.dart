@@ -121,7 +121,8 @@ class _TutorVerificationPageState extends State<TutorVerificationPage> {
           margin: const EdgeInsets.only(bottom: 12),
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: theme.dividerColor.withOpacity(0.1))),
+              side:
+                  BorderSide(color: theme.dividerColor.withValues(alpha: 0.1))),
           child: ExpansionTile(
             leading: CircleAvatar(
               backgroundImage: tutor.avatarUrl != null

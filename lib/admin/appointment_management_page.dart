@@ -90,7 +90,7 @@ class _AppointmentManagementPageState extends State<AppointmentManagementPage> {
                   _fetchAppointments();
                 }
               },
-              selectedColor: theme.primaryColor.withOpacity(0.2),
+              selectedColor: theme.primaryColor.withValues(alpha: 0.2),
               labelStyle: TextStyle(
                 color: isSelected
                     ? theme.primaryColor
@@ -124,7 +124,8 @@ class _AppointmentManagementPageState extends State<AppointmentManagementPage> {
                             color: theme.cardTheme.color,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                                color: theme.dividerColor.withOpacity(0.1)),
+                                color:
+                                    theme.dividerColor.withValues(alpha: 0.1)),
                           ),
                           child: ListTile(
                             contentPadding: const EdgeInsets.all(16),
@@ -135,7 +136,7 @@ class _AppointmentManagementPageState extends State<AppointmentManagementPage> {
                                       horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: _getStatusColor(appointment.status)
-                                        .withOpacity(0.1),
+                                        .withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(

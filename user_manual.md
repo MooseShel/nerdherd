@@ -1,83 +1,48 @@
-# Nerd Herd - User Manual
+# Nerd Herd User Manual v2.0 (Intelligence Release)
 
-## Welcome to Nerd Herd 1.0!
-Connect with peers, find study spots, and book tutors in real-time—tailored to your University campus.
+## Overview
+Nerd Herd 2.0 introduces the **Serendipity Engine** and a new **Liquid Glass Design**. This major update transforms the app from a simple study spot finder into an intelligent collaboration platform.
 
-## 🎓 University Integration
-- **Campus Connection**: Select your University in **Settings** > **Education** to find peers and courses relevant to you.
-- **Course Management**: Add your current courses to your profile. This helps you find classmates and relevant tutors.
+## New Feature: Serendipity Engine
+The Serendipity Engine connects you with peers who are struggling with similar subjects nearby, enabling spontaneous "nerd herds."
 
-## 🗺️ Map & Discovery
-### Navigation & Visibility
-- **Ghost Mode**: Toggle via the "eye" icon. When active (Ghost), you are hidden. When inactive (Live), your location is broadcast to peers.
-- **Recenter**: Tap the GPS icon to snap back to your location.
+### How to Use "Struggle" Mode
+1.  **Access:** Tap the orange **S.O.S Button** (Life Ring icon) on the bottom left of the Map.
+2.  **Signal:** Select the subject you are struggling with and your confidence level (e.g., "Helping" vs "Needing Help").
+3.  **Broadcast:** This broadcasts a **Struggle Signal** to nearby users.
+4.  **Connect:** If a match is found (e.g., someone nearby can help with Calculus), you will receive a notification to connect.
 
-### Filters (Dynamic)
-Tap the Filter icon to customize your view:
-- **People**: Toggle visibility of **Tutors**, **Students**, or **Classmates** (peers in your specific courses).
-- **Subjects**: Filter users by specific courses (e.g., "CS", "MATH").
-- **Min Rating**: Use the slider to filter Tutors by their average star rating (e.g., show only 4.5+ stars).
+### Ghost Mode vs. Study Mode
+-   **Live (Study) Mode:** You are visible on the map to selected peers. Your location updates in real-time.
+-   **Ghost Mode:** You are invisible. You cannot see others live, and they cannot see you. Enable this via the Eye icon on the Map.
 
-### Study Spots
-Spots are color-coded for quick identification:
-- **Verified Spots (Gold)**: Official campus locations (libraries, labs) with verified amenities.
-- **Public Spots (Purple/White)**: Community-added spots (cafes, parks). Purple in Light Mode, White in Dark Mode.
+## New Design: Liquid Glass
+The app now features a modern, translucent design optimized for both Light and Dark modes.
+-   **Glass Drawers:** Profile and details sheets now use a blur effect.
+-   **Interactive Elements:** Buttons and cards react with haptic feedback and dynamic scaling.
 
-## 💰 Wallet & Payments
-- **My Wallet**: Access via Profile > Wallet.
-- **Add Funds**: securely add funds to your wallet to pay for tutoring sessions.
-- **Transactions**: View your complete history of deposits and payments.
-- **Safety**: Funds are held securely until the session is completed.
+## Functional Guide
 
-## 💬 Chat & Social
-### Connecting
-1. Tap a user on the map to view their profile.
-2. Tap **Connect** to send a request.
-3. Once accepted, you can start chatting.
+### Map Interface
+-   **Search This Area:** If you move the map, tap "Search This Area" at the top to find spots in the new location.
+-   **Filters:** Tap the Filter icon to toggle:
+    -   Tutors vs. Students
+    -   Subjects (e.g., Math, Science)
+    -   Verified vs. Public Spots
+-   **Recenter:** Tap the target icon (bottom right) to snap back to your location.
 
-### Messaging Features
-- **Real-time Chat**: Instant messaging with peers.
-- **Typing Indicators**: See when the other person is typing in real-time.
-- **Image Sharing**: Share photos (notes, whiteboards) directly in chat.
-- **Read Receipts**: Visual feedback via checkmarks (Cyan double-check indicates message read).
-- **Smart Deletion**: Deleting messages or conversations syncs across all your devices instantly.
-- **Reporting**: Long-press a message or use the chat menu to report inappropriate behavior.
+### Chat & Collaboration
+-   **Real-time Chat:** Send messages, images, and voice notes.
+-   **Read Receipts:** See when your messages are read (double checkmark).
+-   **Requests:** When you tap a user on the map, you can send a "Collab Request". If accepted, a chat opens.
 
-### Notifications
-- **Bell Icon**: Shows system alerts (Booking requests, Announcements).
-- **Chat Icon**: Shows unread message counts.
-- **Badges**: Look for Red (System) and Cyan (Chat) badges on the map screen.
-- **Push Notifications**: Receive alerts for new messages and collaboration requests even when the app is closed.
+## Testing & Verification
+To test the new features:
+1.  **Open Map:** Ensure you are in "Live Mode" (Eye icon open).
+2.  **Crate Signal:** Tap the SOS button and create a signal for "Intro to CS".
+3.  **Verify UI:** Check that the bottom sheet has the new "Glass" translucency.
+4.  **Ghost Toggle:** Turn on Ghost Mode and verify your avatar disappears.
 
-## 📅 Scheduling & Reviews
-### Booking a Tutor
-1. Find a Tutor on the map or via search.
-2. Tap **Book Session**.
-3. Select a time and duration. The cost is calculated based on the tutor's hourly rate.
-4. **My Schedule**: View upcoming sessions and past history in your Profile.
-
-### Reviews & Reputation
-- **Leave Reviews**: Rate sessions to help the community.
-- **My Reviews**: View all reviews you've **Given** and **Received** in Settings > My Reviews.
-- **Replies**: Tutors can reply to reviews to provide context or thanks.
-
-## ✅ Tutor Verification
-- **Verified Badge**: Look for the blue checkmark on tutor profiles.
-- **Become Verified**: Tutors can upload ID or Certificates in **Profile** > **Verification** to earn the verified badge.
-- **Status Tracking**: Track your verification status (Pending, Verified, Rejected) directly on your profile.
-
-## ⚙️ Settings & Customization
-- **Appearance**: Choose **Light**, **Dark**, or **System** theme. Map markers automatically adjust.
-- **Education**: Update your University and Enrolled Courses.
-- **Legal**: View Terms of Service and Privacy Policy.
-- **Ghost Mode**: Hide your location completely.
-
-## 🛡️ Admin Portal (Authorized Users)
-- **Dashboard**: View high-level platform stats.
-- **Moderation**: Manage reports and ban users.
-- **Verification**: Review and approve/reject tutor documents.
-- **Support**: Reply to user tickets and initiate chats.
-- **Ledger**: View platform-wide transaction history.
-
----
-*Nerd Herd v1.1.0 - Built with Flutter & Riverpod*
+## Troubleshooting
+-   **Location Issues:** Ensure "While In Use" permissions are granted.
+-   **Notifications:** Check your system settings to allow Nerd Herd notifications.

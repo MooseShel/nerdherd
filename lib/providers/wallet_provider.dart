@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'auth_provider.dart';
 
 part 'wallet_provider.g.dart';
 
 @Riverpod(keepAlive: true)
-Stream<double> walletBalance(WalletBalanceRef ref) {
+Stream<double> walletBalance(Ref ref) {
   final supabase = ref.watch(supabaseClientProvider);
   final user = ref.watch(authStateProvider).value;
 

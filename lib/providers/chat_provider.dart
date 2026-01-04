@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/chat_service.dart';
 import 'auth_provider.dart';
@@ -7,7 +8,7 @@ import 'auth_provider.dart';
 part 'chat_provider.g.dart';
 
 @Riverpod(keepAlive: true)
-ChatService chatService(ChatServiceRef ref) {
+ChatService chatService(Ref ref) {
   final supabase = ref.watch(supabaseClientProvider);
   return ChatService(supabase);
 }
@@ -110,7 +111,7 @@ class ChatNotifier extends _$ChatNotifier {
 
 // Typing Status Provider (Simple Stream)
 @Riverpod(keepAlive: true)
-Stream<bool> typingStatus(TypingStatusRef ref, String otherUserId) {
+Stream<bool> typingStatus(Ref ref, String otherUserId) {
   final service = ref.watch(chatServiceProvider);
   final myId = ref.watch(authStateProvider).value?.id;
   if (myId == null) return const Stream.empty();

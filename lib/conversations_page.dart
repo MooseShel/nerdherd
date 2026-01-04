@@ -194,10 +194,11 @@ class _ConversationsPageState extends State<ConversationsPage> {
                             color: theme.cardTheme.color,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                                color: theme.dividerColor.withOpacity(0.1)),
+                                color:
+                                    theme.dividerColor.withValues(alpha: 0.1)),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
+                                color: Colors.black.withValues(alpha: 0.05),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               )
@@ -208,7 +209,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
                           leading: CircleAvatar(
                             radius: 24,
                             backgroundColor:
-                                theme.dividerColor.withOpacity(0.1),
+                                theme.dividerColor.withValues(alpha: 0.1),
                             backgroundImage: avatarUrl != null
                                 ? NetworkImage(avatarUrl)
                                 : null,
@@ -237,7 +238,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
                                   color: unread > 0
                                       ? theme.textTheme.bodyMedium?.color
                                       : theme.textTheme.bodyMedium?.color
-                                          ?.withOpacity(0.7),
+                                          ?.withValues(alpha: 0.7),
                                   fontWeight: unread > 0
                                       ? FontWeight.bold
                                       : FontWeight.normal,

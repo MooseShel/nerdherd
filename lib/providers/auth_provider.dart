@@ -2,13 +2,14 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/notification_service.dart'; // Add this
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/logger_service.dart';
 
 part 'auth_provider.g.dart';
 
 // 1. Expose the Supabase Client as a Provider
 @Riverpod(keepAlive: true)
-SupabaseClient supabaseClient(SupabaseClientRef ref) {
+SupabaseClient supabaseClient(Ref ref) {
   return Supabase.instance.client;
 }
 

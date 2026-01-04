@@ -22,6 +22,7 @@ import 'models/study_spot.dart'; // NEW
 import 'providers/user_profile_provider.dart'; // NEW
 import 'providers/university_provider.dart'; // NEW
 import 'widgets/study_spot_details_sheet.dart'; // NEW
+import 'pages/serendipity/struggle_status_widget.dart'; // Serendipity Engine
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nerd_herd/providers/map_provider.dart';
@@ -38,7 +39,7 @@ class MapPage extends ConsumerStatefulWidget {
 }
 
 class _MapPageState extends ConsumerState<MapPage> {
-  MaplibreMapController? mapController;
+  MapLibreMapController? mapController;
   final supabase = Supabase.instance.client;
 
   // Ah, lines 188 uses `placesService`. It is likely a global or imported from `services/places_service.dart`.
@@ -519,7 +520,7 @@ class _MapPageState extends ConsumerState<MapPage> {
 
   bool _isStyleLoaded = false; // Guard for Annotation Manager
 
-  void _onMapCreated(MaplibreMapController controller) async {
+  void _onMapCreated(MapLibreMapController controller) async {
     mapController = controller;
     controller.onCircleTapped.add(_onCircleTapped);
     controller.onSymbolTapped.add(_onSymbolTapped);
@@ -597,7 +598,7 @@ class _MapPageState extends ConsumerState<MapPage> {
       builder: (context) {
         final theme = Theme.of(context);
         return AlertDialog(
-          backgroundColor: theme.dialogBackgroundColor,
+          backgroundColor: theme.dialogTheme.backgroundColor,
           title: Text("Collab Request", style: theme.textTheme.titleLarge),
           content: Text(
             "$senderName wants to collaborate!",
@@ -783,6 +784,7 @@ class _MapPageState extends ConsumerState<MapPage> {
 
       // 0. Draw Study Spots (Bottom Layer)
       // Determine theme for marker colors
+      if (!mounted) return;
       final isDark = Theme.of(context).brightness == Brightness.dark;
 
       // Sort: Sponsored LAST to render on top
@@ -1143,7 +1145,7 @@ class _MapPageState extends ConsumerState<MapPage> {
     final availableSubjectsAsync = ref.watch(availableSubjectsProvider);
 
     // Listen to Ghost Mode changes
-    ref.listen<AsyncValue<bool>>(ghostModeProvider, (prev, next) {
+    ref.listen<AsyncValue<bool>>(ghostModeProvider, (prev, next) async {
       final wasGhost = prev?.value ?? false; // Default false (Visible)
       final isGhost = next.value ?? false;
 
@@ -1151,22 +1153,23 @@ class _MapPageState extends ConsumerState<MapPage> {
       if (wasGhost != isGhost) {
         if (isGhost) {
           logger.debug("👻 Ghost Mode Enabled: Clearing location and presence");
+          final messenger = ScaffoldMessenger.of(context);
 
-          // Execute with error handling
-          _goGhost().catchError((e) {
+          try {
+            await _goGhost();
+            _updatePresenceTracking();
+          } catch (e) {
             logger.error("Failed to go ghost, reverting UI", error: e);
             // Revert user-visible state
             ref.read(ghostModeProvider.notifier).setGhostMode(false);
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.showSnackBar(
                 SnackBar(
                     content: Text("Failed to enable Ghost Mode: $e"),
                     backgroundColor: Colors.red),
               );
             }
-          });
-
-          _updatePresenceTracking();
+          }
         } else {
           logger.debug("👻 Ghost Mode Disabled: Broadcasting location");
           // Becoming visible
@@ -1185,7 +1188,7 @@ class _MapPageState extends ConsumerState<MapPage> {
         children: [
           // ... MapLibreMap ...
           if (_initialPosition != null)
-            MaplibreMap(
+            MapLibreMap(
               onMapCreated: _onMapCreated,
               initialCameraPosition: _initialPosition!,
               styleString: isDark ? _darkMapStyle : _lightMapStyle,
@@ -1300,6 +1303,13 @@ class _MapPageState extends ConsumerState<MapPage> {
                   color: isDark ? Colors.white : Colors.black87),
               tooltip: "Recenter",
             ),
+          ),
+
+          // Serendipity SOS Button (Bottom Left)
+          Positioned(
+            bottom: 40,
+            left: 20,
+            child: StruggleStatusWidget(currentLocation: _currentLocation),
           ),
 
           // "Simulate Bot" Button (Top Left - DEV ONLY)

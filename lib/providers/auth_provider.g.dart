@@ -23,7 +23,7 @@ final supabaseClientProvider = Provider<SupabaseClient>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef SupabaseClientRef = ProviderRef<SupabaseClient>;
-String _$authStateHash() => r'a04533344c6c594d563d26fd0f062151730527f8';
+String _$authStateHash() => r'3d74545306dc46c71fd17d7be00186845380d282';
 
 /// See also [AuthState].
 @ProviderFor(AuthState)

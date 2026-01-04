@@ -14,6 +14,7 @@ class AppTheme {
 
   static const Color _errorSystem = Color(0xFFFF453A); // iOS Red
   static const Color _successSystem = Color(0xFF32D74B); // iOS Green
+  static const Color serendipityOrange = Color(0xFFFF6B00); // Safety Orange
 
   static ThemeData get darkTheme {
     return ThemeData(

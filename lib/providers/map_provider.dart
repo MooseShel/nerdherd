@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/study_spot.dart';
 import '../models/user_profile.dart';
@@ -11,14 +12,14 @@ part 'map_provider.g.dart';
 
 // 1. Map Service Provider
 @Riverpod(keepAlive: true)
-MapService mapService(MapServiceRef ref) {
+MapService mapService(Ref ref) {
   final supabase = ref.watch(supabaseClientProvider);
   return MapService(supabase);
 }
 
 // 2. User Location Provider (Stream)
 @Riverpod(keepAlive: true)
-Stream<LatLng> userLocation(UserLocationRef ref) async* {
+Stream<LatLng> userLocation(Ref ref) async* {
   bool serviceEnabled;
   LocationPermission permission;
 
@@ -80,7 +81,7 @@ class StudySpots extends _$StudySpots {
 
 // 4. Peers Provider
 @Riverpod(keepAlive: true)
-Stream<List<UserProfile>> peers(PeersRef ref) {
+Stream<List<UserProfile>> peers(Ref ref) {
   final service = ref.watch(mapServiceProvider);
   return service.getPeersStream();
 }

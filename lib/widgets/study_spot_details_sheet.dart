@@ -126,7 +126,7 @@ class StudySpotDetailsSheet extends ConsumerWidget {
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                  color: Colors.amber.withOpacity(0.4),
+                                  color: Colors.amber.withValues(alpha: 0.4),
                                   blurRadius: 8)
                             ]),
                         child: const Row(

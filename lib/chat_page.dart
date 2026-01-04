@@ -477,7 +477,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                                               width: 200,
                                               height: 150,
                                               color: colorScheme.surface
-                                                  .withOpacity(0.1),
+                                                  .withValues(alpha: 0.1),
                                               child: const Center(
                                                   child:
                                                       CircularProgressIndicator()),
@@ -513,7 +513,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                                               color: isMine
                                                   ? colorScheme
                                                       .onPrimaryContainer
-                                                      .withOpacity(0.6)
+                                                      .withValues(alpha: 0.6)
                                                   : colorScheme
                                                       .onSurfaceVariant,
                                               fontSize: 11,
@@ -529,7 +529,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                                               color: readAt != null
                                                   ? Colors.cyanAccent
                                                   : colorScheme.onPrimary
-                                                      .withOpacity(0.6),
+                                                      .withValues(alpha: 0.6),
                                             ),
                                           ],
                                         ],
@@ -647,7 +647,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               decoration: BoxDecoration(
                 color: theme.scaffoldBackgroundColor, // or surface logic
                 border: Border(
-                  top: BorderSide(color: theme.dividerColor.withOpacity(0.1)),
+                  top: BorderSide(
+                      color: theme.dividerColor.withValues(alpha: 0.1)),
                 ),
               ),
               child: Column(

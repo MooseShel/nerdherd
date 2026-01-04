@@ -130,7 +130,7 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
       // Refresh
       _fetchMySpots();
       // Also refresh wallet
-      ref.refresh(myProfileProvider);
+      ref.invalidate(myProfileProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -172,7 +172,8 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
               await _supabase.from('study_spots').update({
                 'promotional_text': controller.text,
               }).eq('id', spot.id);
-              if (mounted) Navigator.pop(ctx);
+              if (!context.mounted) return;
+              Navigator.pop(ctx);
               _fetchMySpots();
             },
             child: const Text("Save"),
@@ -391,7 +392,7 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
                               true, // Auto-verified for business owners
                         });
 
-                        if (mounted) {
+                        if (context.mounted) {
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -419,7 +420,8 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
     return Expanded(
       child: Column(
         children: [
-          Icon(icon, color: theme.iconTheme.color?.withOpacity(0.5), size: 24),
+          Icon(icon,
+              color: theme.iconTheme.color?.withValues(alpha: 0.5), size: 24),
           const SizedBox(height: 8),
           Text(
             value,
@@ -430,7 +432,7 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
           Text(
             label,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.textTheme.bodySmall?.color?.withOpacity(0.5),
+              color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.5),
             ),
           ),
         ],
@@ -480,14 +482,14 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
+                            color: Colors.black.withValues(alpha: 0.1),
                             blurRadius: 20,
                             spreadRadius: 0,
                             offset: const Offset(0, 4),
                           ),
                         ],
                         border: Border.all(
-                          color: theme.dividerColor.withOpacity(0.05),
+                          color: theme.dividerColor.withValues(alpha: 0.05),
                         ),
                       ),
                       clipBehavior: Clip.antiAlias,
@@ -525,7 +527,7 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
                                             Icons.store_mall_directory_rounded,
                                             size: 64,
                                             color: theme.iconTheme.color
-                                                ?.withOpacity(0.2),
+                                                ?.withValues(alpha: 0.2),
                                           ),
                                         ),
                                 ),
@@ -538,7 +540,7 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
                                         end: Alignment.bottomCenter,
                                         colors: [
                                           Colors.transparent,
-                                          Colors.black.withOpacity(0.7),
+                                          Colors.black.withValues(alpha: 0.7),
                                         ],
                                         stops: const [0.6, 1.0],
                                       ),
@@ -550,7 +552,7 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
                                   top: 12,
                                   right: 12,
                                   child: Material(
-                                    color: Colors.black.withOpacity(0.4),
+                                    color: Colors.black.withValues(alpha: 0.4),
                                     borderRadius: BorderRadius.circular(30),
                                     child: InkWell(
                                       borderRadius: BorderRadius.circular(30),
@@ -594,7 +596,8 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
                                       borderRadius: BorderRadius.circular(12),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withOpacity(0.2),
+                                          color: Colors.black
+                                              .withValues(alpha: 0.2),
                                           blurRadius: 8,
                                           offset: const Offset(0, 2),
                                         ),
@@ -649,7 +652,8 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
                                       Text(
                                         spot.type.toUpperCase(),
                                         style: TextStyle(
-                                          color: Colors.white.withOpacity(0.8),
+                                          color: Colors.white
+                                              .withValues(alpha: 0.8),
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
                                           letterSpacing: 1.0,
@@ -674,11 +678,11 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
                                       color: theme.colorScheme.primary
-                                          .withOpacity(0.05),
+                                          .withValues(alpha: 0.05),
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
                                         color: theme.colorScheme.primary
-                                            .withOpacity(0.1),
+                                            .withValues(alpha: 0.1),
                                       ),
                                     ),
                                     child: Row(

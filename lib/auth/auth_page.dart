@@ -89,9 +89,9 @@ class _AuthPageState extends State<AuthPage> {
 
     return Container(
       decoration: BoxDecoration(
-        color: theme.cardColor.withOpacity(0.5),
+        color: theme.cardColor.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
       ),
       child: TextField(
         controller: controller,
@@ -100,11 +100,11 @@ class _AuthPageState extends State<AuthPage> {
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(
-              color: theme.textTheme.bodyMedium?.color?.withOpacity(0.5),
+              color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
               fontSize: 13,
               fontWeight: FontWeight.bold),
-          prefixIcon:
-              Icon(icon, color: theme.primaryColor.withOpacity(0.8), size: 20),
+          prefixIcon: Icon(icon,
+              color: theme.primaryColor.withValues(alpha: 0.8), size: 20),
           border: InputBorder.none,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -132,7 +132,7 @@ class _AuthPageState extends State<AuthPage> {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: theme.primaryColor.withOpacity(0.2),
+                      color: theme.primaryColor.withValues(alpha: 0.2),
                       blurRadius: 40,
                       spreadRadius: 10,
                     )
@@ -156,7 +156,8 @@ class _AuthPageState extends State<AuthPage> {
               Text(
                 'Academic velocity.',
                 style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.textTheme.bodyLarge?.color?.withOpacity(0.5),
+                  color:
+                      theme.textTheme.bodyLarge?.color?.withValues(alpha: 0.5),
                   letterSpacing: 0.5,
                 ),
               ),
@@ -171,8 +172,8 @@ class _AuthPageState extends State<AuthPage> {
                     padding: const EdgeInsets.all(32),
                     decoration: BoxDecoration(
                       color: isDark
-                          ? Colors.white.withOpacity(0.05)
-                          : Colors.black.withOpacity(0.03),
+                          ? Colors.white.withValues(alpha: 0.05)
+                          : Colors.black.withValues(alpha: 0.03),
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(
                         color: isDark ? Colors.white10 : Colors.black12,
@@ -232,10 +233,11 @@ class _AuthPageState extends State<AuthPage> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 4),
                             decoration: BoxDecoration(
-                              color: theme.cardColor.withOpacity(0.5),
+                              color: theme.cardColor.withValues(alpha: 0.5),
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                  color: theme.dividerColor.withOpacity(0.1)),
+                                  color: theme.dividerColor
+                                      .withValues(alpha: 0.1)),
                             ),
                             child: DropdownButtonHideUnderline(
                               child: DropdownButton<String>(

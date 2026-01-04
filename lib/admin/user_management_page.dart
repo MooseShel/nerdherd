@@ -88,10 +88,11 @@ class _UserManagementPageState extends State<UserManagementPage> {
             style: theme.textTheme.bodyMedium,
             decoration: InputDecoration(
               prefixIcon: Icon(Icons.search,
-                  color: theme.iconTheme.color?.withOpacity(0.5)),
+                  color: theme.iconTheme.color?.withValues(alpha: 0.5)),
               hintText: 'Search users...',
               hintStyle: TextStyle(
-                  color: theme.textTheme.bodyMedium?.color?.withOpacity(0.5)),
+                  color: theme.textTheme.bodyMedium?.color
+                      ?.withValues(alpha: 0.5)),
               filled: true,
               fillColor: theme.cardTheme.color,
               border: OutlineInputBorder(
@@ -119,7 +120,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
                             color: theme.cardTheme.color,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                                color: theme.dividerColor.withOpacity(0.1)),
+                                color:
+                                    theme.dividerColor.withValues(alpha: 0.1)),
                           ),
                           child: ListTile(
                             onTap: () => _showUserDetails(user),

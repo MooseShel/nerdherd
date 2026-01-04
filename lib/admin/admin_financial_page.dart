@@ -127,7 +127,7 @@ class _AdminFinancialPageState extends State<AdminFinancialPage> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: theme.primaryColor.withOpacity(0.1),
+                            color: theme.primaryColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
@@ -150,7 +150,7 @@ class _AdminFinancialPageState extends State<AdminFinancialPage> {
                               LinearProgressIndicator(
                                 value: percentage,
                                 backgroundColor:
-                                    theme.dividerColor.withOpacity(0.1),
+                                    theme.dividerColor.withValues(alpha: 0.1),
                                 valueColor: AlwaysStoppedAnimation<Color>(
                                     theme.primaryColor),
                                 borderRadius: BorderRadius.circular(2),
@@ -187,10 +187,10 @@ class _AdminFinancialPageState extends State<AdminFinancialPage> {
       decoration: BoxDecoration(
         color: theme.cardTheme.color,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.05)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           )
@@ -218,7 +218,8 @@ class _AdminFinancialPageState extends State<AdminFinancialPage> {
               subtitle,
               style: TextStyle(
                   fontSize: 12,
-                  color: theme.textTheme.bodySmall?.color?.withOpacity(0.7)),
+                  color:
+                      theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7)),
             ),
           ]
         ],
@@ -231,10 +232,10 @@ class _AdminFinancialPageState extends State<AdminFinancialPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color?.withOpacity(0.5),
+        color: Theme.of(context).cardTheme.color?.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Theme.of(context).dividerColor.withOpacity(0.1),
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
           width: 1,
         ),
       ),

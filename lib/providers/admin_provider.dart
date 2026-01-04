@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'auth_provider.dart';
 import '../models/transaction.dart';
@@ -48,7 +49,7 @@ class TimeSeriesData {
 
 // 1. Admin Stats Provider
 @Riverpod(keepAlive: true)
-Future<AdminStats> adminStats(AdminStatsRef ref) async {
+Future<AdminStats> adminStats(Ref ref) async {
   final supabase = ref.watch(supabaseClientProvider);
 
   // Fetch complex stats via RPC
@@ -103,7 +104,7 @@ class Ledger extends _$Ledger {
 
 // 3. Support Tickets Provider (Realtime Stream)
 @Riverpod(keepAlive: true)
-Stream<List<SupportTicket>> supportTickets(SupportTicketsRef ref) {
+Stream<List<SupportTicket>> supportTickets(Ref ref) {
   final supabase = ref.watch(supabaseClientProvider);
 
   // Fetch initial data + Subscribe

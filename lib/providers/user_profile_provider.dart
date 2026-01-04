@@ -25,3 +25,16 @@ Stream<UserProfile?> myProfile(Ref ref) {
         return UserProfile.fromJson(data.first);
       });
 }
+
+@Riverpod(keepAlive: true)
+Future<UserProfile?> profile(Ref ref, String userId) async {
+  final supabase = ref.watch(supabaseClientProvider);
+  final data = await supabase
+      .from('profiles')
+      .select()
+      .eq('user_id', userId)
+      .maybeSingle();
+
+  if (data == null) return null;
+  return UserProfile.fromJson(data);
+}

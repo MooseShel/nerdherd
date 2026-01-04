@@ -155,7 +155,8 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                           side: BorderSide(
-                              color: theme.dividerColor.withOpacity(0.1))),
+                              color:
+                                  theme.dividerColor.withValues(alpha: 0.1))),
                       child: ListTile(
                         title: Text(item.title,
                             style: theme.textTheme.titleMedium
@@ -183,7 +184,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                                 label: const Text('Ended',
                                     style: TextStyle(fontSize: 10)),
                                 backgroundColor:
-                                    theme.disabledColor.withOpacity(0.1),
+                                    theme.disabledColor.withValues(alpha: 0.1),
                               ),
                       ),
                     );

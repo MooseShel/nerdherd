@@ -108,7 +108,7 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                       dotData: const FlDotData(show: true),
                       belowBarData: BarAreaData(
                         show: true,
-                        color: Colors.blueAccent.withOpacity(0.2),
+                        color: Colors.blueAccent.withValues(alpha: 0.2),
                       ),
                     ),
                   ],
@@ -185,10 +185,10 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
       decoration: BoxDecoration(
         color: theme.cardTheme.color,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           )
@@ -212,7 +212,7 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                 ],
               ),
               Icon(Icons.analytics_outlined,
-                  color: theme.primaryColor.withOpacity(0.5)),
+                  color: theme.primaryColor.withValues(alpha: 0.5)),
             ],
           ),
           const SizedBox(height: 24),

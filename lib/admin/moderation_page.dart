@@ -137,7 +137,8 @@ class _ModerationPageState extends ConsumerState<ModerationPage> {
           margin: const EdgeInsets.only(bottom: 12),
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: theme.dividerColor.withOpacity(0.1))),
+              side:
+                  BorderSide(color: theme.dividerColor.withValues(alpha: 0.1))),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(

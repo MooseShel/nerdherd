@@ -1,4 +1,5 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/payment_service.dart';
 import 'auth_provider.dart';
 import '../models/transaction.dart';
@@ -6,13 +7,13 @@ import '../models/transaction.dart';
 part 'payment_provider.g.dart';
 
 @Riverpod(keepAlive: true)
-PaymentService paymentService(PaymentServiceRef ref) {
+PaymentService paymentService(Ref ref) {
   final supabase = ref.watch(supabaseClientProvider);
   return PaymentService(supabase);
 }
 
 @Riverpod(keepAlive: true)
-Future<List<Transaction>> paymentHistory(PaymentHistoryRef ref) async {
+Future<List<Transaction>> paymentHistory(Ref ref) async {
   final service = ref.watch(paymentServiceProvider);
   // We should also watch authState to refetch on user change, but service fetches current user anyway.
   final authState = ref.watch(authStateProvider);
