@@ -7,14 +7,16 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nerd_herd/main.dart';
 import 'package:nerd_herd/services/logger_service.dart';
 import 'package:logger/logger.dart';
 import 'package:nerd_herd/providers/auth_provider.dart' as app_auth;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 import 'unit/providers/auth_provider_test.mocks.dart';
 import 'package:mockito/mockito.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:nerd_herd/main.dart';
 
 class SilentOutput extends LogOutput {
   @override
@@ -27,7 +29,8 @@ void main() {
 
   setUpAll(() async {
     logger.initialize(output: SilentOutput());
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'theme_mode': 'light'});
+    dotenv.testLoad(fileInput: 'DEBUG=false');
 
     // Initialize dummy Supabase to prevent static access crash in NotificationService
     await supabase.Supabase.initialize(
@@ -43,9 +46,9 @@ void main() {
         const supabase.AuthState(supabase.AuthChangeEvent.signedOut, null)));
   });
 
-  testWidgets('App smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    // Build our app and trigger a frame.
+  testWidgets('AuthGate smoke test', (WidgetTester tester) async {
+    // Override providers if necessary
+
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -55,14 +58,11 @@ void main() {
       ),
     );
 
-    // Allow FutureBuilder/Streams to settle
     await tester.pumpAndSettle();
 
-    // Verify that the app builds.
-    // Since Supabase is not initialized in tests, AuthGate catches the error and shows AuthPage.
-    // We expect the AuthPage content:
+    // With signedOut state (mocked in setUpAll), we expect AuthPage
+    // AuthPage typically has a "Log In" or "Sign Up" text or a logo.
     expect(find.text('Nerd Herd'), findsOneWidget);
-    // Button text
     expect(find.text('Log In'), findsOneWidget);
   });
 }

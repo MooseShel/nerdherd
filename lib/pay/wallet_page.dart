@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/payment_provider.dart';
 import '../models/transaction.dart';
 import '../widgets/ui_components.dart';
+import 'package:intl/intl.dart';
 
 class WalletPage extends ConsumerStatefulWidget {
   const WalletPage({super.key});
@@ -17,7 +18,7 @@ class _WalletPageState extends ConsumerState<WalletPage> {
 
   Stream<List<Transaction>>? _transactionsStream;
   Stream<Map<String, dynamic>>? _balanceStream;
-  bool _isProcessingAudio = false;
+  bool _isProcessingPayment = false;
 
   @override
   void initState() {
@@ -90,18 +91,18 @@ class _WalletPageState extends ConsumerState<WalletPage> {
               Navigator.pop(context);
 
               try {
-                setState(() => _isProcessingAudio = true);
+                setState(() => _isProcessingPayment = true);
 
                 // Use Provider
                 await ref.read(paymentServiceProvider).deposit(amount);
 
                 if (!context.mounted) return;
 
-                setState(() => _isProcessingAudio = false);
+                setState(() => _isProcessingPayment = false);
                 showSuccessSnackBar(context, 'Successfully added \$$amount');
               } catch (e) {
                 if (!context.mounted) return;
-                setState(() => _isProcessingAudio = false);
+                setState(() => _isProcessingPayment = false);
                 showErrorSnackBar(context, e.toString());
               }
             },
@@ -157,18 +158,18 @@ class _WalletPageState extends ConsumerState<WalletPage> {
               Navigator.pop(context);
 
               try {
-                setState(() => _isProcessingAudio = true);
+                setState(() => _isProcessingPayment = true);
 
                 // Use Provider
                 await ref.read(paymentServiceProvider).withdraw(amount);
 
                 if (!context.mounted) return;
 
-                setState(() => _isProcessingAudio = false);
+                setState(() => _isProcessingPayment = false);
                 showSuccessSnackBar(context, 'Withdrawal initiated: \$$amount');
               } catch (e) {
                 if (!context.mounted) return;
-                setState(() => _isProcessingAudio = false);
+                setState(() => _isProcessingPayment = false);
                 showErrorSnackBar(context, e.toString());
               }
             },
@@ -260,7 +261,7 @@ class _WalletPageState extends ConsumerState<WalletPage> {
           );
         },
       ),
-      bottomSheet: _isProcessingAudio
+      bottomSheet: _isProcessingPayment
           ? Container(
               color: Colors.black54,
               height: 80,
@@ -402,7 +403,7 @@ class _WalletPageState extends ConsumerState<WalletPage> {
                       ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  t.createdAt.toString().split('.')[0], // Simple cleanup
+                  DateFormat('MMM d, y • h:mm a').format(t.createdAt),
                   style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.textTheme.bodySmall?.color
                           ?.withValues(alpha: 0.5)),

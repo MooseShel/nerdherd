@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart'; // NEW
+import 'dart:io'; // For File
 import '../models/study_spot.dart';
 import '../providers/user_profile_provider.dart';
 
@@ -261,14 +262,7 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
                       borderRadius: BorderRadius.circular(12),
                       image: _selectedImage != null
                           ? DecorationImage(
-                              image: NetworkImage(_selectedImage!
-                                  .path), // Works for web/some platforms
-                              // Note: On mobile use FileImage(File(_selectedImage!.path)).
-                              // Since we use CrossPlatform generic approach, consider:
-                              // image: kIsWeb ? NetworkImage(...) : FileImage(...)
-                              // For MVP simplify or use a bytes provider if needed.
-                              // Actually for XFile on mobile we need File.
-                              // But we imported image_picker which gives XFile.
+                              image: FileImage(File(_selectedImage!.path)),
                               fit: BoxFit.cover,
                             )
                           : null,
