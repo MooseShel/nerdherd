@@ -12,6 +12,7 @@ class SerendipityService {
   final _supabase = Supabase.instance.client;
 
   /// Create a new struggle signal
+  /// Automatically cancels any existing active signal for the user
   Future<StruggleSignal?> createStruggleSignal({
     required String subject,
     String? topic,
@@ -25,6 +26,9 @@ class SerendipityService {
         return null;
       }
 
+      // Auto-cancel any existing active signal
+      await cancelActiveSignal();
+
       final data = await _supabase
           .from('struggle_signals')
           .insert({
@@ -33,7 +37,12 @@ class SerendipityService {
             'topic': topic,
             'confidence_level': confidenceLevel,
             'location': 'POINT(${location.longitude} ${location.latitude})',
-            // created_at and expires_at are set by database defaults
+            'expires_at': DateTime.now()
+                .toUtc()
+                .add(const Duration(hours: 1))
+                .toIso8601String(),
+            'created_at': DateTime.now().toUtc().toIso8601String(),
+            'is_active': true,
           })
           .select()
           .single();
@@ -54,7 +63,8 @@ class SerendipityService {
           .from('struggle_signals')
           .select()
           .eq('user_id', userId)
-          .gt('expires_at', DateTime.now().toIso8601String())
+          .eq('is_active', true)
+          .gt('expires_at', DateTime.now().toUtc().toIso8601String())
           .order('created_at', ascending: false);
 
       return data.map((json) => StruggleSignal.fromJson(json)).toList();
@@ -81,13 +91,43 @@ class SerendipityService {
   /// Manually expire a struggle signal
   Future<bool> expireSignal(String signalId) async {
     try {
-      await _supabase.from('struggle_signals').update(
-          {'expires_at': DateTime.now().toIso8601String()}).eq('id', signalId);
+      // Set to epoch to definitely expire it and mark as inactive
+      final epoch =
+          DateTime.fromMillisecondsSinceEpoch(0).toUtc().toIso8601String();
+      await _supabase.from('struggle_signals').update({
+        'expires_at': epoch,
+        'is_active': false,
+      }).eq('id', signalId);
 
       logger.info('Expired struggle signal: $signalId');
       return true;
     } catch (e) {
       logger.error('Error expiring signal $signalId', error: e);
+      return false;
+    }
+  }
+
+  /// Cancel the current user's active struggle signal
+  /// Sets is_active = false without deleting the signal (for analytics)
+  Future<bool> cancelActiveSignal() async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) return false;
+
+      final response = await _supabase
+          .from('struggle_signals')
+          .update({'is_active': false})
+          .eq('user_id', userId)
+          .eq('is_active', true)
+          .select();
+
+      if (response.isNotEmpty) {
+        logger.info(
+            'Canceled ${response.length} active signal(s) for user $userId');
+      }
+      return true;
+    } catch (e) {
+      logger.error('Error canceling active signal', error: e);
       return false;
     }
   }
@@ -106,22 +146,10 @@ class SerendipityService {
   }
 
   /// Check if serendipity is enabled for current user
+  /// NOTE: Serendipity is now always-on, this method kept for backward compatibility
+  @Deprecated('Serendipity is now always enabled')
   Future<bool> isSerendipityEnabled() async {
-    try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return false;
-
-      final data = await _supabase
-          .from('profiles')
-          .select('serendipity_enabled')
-          .eq('user_id', userId)
-          .maybeSingle();
-
-      return data?['serendipity_enabled'] ?? false;
-    } catch (e) {
-      logger.error('Error checking serendipity status', error: e);
-      return false;
-    }
+    return true; // Always enabled
   }
 
   /// Get serendipity radius for current user
@@ -144,8 +172,9 @@ class SerendipityService {
   }
 
   /// Update serendipity settings for current user
+  /// NOTE: 'enabled' parameter is deprecated as Serendipity is now always-on
   Future<bool> updateSettings({
-    bool? enabled,
+    @Deprecated('Serendipity is now always enabled') bool? enabled,
     int? radiusMeters,
   }) async {
     try {
@@ -156,7 +185,7 @@ class SerendipityService {
       }
 
       final updates = <String, dynamic>{};
-      if (enabled != null) updates['serendipity_enabled'] = enabled;
+      // Ignore 'enabled' parameter - Serendipity is always on
       if (radiusMeters != null) {
         updates['serendipity_radius_meters'] = radiusMeters;
       }
@@ -185,7 +214,8 @@ class SerendipityService {
       final query = _supabase
           .from('struggle_signals')
           .select()
-          .gt('expires_at', DateTime.now().toIso8601String());
+          .eq('is_active', true)
+          .gt('expires_at', DateTime.now().toUtc().toIso8601String());
 
       // If we need to exclude current user
       if (excludeUserId != null) {

@@ -178,6 +178,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         'intent_tag': intent,
         'current_classes': classesList,
         'is_tutor': _isTutor,
+        // Serendipity is always-on, no need to save enabled status
         'avatar_url': avatarUrl,
         'bio': _bioController.text.trim(),
         'hourly_rate': _isTutor && _hourlyRateController.text.isNotEmpty
@@ -592,6 +593,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 20),
 
                     if (_isTutor) ...[
                       const SizedBox(height: 20),

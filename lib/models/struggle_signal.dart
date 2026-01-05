@@ -24,7 +24,7 @@ class StruggleSignal {
   });
 
   // Computed property
-  bool get isExpired => DateTime.now().isAfter(expiresAt);
+  bool get isExpired => DateTime.now().toUtc().isAfter(expiresAt.toUtc());
 
   // Get LatLng for map integration
   LatLng get location => LatLng(latitude, longitude);
@@ -32,7 +32,7 @@ class StruggleSignal {
   // Get time remaining until expiration
   Duration get timeRemaining {
     if (isExpired) return Duration.zero;
-    return expiresAt.difference(DateTime.now());
+    return expiresAt.toUtc().difference(DateTime.now().toUtc());
   }
 
   // Get confidence level label

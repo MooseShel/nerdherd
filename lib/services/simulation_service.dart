@@ -8,7 +8,8 @@ class SimulationService {
   /// Generate a list of simulated users around a center point
   List<UserProfile> generateBots({
     required LatLng center,
-    int count = 10,
+    int studentCount = 3,
+    int tutorCount = 3,
     double radiusInMeters = 800, // ~0.5 mile
   }) {
     final List<UserProfile> bots = [];
@@ -20,25 +21,22 @@ class SimulationService {
     studentPool.shuffle(_random);
     tutorPool.shuffle(_random);
 
-    for (int i = 0; i < count; i++) {
-      // Decide if Tutor or Student (30% Tutor)
-      final bool isTutor = _random.nextDouble() < 0.3;
-
-      String name;
-
-      if (isTutor) {
-        if (tutorPool.isEmpty) {
-          tutorPool = List.from(_tutorNames)..shuffle(_random);
-        }
-        name = tutorPool.removeLast();
-      } else {
-        if (studentPool.isEmpty) {
-          studentPool = List.from(_studentNames)..shuffle(_random);
-        }
-        name = studentPool.removeLast();
+    // Generate Students
+    for (int i = 0; i < studentCount; i++) {
+      if (studentPool.isEmpty) {
+        studentPool = List.from(_studentNames)..shuffle(_random);
       }
+      final name = studentPool.removeLast();
+      bots.add(_generateRandomUser(center, radiusInMeters, name, false));
+    }
 
-      bots.add(_generateRandomUser(center, radiusInMeters, name, isTutor));
+    // Generate Tutors
+    for (int i = 0; i < tutorCount; i++) {
+      if (tutorPool.isEmpty) {
+        tutorPool = List.from(_tutorNames)..shuffle(_random);
+      }
+      final name = tutorPool.removeLast();
+      bots.add(_generateRandomUser(center, radiusInMeters, name, true));
     }
 
     return bots;

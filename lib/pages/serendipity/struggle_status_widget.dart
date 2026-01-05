@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:maplibre_gl/maplibre_gl.dart'; // For LatLng
 import 'dart:ui'; // For ImageFilter
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 import '../../providers/serendipity_provider.dart';
 import '../../config/theme.dart';
 import 'match_intro_sheet.dart';
@@ -43,68 +44,138 @@ class _StruggleStatusWidgetState extends ConsumerState<StruggleStatusWidget>
       return;
     }
 
+    debugPrint("🆘 Opening SOS Dialog - Disabling Map");
     ref.read(isModalOpenProvider.notifier).state = true; // DISABLE MAP
 
     final subjectController = TextEditingController();
     int confidence = 3;
+    double radiusMiles = 1.0;
+
+    final List<double> radiusSteps = [0.0, 0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0];
 
     showDialog(
       context: context,
-      barrierDismissible:
-          false, // Prevent accidental dismissal and touch pass-through?
+      barrierDismissible: false,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Describe your struggle'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: subjectController,
-                decoration: const InputDecoration(
-                  labelText: 'Subject / Topic',
-                  hintText: 'e.g. Calculus, pointers in C',
+        builder: (context, setState) {
+          final theme = Theme.of(context);
+          return AlertDialog(
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            title: const Text('Describe your struggle'),
+            content: PointerInterceptor(
+              child: Listener(
+                behavior: HitTestBehavior.opaque,
+                onPointerSignal: (_) {}, // Block scroll wheel leakage
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: subjectController,
+                        decoration: const InputDecoration(
+                          labelText: 'Subject / Topic',
+                          hintText: 'e.g. Calculus, pointers in C',
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text('How stuck are you?',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      Slider(
+                        value: confidence.toDouble(),
+                        min: 1,
+                        max: 5,
+                        divisions: 4,
+                        onChanged: (val) {
+                          setState(() => confidence = val.toInt());
+                        },
+                      ),
+                      Center(
+                        child: Text(_getConfidenceLabel(confidence),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                                color: AppTheme.serendipityOrange,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text('Visibility Radius (Miles)',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      Slider(
+                        value: radiusSteps.indexOf(radiusMiles).toDouble(),
+                        min: 0,
+                        max: (radiusSteps.length - 1).toDouble(),
+                        divisions: radiusSteps.length - 1,
+                        onChanged: (val) {
+                          setState(
+                              () => radiusMiles = radiusSteps[val.toInt()]);
+                        },
+                      ),
+                      Center(
+                        child: Text(
+                          radiusMiles == 0
+                              ? "Invisible to others"
+                              : "${radiusMiles.toStringAsFixed(2)} miles",
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.primaryColor,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 16),
-              const Text('How stuck are you?'),
-              Slider(
-                value: confidence.toDouble(),
-                min: 1,
-                max: 5,
-                divisions: 4,
-                label: _getConfidenceLabel(confidence),
-                onChanged: (val) {
-                  setState(() => confidence = val.toInt());
+            ),
+            actionsAlignment: MainAxisAlignment.end,
+            actions: [
+              TextButton(
+                onPressed: () {
+                  debugPrint("🆘 Closing SOS Dialog - Enabling Map");
+                  ref.read(isModalOpenProvider.notifier).state = false;
+                  Navigator.pop(context);
                 },
+                child: const Text('Cancel'),
               ),
-              Text(_getConfidenceLabel(confidence),
-                  style: Theme.of(context).textTheme.bodySmall),
+              ElevatedButton(
+                onPressed: () async {
+                  debugPrint("🆘 Broadcasting Signal - Enabling Map");
+
+                  // Capture needed values and refers before potential disposal
+                  final meters = (radiusMiles * 1609.34).toInt();
+                  final subject = subjectController.text;
+                  final conf = confidence;
+                  final radiusNotifier =
+                      ref.read(serendipityRadiusProvider.notifier);
+                  final signalNotifier =
+                      ref.read(activeStruggleSignalProvider.notifier);
+                  final modalNotifier = ref.read(isModalOpenProvider.notifier);
+
+                  // Update radius first
+                  radiusNotifier.setRadius(meters);
+
+                  // Create signal
+                  await signalNotifier.createSignal(
+                    subject: subject,
+                    confidenceLevel: conf,
+                    location: widget.currentLocation!,
+                  );
+
+                  modalNotifier.state = false;
+
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.serendipityOrange,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                child: const Text('Broadcast 📡'),
+              ),
             ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                ref.read(isModalOpenProvider.notifier).state =
-                    false; // RE-ENABLE
-                Navigator.pop(context);
-              },
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                ref.read(activeStruggleSignalProvider.notifier).createSignal(
-                      subject: subjectController.text,
-                      confidenceLevel: confidence,
-                      location: widget.currentLocation!,
-                    );
-                ref.read(isModalOpenProvider.notifier).state =
-                    false; // RE-ENABLE
-                Navigator.pop(context);
-              },
-              child: const Text('Broadcast Signal 📡'),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -170,8 +241,11 @@ class _StruggleStatusWidgetState extends ConsumerState<StruggleStatusWidget>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Check for Pending Matches
-    if (matchesState.hasValue && matchesState.value!.isNotEmpty) {
+    // Check for Pending Matches BUT ONLY if a signal is active
+    final signal = signalState.value;
+    if (signal != null &&
+        matchesState.hasValue &&
+        matchesState.value!.isNotEmpty) {
       final matches = matchesState.value!;
       // Show Match Found Button (Gold)
       return _buildGlassButton(

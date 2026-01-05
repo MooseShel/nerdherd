@@ -5,32 +5,13 @@ import '../models/struggle_signal.dart';
 import '../services/serendipity_service.dart';
 import '../services/matching_service.dart';
 import '../models/serendipity_match.dart';
-
-// Provider for serendipity enabled state
-final serendipityEnabledProvider =
-    AsyncNotifierProvider<SerendipityEnabledNotifier, bool>(() {
-  return SerendipityEnabledNotifier();
-});
+import '../services/logger_service.dart';
 
 // Provider for UI state to block map interaction
 final isModalOpenProvider = StateProvider<bool>((ref) => false);
 
-class SerendipityEnabledNotifier extends AsyncNotifier<bool> {
-  @override
-  FutureOr<bool> build() async {
-    return await serendipityService.isSerendipityEnabled();
-  }
-
-  Future<void> setEnabled(bool value) async {
-    state = const AsyncValue.loading();
-    final success = await serendipityService.updateSettings(enabled: value);
-    if (success) {
-      state = AsyncValue.data(value);
-    } else {
-      state = AsyncValue.error('Failed to update settings', StackTrace.current);
-    }
-  }
-}
+// NOTE: serendipityEnabledProvider removed - Serendipity is now always-on
+// Users interact with it only when they create a signal
 
 // Provider for serendipity radius
 final serendipityRadiusProvider =
@@ -67,14 +48,39 @@ class ActiveStruggleSignalNotifier extends AsyncNotifier<StruggleSignal?> {
 
   @override
   FutureOr<StruggleSignal?> build() async {
+    // Serendipity is now always-on, no need to check enabled status
     // Cancel any existing timer
     _expirationTimer?.cancel();
 
+    // 1. Fetch from DB
     final signal = await serendipityService.getCurrentUserActiveSignal();
 
-    // Set up auto-refresh when signal expires
-    if (signal != null && !signal.isExpired) {
+    if (signal != null) {
+      logger.debug(
+          "📡 Found active signal in DB: ${signal.id} - Expires: ${signal.expiresAt}");
+
+      // 2. CLIENT-SIDE FILTER: Ensure we don't return an expired signal due to clock drift
+      if (signal.isExpired) {
+        logger.info(
+            "💡 Signal ${signal.id} is logically expired. Returning null.");
+        return null;
+      }
+
+      // 3. EXTRA SAFETY: If a signal is definitively stale (e.g. > 2 hours old), auto-expire it.
+      // This helps clear out test data from previous builds.
+      final age = DateTime.now().toUtc().difference(signal.createdAt.toUtc());
+      if (age.inHours >= 2) {
+        logger.info(
+            "🗑️ Auto-expiring definitively stale signal: ${signal.id} (Age: ${age.inHours}h)");
+        await serendipityService.expireSignal(signal.id);
+        return null;
+      }
+
+      logger.debug("✅ Signal ${signal.id} is active and valid.");
+      // Set up auto-refresh when signal expires
       _scheduleRefresh(signal.timeRemaining);
+    } else {
+      logger.debug("📡 No active struggle signal found for user.");
     }
 
     return signal;
@@ -116,13 +122,13 @@ class ActiveStruggleSignalNotifier extends AsyncNotifier<StruggleSignal?> {
     if (currentSignal == null) return;
 
     state = const AsyncValue.loading();
-    final success = await serendipityService.expireSignal(currentSignal.id);
+    final success = await serendipityService.cancelActiveSignal();
 
     if (success) {
       state = const AsyncValue.data(null);
       _expirationTimer?.cancel();
     } else {
-      state = AsyncValue.error('Failed to expire signal', StackTrace.current);
+      state = AsyncValue.error('Failed to cancel signal', StackTrace.current);
     }
   }
 

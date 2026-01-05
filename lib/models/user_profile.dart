@@ -67,6 +67,10 @@ class UserProfile {
   /// Current verification status (pending, verified, rejected).
   final String verificationStatus;
 
+  /// Whether Serendipity Engine is enabled.
+  @Deprecated('Serendipity is now always enabled')
+  final bool serendipityEnabled;
+
   UserProfile({
     required this.userId,
     this.universityId,
@@ -90,6 +94,8 @@ class UserProfile {
     this.walletBalance = 0.0,
     this.verificationDocumentUrl,
     this.verificationStatus = 'pending',
+    @Deprecated('Serendipity is now always enabled')
+    this.serendipityEnabled = false,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -133,6 +139,7 @@ class UserProfile {
       walletBalance: (json['wallet_balance'] as num?)?.toDouble() ?? 0.0,
       verificationDocumentUrl: json['verification_document_url'],
       verificationStatus: json['verification_status'] ?? 'pending',
+      serendipityEnabled: json['serendipity_enabled'] ?? false,
     );
   }
 
@@ -156,6 +163,8 @@ class UserProfile {
       'wallet_balance': walletBalance,
       'verification_document_url': verificationDocumentUrl,
       'verification_status': verificationStatus,
+      'serendipity_enabled':
+          serendipityEnabled, // Deprecated but kept for schema compatibility
       if (location != null) 'lat': location!.latitude,
       if (location != null) 'long': location!.longitude,
       'last_updated': DateTime.now().toIso8601String(),

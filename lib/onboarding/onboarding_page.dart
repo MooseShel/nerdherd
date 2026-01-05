@@ -27,7 +27,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       'description':
           'Stuck on a problem? Tap the SOS button to signal your struggle and get matched with peers who can help instantly.',
       'icon': Icons.auto_awesome_rounded,
-      'color': Color(0xFFFF6B00), // Serendipity Orange
+      'color': const Color(0xFFFF6B00), // Serendipity Orange
     },
     {
       'title': 'Ghost Mode',

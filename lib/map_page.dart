@@ -1,7 +1,8 @@
 // ignore: unused_import
 
-import 'dart:ui'; // For ImageFilter
+import 'dart:ui' as ui; // For ImageFilter and Canvas
 import 'dart:async';
+// import 'dart:typed_data'; // Unnecessary
 import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:geolocator/geolocator.dart';
@@ -20,7 +21,6 @@ import 'notifications_page.dart';
 import 'conversations_page.dart'; // NEW
 import 'models/study_spot.dart'; // NEW
 import 'providers/user_profile_provider.dart'; // NEW
-import 'providers/university_provider.dart'; // NEW
 import 'widgets/study_spot_details_sheet.dart'; // NEW
 import 'pages/serendipity/struggle_status_widget.dart'; // Serendipity Engine
 
@@ -28,6 +28,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nerd_herd/providers/map_provider.dart';
 import 'providers/ghost_mode_provider.dart';
 import 'providers/chat_provider.dart';
+import 'providers/serendipity_provider.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 // Services
 
@@ -107,8 +109,6 @@ class _MapPageState extends ConsumerState<MapPage> {
     // _subscribeToMessages(); // REPLACED BY RIVERPOD
     _setupPresence();
     // _fetchStudySpots(); // REMOVED (Riverpod controls)
-    _checkForAnnouncements();
-
     _checkForAnnouncements();
   }
 
@@ -243,40 +243,128 @@ class _MapPageState extends ConsumerState<MapPage> {
     }
   }
 
-  // Helper for verified vs general styling
-  CircleOptions _getSpotStyle(StudySpot spot, {required bool isDark}) {
-    if (spot.isSponsored) {
-      // Sponsored: Slightly Larger Yellow/Gold Marker
-      return CircleOptions(
-        geometry: LatLng(spot.latitude, spot.longitude),
-        circleColor: '#FFD700', // Gold
-        circleRadius:
-            12, // Reduced from 16, slightly bigger than verified (10) and normal (6)
-        circleStrokeWidth: 2,
-        circleStrokeColor: '#FFFFFF',
-        circleOpacity: 1.0,
-      );
-    } else if (spot.isVerified) {
-      return CircleOptions(
-        geometry: LatLng(spot.latitude, spot.longitude),
-        circleColor: '#FFA500', // Orange
-        circleRadius: 10,
-        circleStrokeWidth: 2,
-        circleStrokeColor: isDark ? '#FFFFFF' : '#000000',
-        circleOpacity: 1.0,
-      );
-    } else {
-      // General spots: White in Dark Mode, Deep Purple in Light Mode
-      final color = isDark ? '#FFFFFF' : '#6200EE';
-      return CircleOptions(
-        geometry: LatLng(spot.latitude, spot.longitude),
-        circleColor: color,
-        circleRadius: 6,
-        circleStrokeWidth: 1,
-        circleStrokeColor: '#888888',
-        circleOpacity: 0.8,
-      );
+  // Pre-load market icons
+  Future<void> _loadCustomMarkers() async {
+    if (mapController == null) return;
+
+    final markers = {
+      'marker_student': (Icons.school, const Color(0xFF00E676)), // Green
+      'marker_tutor': (
+        Icons.workspace_premium,
+        const Color(0xFFD500F9)
+      ), // Purple
+      'marker_cafe': (Icons.coffee, const Color(0xFF546E7A)), // Charcoal
+      'marker_library': (
+        Icons.library_books,
+        const Color(0xFF5C6BC0)
+      ), // Indigo
+      'marker_restaurant': (Icons.restaurant, const Color(0xFFEF5350)), // Red
+      'marker_other_spot': (Icons.place, const Color(0xFF78909C)), // Blue Grey
+      'marker_sponsored': (Icons.auto_awesome, const Color(0xFFFFD600)), // Gold
+      'marker_me': (
+        Icons.person_pin,
+        const Color(0xFF00E5FF)
+      ), // Cyan (distinct from green students)
+    };
+
+    for (var entry in markers.entries) {
+      try {
+        final bytes = await _createMarkerImage(entry.value.$1, entry.value.$2);
+        await mapController!.addImage(entry.key, bytes);
+        logger.debug("✅ Registered marker: ${entry.key}");
+      } catch (e) {
+        logger.error("❌ Failed to register marker: ${entry.key}", error: e);
+      }
     }
+  }
+
+  Future<Uint8List> _createMarkerImage(IconData icon, Color? color) async {
+    final pictureRecorder = ui.PictureRecorder();
+    final canvas = Canvas(pictureRecorder);
+    const size = 100.0;
+    const padding = 10.0;
+    const innerSize = size - (padding * 2);
+
+    // DEFENSIVE: Fallback if color is theoretically null (fixes reported crash)
+    final safeColor = color ?? Colors.white;
+
+    // 1. Draw Background (Matte Frosted Circle)
+    final paint = Paint()
+      ..color =
+          safeColor.withValues(alpha: 0.9) // Higher opacity for matte look
+      ..style = PaintingStyle.fill;
+
+    // Subtle shadow for 3D effect (diffused)
+    canvas.drawCircle(
+      const Offset(size / 2, size / 2 + 2),
+      innerSize / 2,
+      Paint()
+        ..color = Colors.blue.withValues(alpha: 0.3)
+        ..maskFilter = const ui.MaskFilter.blur(BlurStyle.normal, 4),
+    );
+
+    canvas.drawCircle(const Offset(size / 2, size / 2), innerSize / 2, paint);
+
+    // 2. Draw Matte Border (Semi-transparent white)
+    final borderPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.4)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4;
+    canvas.drawCircle(
+        const Offset(size / 2, size / 2), innerSize / 2, borderPaint);
+
+    // 3. Draw Icon
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+    textPainter.text = TextSpan(
+      text: String.fromCharCode(icon.codePoint),
+      style: TextStyle(
+        fontSize: innerSize * 0.55,
+        fontFamily: icon.fontFamily,
+        package: icon.fontPackage,
+        color: Colors.white,
+      ),
+    );
+    textPainter.layout();
+    textPainter.paint(
+      canvas,
+      Offset(
+          size / 2 - textPainter.width / 2, size / 2 - textPainter.height / 2),
+    );
+
+    final image = await pictureRecorder
+        .endRecording()
+        .toImage(size.toInt(), size.toInt());
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return byteData!.buffer.asUint8List();
+  }
+
+  // Helper for verified vs general styling
+  SymbolOptions _getSpotSymbolStyle(StudySpot spot) {
+    String iconImage = 'marker_other_spot';
+
+    if (spot.isSponsored) {
+      iconImage = 'marker_sponsored';
+    } else {
+      switch (spot.type.toLowerCase()) {
+        case 'cafe':
+          iconImage = 'marker_cafe';
+          break;
+        case 'library':
+          iconImage = 'marker_library';
+          break;
+        case 'restaurant':
+        case 'bar':
+          iconImage = 'marker_restaurant';
+          break;
+      }
+    }
+
+    return SymbolOptions(
+      geometry: LatLng(spot.latitude, spot.longitude),
+      iconImage: iconImage,
+      iconSize: 0.4, // MapLibre size multiplier
+      iconOpacity: 1.0,
+    );
   }
 
   Future<void> _subscribeToNotifications() async {
@@ -390,7 +478,11 @@ class _MapPageState extends ConsumerState<MapPage> {
 
   void _generateSimulation(LatLng center) {
     logger.info("🤖 Generating simulation around $center");
-    final bots = _simulationService.generateBots(center: center, count: 10);
+    final bots = _simulationService.generateBots(
+      center: center,
+      studentCount: 3,
+      tutorCount: 3,
+    );
 
     setState(() {
       _lastSimulationCenter = center;
@@ -524,16 +616,15 @@ class _MapPageState extends ConsumerState<MapPage> {
     mapController = controller;
     controller.onCircleTapped.add(_onCircleTapped);
     controller.onSymbolTapped.add(_onSymbolTapped);
-    // Listen to background clicks to dismiss UI
-
-    // Preload Images (None currently)
-    // try {
-    //   await _loadImage('star_badge', 'assets/images/star_badge.png');
-    // } catch (e) { ... }
 
     // DELAY: Fix for Web "Unexpected null value" / style loading race condition
     // We wait for the style to load before allowing marker updates
-    Future.delayed(const Duration(seconds: 2), () {
+    Future.delayed(const Duration(seconds: 2), () async {
+      if (!mounted) return;
+
+      // Load custom markers FIRST
+      await _loadCustomMarkers();
+
       if (mounted) {
         setState(() {
           _isStyleLoaded = true;
@@ -785,7 +876,6 @@ class _MapPageState extends ConsumerState<MapPage> {
       // 0. Draw Study Spots (Bottom Layer)
       // Determine theme for marker colors
       if (!mounted) return;
-      final isDark = Theme.of(context).brightness == Brightness.dark;
 
       // Sort: Sponsored LAST to render on top
       final sortedSpots = List<StudySpot>.from(_studySpots);
@@ -800,9 +890,22 @@ class _MapPageState extends ConsumerState<MapPage> {
         if (spot.isSponsored && !_filters.showSponsoredSpots) continue;
         if (!spot.isSponsored && !_filters.showRegularSpots) continue;
 
+        // COLLISION AVOIDANCE: If spot is under me, DO NOT DRAW IT.
+        // This ensures the "Me" marker (drawn later) has no competition.
+        if (_currentLocation != null) {
+          final dist = Geolocator.distanceBetween(_currentLocation!.latitude,
+              _currentLocation!.longitude, spot.latitude, spot.longitude);
+          if (dist < 20) {
+            // 20 meters radius
+            logger.debug(
+                "👻 Hiding spot ${spot.name} due to User Overlap (${dist.toStringAsFixed(1)}m)");
+            continue;
+          }
+        }
+
         try {
-          await mapController?.addCircle(
-            _getSpotStyle(spot, isDark: isDark),
+          await mapController?.addSymbol(
+            _getSpotSymbolStyle(spot),
             {
               'is_study_spot': true,
               'spot_id': spot.id,
@@ -810,9 +913,6 @@ class _MapPageState extends ConsumerState<MapPage> {
               'is_sponsored': spot.isSponsored,
             },
           );
-
-          // REMOVED: Badge Symbol for Sponsored Spots as per user request
-          // if (spot.isSponsored) { ... }
         } catch (e) {
           logger.warning("Failed to draw study spot ${spot.name}", error: e);
         }
@@ -883,31 +983,6 @@ class _MapPageState extends ConsumerState<MapPage> {
           if (common.isEmpty) continue;
         }
 
-        // 4. Subjects
-        if (_filters.selectedSubjects.isNotEmpty) {
-          // ... (existing logic)
-          // If peer has no classes that match selected subjects?
-          // Or if peer "intent" matches?
-          // For now, let's assume we check against currentClasses or Intent
-          // Simple check:
-          bool matchesSubject = false;
-          for (var subject in _filters.selectedSubjects) {
-            // Check classes
-            if (peer.currentClasses
-                .any((c) => c.toLowerCase().contains(subject.toLowerCase()))) {
-              matchesSubject = true;
-              break;
-            }
-            // Check intent
-            if (peer.intentTag != null &&
-                peer.intentTag!.toLowerCase().contains(subject.toLowerCase())) {
-              matchesSubject = true;
-              break;
-            }
-          }
-          if (!matchesSubject) continue;
-        }
-
         // 5. Min Rating
         if (peer.isTutor &&
             peer.averageRating != null &&
@@ -917,57 +992,69 @@ class _MapPageState extends ConsumerState<MapPage> {
 
         try {
           if (!mounted) break; // STOP if the widget is disposed
-          await mapController?.addCircle(
-            CircleOptions(
-              geometry: geometry, // Safe local variable
-              circleColor: peer.isTutor
-                  ? '#D500F9' // Purple Accent for Tutors
-                  : '#00E676', // Green Accent for Students
-              circleRadius: 8,
-              circleStrokeWidth: 2,
-              circleStrokeColor: '#FFFFFF',
-              circleBlur: 0.2,
-              circleOpacity: opacity, // Use calculated opacity
+          await mapController?.addSymbol(
+            SymbolOptions(
+              geometry: geometry,
+              iconImage: peer.isTutor ? 'marker_tutor' : 'marker_student',
+              iconSize: 0.35, // Balanced size
+              iconOpacity: opacity,
+              // symbolSortKey: 10, // Not supported in this version
             ),
             peer.toJson(),
           );
         } catch (e) {
-          logger.warning("⚠️ Failed to add circle: ${e.toString()}", error: e);
+          logger.warning("⚠️ Failed to add symbol: ${e.toString()}", error: e);
         }
       }
 
       // 1. Draw "Me" (Local Loopback - Instant) - DRAW LAST (On Top)
-      // ONLY draw if "Study Mode" (Ghost Mode Disabled) is ON
-      if (_isStudyMode && _currentLocation != null && mapController != null) {
-        logger.debug("📍 Drawing my location at $_currentLocation");
+      if (_currentLocation != null && mapController != null) {
+        // Pulse: ONLY draw if "Study Mode" (Ghost Mode Disabled) is ON
+        if (_isStudyMode) {
+          try {
+            await mapController?.addCircle(
+              CircleOptions(
+                geometry: _currentLocation!,
+                circleColor: '#00FF00',
+                circleOpacity: 0.3,
+                circleRadius: 28, // Proportional to size 0.4
+                circleStrokeWidth: 2,
+                circleStrokeColor: '#00FF00',
+                circleBlur: 0.6,
+              ),
+              {'is_me': true, 'is_pulse': true},
+            );
+          } catch (e) {
+            logger.warning("⚠️ Failed to draw my pulse", error: e);
+          }
+        }
 
+        // Core Dot (Always Visible to the user)
         try {
-          await mapController?.addCircle(
-            CircleOptions(
-              geometry: _currentLocation!,
-              circleColor: '#00FF00',
-              circleOpacity: 0.3,
-              circleRadius: 22,
-              circleStrokeWidth: 2,
-              circleStrokeColor: '#00FF00',
-              circleBlur: 0.6,
-            ),
-            {'is_me': true},
-          );
+          // Dynamic 'Me' Icon based on Role
+          String myIcon = 'marker_student'; // Default (Green)
 
-          // Core Dot (Always Visible)
-          await mapController?.addCircle(
-            CircleOptions(
+          if (myProfile != null) {
+            if (myProfile.isBusinessOwner) {
+              myIcon = 'marker_sponsored'; // Gold (Business)
+            } else if (myProfile.isTutor) {
+              myIcon = 'marker_tutor'; // Purple (Tutor)
+            }
+            // Else stays 'marker_student'
+          }
+
+          logger.debug("🎨 Drawing 'Me' icon: $myIcon at $_currentLocation");
+
+          await mapController?.addSymbol(
+            SymbolOptions(
               geometry: _currentLocation!,
-              circleColor: '#00FF00',
-              circleRadius: 7,
-              circleStrokeWidth: 2,
-              circleStrokeColor: '#FFFFFF',
+              iconImage: myIcon,
+              iconSize: 0.4, // Standard size matching others
             ),
             {'is_me': true},
           );
         } catch (e) {
-          logger.warning("⚠️ Failed to draw my location", error: e);
+          logger.warning("⚠️ Failed to draw my core dot symbol", error: e);
         }
       } else if (_currentLocation == null) {
         // Normal during startup, no need to warn
@@ -1083,7 +1170,7 @@ class _MapPageState extends ConsumerState<MapPage> {
       ),
       child: ClipOval(
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Material(
             color: (activeColor ?? (isDark ? Colors.black : Colors.white))
                 .withValues(alpha: 0.7),
@@ -1142,7 +1229,12 @@ class _MapPageState extends ConsumerState<MapPage> {
       });
     });
 
-    final availableSubjectsAsync = ref.watch(availableSubjectsProvider);
+    // 4. Trigger marker update when Profile loads (Fix for "Me" icon delay)
+    ref.listen(myProfileProvider, (previous, next) {
+      if (next.hasValue && previous?.hasValue != true) {
+        _updateMapMarkers();
+      }
+    });
 
     // Listen to Ghost Mode changes
     ref.listen<AsyncValue<bool>>(ghostModeProvider, (prev, next) async {
@@ -1157,12 +1249,12 @@ class _MapPageState extends ConsumerState<MapPage> {
 
           try {
             await _goGhost();
-            _updatePresenceTracking();
+            if (mounted) _updatePresenceTracking();
           } catch (e) {
             logger.error("Failed to go ghost, reverting UI", error: e);
             // Revert user-visible state
-            ref.read(ghostModeProvider.notifier).setGhostMode(false);
             if (mounted) {
+              ref.read(ghostModeProvider.notifier).setGhostMode(false);
               messenger.showSnackBar(
                 SnackBar(
                     content: Text("Failed to enable Ghost Mode: $e"),
@@ -1183,22 +1275,58 @@ class _MapPageState extends ConsumerState<MapPage> {
       }
     });
 
+    final isModalOpen = ref.watch(isModalOpenProvider);
+
     return Scaffold(
       body: Stack(
         children: [
           // ... MapLibreMap ...
           if (_initialPosition != null)
-            MapLibreMap(
-              onMapCreated: _onMapCreated,
-              initialCameraPosition: _initialPosition!,
-              styleString: isDark ? _darkMapStyle : _lightMapStyle,
-              myLocationEnabled: false,
-              trackCameraPosition: true,
-              onCameraIdle: _onCameraIdle,
-              onCameraMove: _onCameraMove,
-              onMapClick: (point, latlng) {
-                // Removed click-to-dismiss as per user request
-              },
+            Stack(
+              children: [
+                IgnorePointer(
+                  ignoring: isModalOpen,
+                  child: MapLibreMap(
+                    onMapCreated: _onMapCreated,
+                    initialCameraPosition: _initialPosition!,
+                    styleString: isDark ? _darkMapStyle : _lightMapStyle,
+                    myLocationEnabled: false,
+                    trackCameraPosition: true,
+                    onCameraIdle: _onCameraIdle,
+                    onCameraMove: _onCameraMove,
+                    // NUCLEAR OPTION: Disable at the source
+                    scrollGesturesEnabled: !isModalOpen,
+                    zoomGesturesEnabled: !isModalOpen,
+                    tiltGesturesEnabled: !isModalOpen,
+                    rotateGesturesEnabled: !isModalOpen,
+                    doubleClickZoomEnabled: !isModalOpen,
+                    onMapClick: (point, latlng) {
+                      // Removed click-to-dismiss as per user request
+                    },
+                  ),
+                ),
+                // Redundant blocker for Web/PlatformView gesture issues
+                if (isModalOpen)
+                  PointerInterceptor(
+                    child: Positioned.fill(
+                      child: Listener(
+                        behavior: HitTestBehavior.opaque,
+                        onPointerDown: (_) {},
+                        onPointerMove: (_) {},
+                        onPointerUp: (_) {},
+                        onPointerCancel: (_) {},
+                        onPointerSignal: (_) {}, // Block scroll wheel
+                        child: GestureDetector(
+                          onScaleUpdate: (_) {},
+                          onTap: () {},
+                          behavior: HitTestBehavior.opaque,
+                          child: Container(
+                              color: Colors.black.withValues(alpha: 0.01)),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             )
           else
             const Center(child: CircularProgressIndicator()),
@@ -1306,10 +1434,13 @@ class _MapPageState extends ConsumerState<MapPage> {
           ),
 
           // Serendipity SOS Button (Bottom Left)
+          // Always visible - Serendipity is now a core feature
           Positioned(
             bottom: 40,
             left: 20,
-            child: StruggleStatusWidget(currentLocation: _currentLocation),
+            child: PointerInterceptor(
+              child: StruggleStatusWidget(currentLocation: _currentLocation),
+            ),
           ),
 
           // "Simulate Bot" Button (Top Left - DEV ONLY)
@@ -1469,19 +1600,20 @@ class _MapPageState extends ConsumerState<MapPage> {
                 const SizedBox(height: 12),
 
                 // Map Filter Widget (Moved here for equal spacing)
-                MapFilterWidget(
-                  currentFilters: _filters,
-                  availableSubjects: availableSubjectsAsync.value ?? [],
-                  isExpanded: _isFilterExpanded,
-                  onToggle: () {
-                    hapticService.selectionClick();
-                    setState(() => _isFilterExpanded = !_isFilterExpanded);
-                  },
-                  onFilterChanged: (newFilters) {
-                    setState(() => _filters = newFilters);
-                    hapticService.mediumImpact();
-                    _updateMapMarkers();
-                  },
+                PointerInterceptor(
+                  child: MapFilterWidget(
+                    currentFilters: _filters,
+                    isExpanded: _isFilterExpanded,
+                    onToggle: () {
+                      hapticService.selectionClick();
+                      setState(() => _isFilterExpanded = !_isFilterExpanded);
+                    },
+                    onFilterChanged: (newFilters) {
+                      setState(() => _filters = newFilters);
+                      hapticService.mediumImpact();
+                      _updateMapMarkers();
+                    },
+                  ),
                 ),
               ],
             ),
