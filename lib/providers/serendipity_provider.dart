@@ -4,6 +4,7 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 import '../models/struggle_signal.dart';
 import '../services/serendipity_service.dart';
 import '../services/matching_service.dart';
+import '../services/constellation_service.dart';
 import '../models/serendipity_match.dart';
 import '../services/logger_service.dart';
 
@@ -112,6 +113,10 @@ class ActiveStruggleSignalNotifier extends AsyncNotifier<StruggleSignal?> {
     if (signal != null) {
       state = AsyncValue.data(signal);
       _scheduleRefresh(signal.timeRemaining);
+
+      // Trigger Intelligent Scan (Constellation)
+      // Fire and forget - don't await blocking UI
+      constellationService.scanForMatches(signal, signal.radius);
     } else {
       state = AsyncValue.error('Failed to create signal', StackTrace.current);
     }

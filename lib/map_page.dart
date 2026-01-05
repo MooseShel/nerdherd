@@ -1029,32 +1029,28 @@ class _MapPageState extends ConsumerState<MapPage> {
           }
         }
 
-        // Core Dot (Always Visible to the user)
+        // Core Dot (Always Visible) - Using addSymbol for reliability
         try {
-          // Dynamic 'Me' Icon based on Role
-          String myIcon = 'marker_student'; // Default (Green)
-
+          String myIcon = 'marker_student';
           if (myProfile != null) {
-            if (myProfile.isBusinessOwner) {
-              myIcon = 'marker_sponsored'; // Gold (Business)
-            } else if (myProfile.isTutor) {
-              myIcon = 'marker_tutor'; // Purple (Tutor)
-            }
-            // Else stays 'marker_student'
+            if (myProfile.isBusinessOwner)
+              myIcon = 'marker_sponsored';
+            else if (myProfile.isTutor) myIcon = 'marker_tutor';
           }
-
-          logger.debug("🎨 Drawing 'Me' icon: $myIcon at $_currentLocation");
 
           await mapController?.addSymbol(
             SymbolOptions(
               geometry: _currentLocation!,
               iconImage: myIcon,
-              iconSize: 0.4, // Standard size matching others
+              iconSize: 0.4,
+              iconOpacity: 1.0,
+              // Note: We can't force 'icon-allow-overlap' in addSymbol easily,
+              // but we cleared nearby spots so it should be fine.
             ),
             {'is_me': true},
           );
         } catch (e) {
-          logger.warning("⚠️ Failed to draw my core dot symbol", error: e);
+          logger.warning("⚠️ Failed to draw 'Me' symbol", error: e);
         }
       } else if (_currentLocation == null) {
         // Normal during startup, no need to warn
@@ -1439,7 +1435,9 @@ class _MapPageState extends ConsumerState<MapPage> {
             bottom: 40,
             left: 20,
             child: PointerInterceptor(
-              child: StruggleStatusWidget(currentLocation: _currentLocation),
+              child: StruggleStatusWidget(
+                  currentLocation: ref.watch(userLocationProvider).value ??
+                      _currentLocation),
             ),
           ),
 

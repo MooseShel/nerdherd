@@ -170,4 +170,58 @@ class UserProfile {
       'last_updated': DateTime.now().toIso8601String(),
     };
   }
+
+  UserProfile copyWith({
+    String? userId,
+    String? universityId,
+    String? universityName,
+    bool? isTutor,
+    bool? isBusinessOwner,
+    bool? isVerifiedTutor,
+    List<String>? currentClasses,
+    String? intentTag,
+    String? fullName,
+    String? address,
+    String? avatarUrl,
+    LatLng? location,
+    double? averageRating,
+    int? reviewCount,
+    int? hourlyRate,
+    String? bio,
+    DateTime? lastUpdated,
+    bool? isAdmin,
+    bool? isBanned,
+    double? walletBalance,
+    String? verificationDocumentUrl,
+    String? verificationStatus,
+    bool? serendipityEnabled,
+  }) {
+    return UserProfile(
+      userId: userId ?? this.userId,
+      universityId: universityId ?? this.universityId,
+      universityName: universityName ?? this.universityName,
+      isTutor: isTutor ?? this.isTutor,
+      isBusinessOwner: isBusinessOwner ?? this.isBusinessOwner,
+      isVerifiedTutor: isVerifiedTutor ?? this.isVerifiedTutor,
+      currentClasses: currentClasses ?? this.currentClasses,
+      intentTag: intentTag ?? this.intentTag,
+      fullName: fullName ?? this.fullName,
+      address: address ?? this.address,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      location: location ?? this.location,
+      averageRating: averageRating ?? this.averageRating,
+      reviewCount: reviewCount ?? this.reviewCount,
+      hourlyRate: hourlyRate ?? this.hourlyRate,
+      bio: bio ?? this.bio,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
+      isAdmin: isAdmin ?? this.isAdmin,
+      isBanned: isBanned ?? this.isBanned,
+      walletBalance: walletBalance ?? this.walletBalance,
+      verificationDocumentUrl:
+          verificationDocumentUrl ?? this.verificationDocumentUrl,
+      verificationStatus: verificationStatus ?? this.verificationStatus,
+      // ignore: deprecated_member_use
+      serendipityEnabled: serendipityEnabled ?? this.serendipityEnabled,
+    );
+  }
 }

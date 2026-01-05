@@ -26,6 +26,9 @@ class StruggleSignal {
   // Computed property
   bool get isExpired => DateTime.now().toUtc().isAfter(expiresAt.toUtc());
 
+  // Radius in meters (defaulting to 8km for now, can be dynamic later)
+  int get radius => 8000;
+
   // Get LatLng for map integration
   LatLng get location => LatLng(latitude, longitude);
 
@@ -68,12 +71,26 @@ class StruggleSignal {
           lat = (coords[1] as num).toDouble();
         }
       } else if (json['location'] is String) {
-        // Parse WKT format: POINT(lon lat)
+        // Parse WKT format: POINT(lon lat) or POINT (lon lat)
         final wkt = json['location'] as String;
-        final match = RegExp(r'POINT\(([^ ]+) ([^ ]+)\)').firstMatch(wkt);
+        // More robust regex allowing optional space after POINT and flexible number parsing
+        final match = RegExp(r'POINT\s*\(\s*([-\d\.]+)\s+([-\d\.]+)\s*\)',
+                caseSensitive: false)
+            .firstMatch(wkt);
+
         if (match != null) {
           lon = double.parse(match.group(1)!);
           lat = double.parse(match.group(2)!);
+        } else {
+          // Try simple split as fallback
+          final parts = wkt
+              .replaceAll(RegExp(r'[^\d\.\-\s]'), '')
+              .trim()
+              .split(RegExp(r'\s+'));
+          if (parts.length >= 2) {
+            lon = double.tryParse(parts[0]) ?? 0.0;
+            lat = double.tryParse(parts[1]) ?? 0.0;
+          }
         }
       }
     }

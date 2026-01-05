@@ -1,0 +1,202 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:maplibre_gl/maplibre_gl.dart'; // Used for LatLng
+import '../models/struggle_signal.dart';
+import '../models/user_profile.dart';
+import '../services/logger_service.dart';
+import '../services/matching_service.dart';
+import 'dart:math';
+
+class ConstellationService {
+  static final ConstellationService _instance =
+      ConstellationService._internal();
+  factory ConstellationService() => _instance;
+  ConstellationService._internal();
+
+  final _supabase = Supabase.instance.client;
+
+  /// Scans for nearby users and suggests matches based on intelligence
+  Future<void> scanForMatches(StruggleSignal signal, int radiusMeters) async {
+    try {
+      logger.info(
+          '✨ Constellation: Scanning for matches for "${signal.subject}" within ${radiusMeters}m... (Signal Loc: ${signal.latitude}, ${signal.longitude})');
+
+      // 1. Fetch Candidates (Nearby Profiles)
+      // Note: In a real prod app, use PostGIS 'ST_DWithin'.
+      // For now, we fetch all profiles with location and filter client-side or use a simple bounding box if possible.
+      // To keep it efficient for this prototype, we'll fetch profiles that have updated location recently.
+
+      final response = await _supabase
+          .from('profiles')
+          .select('*, location:location_geom') // Alias for UserProfile parsing
+          .not('location_geom', 'is', null) // Must have location
+          .neq('user_id', signal.userId); // Exclude self
+
+      final candidates = (response as List).map((json) {
+        // Manual Parsing of Location to ensure we get coordinates
+        // The alias 'location' might return a GeoJSON map OR a WKT string depending on Supabase version
+
+        final profile = UserProfile.fromJson(json);
+
+        // If profile.location is null, try to force parse it here
+        if (profile.location == null && json['location'] != null) {
+          try {
+            double? lat, lng;
+            final rawLoc = json['location'];
+
+            if (rawLoc is Map && rawLoc['coordinates'] != null) {
+              // GeoJSON: { type: Point, coordinates: [lon, lat] }
+              final coords = rawLoc['coordinates'];
+              lng = (coords[0] as num).toDouble();
+              lat = (coords[1] as num).toDouble();
+            } else if (rawLoc is String && rawLoc.startsWith('POINT')) {
+              // WKT: POINT(lon lat)
+              final parts =
+                  rawLoc.replaceAll(RegExp(r'[^\d\.\-\s]'), '').split(' ');
+              if (parts.length >= 2) {
+                lng = double.tryParse(parts[0]);
+                lat = double.tryParse(parts[1]);
+              }
+            }
+
+            if (lat != null && lng != null) {
+              // Return a copy with the valid location
+              return profile.copyWith(location: LatLng(lat, lng));
+            }
+          } catch (e) {
+            logger.warning(
+                'Failed to manual parse location for ${profile.userId}',
+                error: e);
+          }
+        }
+
+        return profile;
+      }).toList();
+
+      logger.info(
+          '✨ Constellation: Found ${candidates.length} potential candidates nearby.');
+
+      UserProfile? bestMatch;
+      double bestScore = 0.0;
+
+      for (final candidate in candidates) {
+        if (candidate.location == null) {
+          logger.warning(
+              "⚠️ Candidate ${candidate.userId} has NO LOCATION after parsing.");
+          continue;
+        }
+
+        // Filter by Proximity
+        final dist = _calculateDistance(signal.latitude, signal.longitude,
+            candidate.location!.latitude, candidate.location!.longitude);
+
+        if (dist > radiusMeters) {
+          logger.debug("   -> Too far: ${candidate.fullName} ($dist m)");
+          continue;
+        }
+
+        // Score this candidate
+        final score =
+            _calculateCompatibilityScore(signal, candidate, dist, radiusMeters);
+
+        logger.debug(
+            '   -> Candidate ${candidate.fullName} (${dist.toInt()}m): Score ${score.toStringAsFixed(2)}');
+
+        // RELAXED THRESHOLD for testing (0.5 -> 0.2)
+        if (score >= 0.2 && score > bestScore) {
+          bestScore = score;
+          bestMatch = candidate;
+        }
+      }
+
+      // 2. Action: Suggest Match if found
+      if (bestMatch != null) {
+        logger.info(
+            '✨ Constellation: 🎯 MATCH FOUND! ${bestMatch.fullName} (Score: ${bestScore.toStringAsFixed(2)})');
+
+        await matchingService.suggestMatch(
+          otherUserId: bestMatch.userId,
+          matchType: 'constellation',
+        );
+      } else {
+        logger.info('✨ Constellation: No suitable matches found this time.');
+      }
+    } catch (e) {
+      logger.error('Constellation Scan Error', error: e);
+    }
+  }
+
+  /// Calculates a 0.0 - 1.0 score based on compatibility
+  double _calculateCompatibilityScore(StruggleSignal signal,
+      UserProfile candidate, double distance, int radius) {
+    double score = 0.0;
+
+    // 1. Role Score (+0.5 for Tutors)
+    if (candidate.isTutor) {
+      score += 0.5;
+    }
+
+    // 2. Skill/Topic Match (+0.3)
+    // Simple keyword matching against classes and intent
+    final signalKeywords = _extractKeywords(signal.subject);
+    bool skillMatch = false;
+
+    // Check Candidate Classes
+    for (final cls in candidate.currentClasses) {
+      if (_matchesKeywords(cls, signalKeywords)) {
+        skillMatch = true;
+        break;
+      }
+    }
+    // Check Candidate Intent
+    if (!skillMatch && candidate.intentTag != null) {
+      if (_matchesKeywords(candidate.intentTag!, signalKeywords)) {
+        skillMatch = true;
+      }
+    }
+
+    if (skillMatch) {
+      score += 0.3;
+    }
+
+    // 3. Proximity Score (+0.2 max)
+    // Linear decay: 0m = +0.2, Limit = +0.0
+    if (radius > 0) {
+      double proximityFactor = 1.0 - (distance / radius);
+      if (proximityFactor < 0) proximityFactor = 0;
+      score += (0.2 * proximityFactor);
+    }
+
+    logger.debug('''
+    🧩 Score Breakdown for ${candidate.fullName}:
+    - Role (+0.5): ${candidate.isTutor ? '✅' : '❌'}
+    - Skill Match (+0.3): ${skillMatch ? '✅' : '❌'} (Keywords: $signalKeywords)
+    - Proximity (+0.2 max): ${(score - (candidate.isTutor ? 0.5 : 0) - (skillMatch ? 0.3 : 0)).toStringAsFixed(2)}
+    - Total: ${score.toStringAsFixed(2)}
+    ''');
+
+    return score;
+  }
+
+  List<String> _extractKeywords(String text) {
+    return text.toLowerCase().split(' ').where((w) => w.length > 3).toList();
+  }
+
+  bool _matchesKeywords(String text, List<String> keywords) {
+    final lower = text.toLowerCase();
+    for (final k in keywords) {
+      if (lower.contains(k)) return true;
+    }
+    return false;
+  }
+
+  double _calculateDistance(
+      double lat1, double lon1, double lat2, double lon2) {
+    const p = 0.017453292519943295;
+    final a = 0.5 -
+        cos((lat2 - lat1) * p) / 2 +
+        cos(lat1 * p) * cos(lat2 * p) * (1 - cos((lon2 - lon1) * p)) / 2;
+    return 12742 * asin(sqrt(a)) * 1000; // Meters
+  }
+}
+
+final constellationService = ConstellationService();

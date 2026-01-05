@@ -79,8 +79,14 @@ class MatchIntroSheet extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Maybe Later"),
+            onPressed: () async {
+              await matchingService.declineMatch(match.id);
+              if (context.mounted) Navigator.pop(context);
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.grey,
+            ),
+            child: const Text("Decline Match"),
           ),
         ],
       ),

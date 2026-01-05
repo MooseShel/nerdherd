@@ -401,7 +401,7 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                         children: [
                           Row(
                             children: [
-                              Flexible(
+                              Expanded(
                                 child: Text(
                                   widget.profile.fullName?.isNotEmpty == true
                                       ? widget.profile.fullName!
@@ -413,6 +413,7 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: -0.5,
                                   ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               if (widget.profile.isTutor)
@@ -535,7 +536,7 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                           fontWeight: FontWeight.bold,
                                           fontSize: 15),
                                     ),
-                                    Flexible(
+                                    Expanded(
                                       child: Text(
                                         "(${widget.profile.reviewCount ?? 0} reviews)",
                                         style: TextStyle(

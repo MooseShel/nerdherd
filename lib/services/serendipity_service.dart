@@ -49,7 +49,12 @@ class SerendipityService {
 
       logger.info(
           'Created struggle signal: $subject (confidence: $confidenceLevel)');
-      return StruggleSignal.fromJson(data);
+      // Force the location to be what we passed in (Optimistic),
+      // ensuring Constellation gets the correct coordinates even if DB parsing fails.
+      return StruggleSignal.fromJson(data).copyWith(
+        latitude: location.latitude,
+        longitude: location.longitude,
+      );
     } catch (e) {
       logger.error('Error creating struggle signal', error: e);
       return null;

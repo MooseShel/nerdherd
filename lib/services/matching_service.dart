@@ -26,11 +26,13 @@ class MatchingService {
           .from('serendipity_matches')
           .select()
           .or('and(user_a.eq.$currentUserId,user_b.eq.$otherUserId),and(user_a.eq.$otherUserId,user_b.eq.$currentUserId)')
+          .or('and(user_a.eq.$currentUserId,user_b.eq.$otherUserId),and(user_a.eq.$otherUserId,user_b.eq.$currentUserId)')
+          .eq('accepted', false) // Only check for pending matches
           .maybeSingle();
 
       if (existing != null) {
         logger.info(
-            'Match already exists between $currentUserId and $otherUserId');
+            'Pending match already exists between $currentUserId and $otherUserId');
         return SerendipityMatch.fromJson(existing);
       }
 
@@ -63,6 +65,18 @@ class MatchingService {
       return true;
     } catch (e) {
       logger.error('Error accepting match $matchId', error: e);
+      return false;
+    }
+  }
+
+  /// Decline/Remove a match
+  Future<bool> declineMatch(String matchId) async {
+    try {
+      await _supabase.from('serendipity_matches').delete().eq('id', matchId);
+      logger.info('Declined/Removed match $matchId');
+      return true;
+    } catch (e) {
+      logger.error('Error declining match $matchId', error: e);
       return false;
     }
   }
