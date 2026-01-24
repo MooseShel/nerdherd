@@ -6,6 +6,9 @@ import 'package:pointer_interceptor/pointer_interceptor.dart';
 import '../../providers/serendipity_provider.dart';
 import '../../config/theme.dart';
 import 'match_intro_sheet.dart';
+import 'nerd_match_reveal.dart';
+import '../../services/matching_service.dart';
+import '../../models/user_profile.dart';
 
 class StruggleStatusWidget extends ConsumerStatefulWidget {
   final LatLng? currentLocation;
@@ -234,6 +237,22 @@ class _StruggleStatusWidgetState extends ConsumerState<StruggleStatusWidget>
     );
   }
 
+  Widget _buildNerdMatchButton(BuildContext context,
+      {required VoidCallback onPressed, bool isLoading = false}) {
+    return _buildGlassButton(
+      context,
+      activeColor: Colors.purple.shade600,
+      onPressed: onPressed,
+      child: isLoading
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: Colors.white))
+          : const Icon(Icons.auto_awesome, color: Colors.white),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final signalState = ref.watch(activeStruggleSignalProvider);
@@ -263,6 +282,22 @@ class _StruggleStatusWidgetState extends ConsumerState<StruggleStatusWidget>
         child: const Icon(Icons.favorite, color: Colors.white),
       );
     }
+
+    // Listen to Nerd Match results
+    ref.listen(nerdMatchProvider, (previous, next) {
+      if (next is AsyncData && next.value!.isNotEmpty) {
+        final matches = next.value!;
+        final bestMatch = matches.first;
+        // In a real app, calculate similarity or use metadata from RPC
+        // For now, let's assume 0.85 similarity for demonstration
+        _showNerdMatchReveal(bestMatch, 0.85, signal?.subject ?? "Study");
+        ref.read(nerdMatchProvider.notifier).clear();
+      } else if (next is AsyncError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Nerd Match Error: ${next.error}')),
+        );
+      }
+    });
 
     return signalState.when(
       loading: () => const SizedBox(
@@ -370,9 +405,50 @@ class _StruggleStatusWidgetState extends ConsumerState<StruggleStatusWidget>
                   ),
                 ),
               ),
+              // Nerd Match Search Button (Proactive)
+              Positioned(
+                right: -64,
+                child: _buildNerdMatchButton(
+                  context,
+                  isLoading: ref.watch(nerdMatchProvider).isLoading,
+                  onPressed: () {
+                    ref.read(nerdMatchProvider.notifier).findMatches();
+                  },
+                ),
+              ),
             ],
           );
         }
+      },
+    );
+  }
+
+  void _showNerdMatchReveal(
+      UserProfile matchedUser, double similarity, String subject) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 400),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return NerdMatchReveal(
+          matchedUser: matchedUser,
+          similarity: similarity,
+          subject: subject,
+          onConnect: () {
+            matchingService.suggestMatch(
+              otherUserId: matchedUser.userId,
+              matchType: 'constellation',
+            );
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Connection request sent!')),
+            );
+          },
+          onDismiss: () {
+            Navigator.pop(context);
+          },
+        );
       },
     );
   }

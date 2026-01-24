@@ -617,21 +617,26 @@ class _MapPageState extends ConsumerState<MapPage> {
     controller.onCircleTapped.add(_onCircleTapped);
     controller.onSymbolTapped.add(_onSymbolTapped);
 
-    // DELAY: Fix for Web "Unexpected null value" / style loading race condition
-    // We wait for the style to load before allowing marker updates
-    Future.delayed(const Duration(seconds: 2), () async {
-      if (!mounted) return;
-
-      // Load custom markers FIRST
-      await _loadCustomMarkers();
-
-      if (mounted) {
-        setState(() {
-          _isStyleLoaded = true;
-        });
-        _updateMapMarkers(); // Draw initial markers
-      }
+    // RESET flag for new controller instance
+    setState(() {
+      _isStyleLoaded = false;
     });
+  }
+
+  void _onStyleLoaded() async {
+    if (!mounted) return;
+
+    logger.debug("🗺️ Map Style Loaded - Initializing Markers");
+
+    // Load custom markers FIRST
+    await _loadCustomMarkers();
+
+    if (mounted) {
+      setState(() {
+        _isStyleLoaded = true;
+      });
+      _updateMapMarkers(); // Draw initial markers
+    }
   }
 
   // ... (lines 498-761 logic omitted, jumping to updateMapMarkers)
@@ -684,43 +689,48 @@ class _MapPageState extends ConsumerState<MapPage> {
 
     if (!mounted) return;
 
+    ref.read(isModalOpenProvider.notifier).state = true;
     showDialog(
       context: context,
       builder: (context) {
         final theme = Theme.of(context);
-        return AlertDialog(
-          backgroundColor: theme.dialogTheme.backgroundColor,
-          title: Text("Collab Request", style: theme.textTheme.titleLarge),
-          content: Text(
-            "$senderName wants to collaborate!",
-            style: theme.textTheme.bodyMedium,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                hapticService.lightImpact();
-                Navigator.pop(context);
-                _respondToRequest(request['id'], request['sender_id'], false);
-              },
-              child: const Text("Reject",
-                  style: TextStyle(color: Colors.redAccent)),
+        return PointerInterceptor(
+          child: AlertDialog(
+            backgroundColor: theme.dialogTheme.backgroundColor,
+            title: Text("Collab Request", style: theme.textTheme.titleLarge),
+            content: Text(
+              "$senderName wants to collaborate!",
+              style: theme.textTheme.bodyMedium,
             ),
-            ElevatedButton(
-              onPressed: () {
-                hapticService.mediumImpact();
-                Navigator.pop(context);
-                _respondToRequest(request['id'], request['sender_id'], true);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isTutor ? Colors.amber : Colors.cyanAccent,
-                foregroundColor: Colors.black,
+            actions: [
+              TextButton(
+                onPressed: () {
+                  hapticService.lightImpact();
+                  Navigator.pop(context);
+                  _respondToRequest(request['id'], request['sender_id'], false);
+                },
+                child: const Text("Reject",
+                    style: TextStyle(color: Colors.redAccent)),
               ),
-              child: const Text("Accept"),
-            ),
-          ],
+              ElevatedButton(
+                onPressed: () {
+                  hapticService.mediumImpact();
+                  Navigator.pop(context);
+                  _respondToRequest(request['id'], request['sender_id'], true);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isTutor ? Colors.amber : Colors.cyanAccent,
+                  foregroundColor: Colors.black,
+                ),
+                child: const Text("Accept"),
+              ),
+            ],
+          ),
         );
       },
-    );
+    ).then((_) {
+      if (mounted) ref.read(isModalOpenProvider.notifier).state = false;
+    });
   }
 
   void _setupPresence() {
@@ -1033,9 +1043,11 @@ class _MapPageState extends ConsumerState<MapPage> {
         try {
           String myIcon = 'marker_student';
           if (myProfile != null) {
-            if (myProfile.isBusinessOwner)
+            if (myProfile.isBusinessOwner) {
               myIcon = 'marker_sponsored';
-            else if (myProfile.isTutor) myIcon = 'marker_tutor';
+            } else if (myProfile.isTutor) {
+              myIcon = 'marker_tutor';
+            }
           }
 
           await mapController?.addSymbol(
@@ -1102,24 +1114,34 @@ class _MapPageState extends ConsumerState<MapPage> {
   }
 
   void _showStudySpotDetails(StudySpot spot) {
+    ref.read(isModalOpenProvider.notifier).state = true;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => StudySpotDetailsSheet(spot: spot),
-    );
+      builder: (context) => PointerInterceptor(
+        child: StudySpotDetailsSheet(spot: spot),
+      ),
+    ).then((_) {
+      if (mounted) ref.read(isModalOpenProvider.notifier).state = false;
+    });
   }
 
   void _showProfileDrawer(Map<String, dynamic> data) {
+    ref.read(isModalOpenProvider.notifier).state = true;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) {
         final profile = UserProfile.fromJson(data);
-        return GlassProfileDrawer(profile: profile);
+        return PointerInterceptor(
+          child: GlassProfileDrawer(profile: profile),
+        );
       },
-    );
+    ).then((_) {
+      if (mounted) ref.read(isModalOpenProvider.notifier).state = false;
+    });
   }
 
   Future<void> _goGhost() async {
@@ -1284,6 +1306,7 @@ class _MapPageState extends ConsumerState<MapPage> {
                   ignoring: isModalOpen,
                   child: MapLibreMap(
                     onMapCreated: _onMapCreated,
+                    onStyleLoadedCallback: _onStyleLoaded,
                     initialCameraPosition: _initialPosition!,
                     styleString: isDark ? _darkMapStyle : _lightMapStyle,
                     myLocationEnabled: false,

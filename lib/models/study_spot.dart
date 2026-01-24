@@ -12,6 +12,10 @@ class StudySpot {
   final String? ownerId; // NEW
   final bool isSponsored; // NEW
   final String? promotionalText; // NEW
+  final int occupancyPercent; // NEW: 0 to 100
+  final int noiseLevel; // NEW: 1 to 5
+  final String? vibeSummary; // NEW: AI-generated summary
+  final List<String> aiTags; // NEW: AI-distilled review tags
 
   StudySpot({
     required this.id,
@@ -27,6 +31,10 @@ class StudySpot {
     this.ownerId, // NEW
     this.isSponsored = false, // NEW
     this.promotionalText, // NEW
+    this.occupancyPercent = 0, // NEW
+    this.noiseLevel = 1, // NEW
+    this.vibeSummary, // NEW
+    this.aiTags = const [], // NEW
   });
 
   factory StudySpot.fromJson(Map<String, dynamic> json) {
@@ -44,6 +52,12 @@ class StudySpot {
       ownerId: json['owner_id'], // NEW
       isSponsored: json['is_sponsored'] ?? false, // NEW
       promotionalText: json['promotional_text'], // NEW
+      occupancyPercent: json['occupancy_percent'] ?? 0, // NEW
+      noiseLevel: json['noise_level'] ?? 1, // NEW
+      vibeSummary: json['vibe_summary'], // NEW
+      aiTags: json['ai_tags'] != null
+          ? List<String>.from(json['ai_tags'])
+          : [], // NEW
     );
   }
 

@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/serendipity_match.dart';
 import 'logger_service.dart';
+import '../models/user_profile.dart';
 
 class MatchingService {
   static final MatchingService _instance = MatchingService._internal();
@@ -118,6 +119,58 @@ class MatchingService {
               .toList();
           return matches;
         });
+  }
+
+  /// Find semantically similar matches using Nerd Match (vector search)
+  Future<List<UserProfile>> findNerdMatches({
+    required List<double> queryEmbedding,
+    double matchThreshold = 0.5,
+    int matchCount = 5,
+    double? minSocial,
+    double? maxSocial,
+    double? minTemporal,
+    double? maxTemporal,
+    String? universityId,
+  }) async {
+    try {
+      final response = await _supabase.rpc('match_nerds', params: {
+        'query_embedding': queryEmbedding,
+        'match_threshold': matchThreshold,
+        'match_count': matchCount,
+        'min_social': minSocial ?? 0.0,
+        'max_social': maxSocial ?? 1.0,
+        'min_temporal': minTemporal ?? 0.0,
+        'max_temporal': maxTemporal ?? 1.0,
+        'target_university_id': universityId,
+      });
+
+      return (response as List).map((e) => UserProfile.fromJson(e)).toList();
+    } catch (e) {
+      logger.error('Error finding nerd matches', error: e);
+      return [];
+    }
+  }
+
+  /// Update user's study style preferences
+  Future<bool> updateStudyStyle({
+    required double social,
+    required double temporal,
+  }) async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) return false;
+
+      await _supabase.from('profiles').update({
+        'study_style_social': social,
+        'study_style_temporal': temporal,
+      }).eq('user_id', userId);
+
+      logger.info('Updated study style for $userId');
+      return true;
+    } catch (e) {
+      logger.error('Error updating study style', error: e);
+      return false;
+    }
   }
 }
 

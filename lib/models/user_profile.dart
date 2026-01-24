@@ -71,6 +71,15 @@ class UserProfile {
   @Deprecated('Serendipity is now always enabled')
   final bool serendipityEnabled;
 
+  /// Semantic embedding of the user's bio/profile.
+  final List<double>? bioEmbedding;
+
+  /// Study style: 0.0 (Silent) to 1.0 (Social).
+  final double studyStyleSocial;
+
+  /// Study style: 0.0 (Morning) to 1.0 (Night).
+  final double studyStyleTemporal;
+
   UserProfile({
     required this.userId,
     this.universityId,
@@ -96,6 +105,9 @@ class UserProfile {
     this.verificationStatus = 'pending',
     @Deprecated('Serendipity is now always enabled')
     this.serendipityEnabled = false,
+    this.bioEmbedding,
+    this.studyStyleSocial = 0.5,
+    this.studyStyleTemporal = 0.5,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -140,6 +152,13 @@ class UserProfile {
       verificationDocumentUrl: json['verification_document_url'],
       verificationStatus: json['verification_status'] ?? 'pending',
       serendipityEnabled: json['serendipity_enabled'] ?? false,
+      bioEmbedding: json['bio_embedding'] != null
+          ? List<double>.from(
+              (json['bio_embedding'] as List).map((e) => (e as num).toDouble()))
+          : null,
+      studyStyleSocial: (json['study_style_social'] as num?)?.toDouble() ?? 0.5,
+      studyStyleTemporal:
+          (json['study_style_temporal'] as num?)?.toDouble() ?? 0.5,
     );
   }
 
@@ -165,6 +184,9 @@ class UserProfile {
       'verification_status': verificationStatus,
       'serendipity_enabled':
           serendipityEnabled, // Deprecated but kept for schema compatibility
+      'study_style_social': studyStyleSocial,
+      'study_style_temporal': studyStyleTemporal,
+      if (bioEmbedding != null) 'bio_embedding': bioEmbedding,
       if (location != null) 'lat': location!.latitude,
       if (location != null) 'long': location!.longitude,
       'last_updated': DateTime.now().toIso8601String(),
@@ -195,6 +217,9 @@ class UserProfile {
     String? verificationDocumentUrl,
     String? verificationStatus,
     bool? serendipityEnabled,
+    List<double>? bioEmbedding,
+    double? studyStyleSocial,
+    double? studyStyleTemporal,
   }) {
     return UserProfile(
       userId: userId ?? this.userId,
@@ -222,6 +247,9 @@ class UserProfile {
       verificationStatus: verificationStatus ?? this.verificationStatus,
       // ignore: deprecated_member_use
       serendipityEnabled: serendipityEnabled ?? this.serendipityEnabled,
+      bioEmbedding: bioEmbedding ?? this.bioEmbedding,
+      studyStyleSocial: studyStyleSocial ?? this.studyStyleSocial,
+      studyStyleTemporal: studyStyleTemporal ?? this.studyStyleTemporal,
     );
   }
 }

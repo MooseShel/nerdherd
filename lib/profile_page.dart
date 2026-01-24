@@ -43,6 +43,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   String _verificationStatus = 'pending';
   final double _averageRating = 0.0;
   final int _reviewCount = 0;
+  double _studyStyleSocial = 0.5;
+  double _studyStyleTemporal = 0.5;
 
   @override
   void initState() {
@@ -80,6 +82,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         _isBusinessOwner = profile.isBusinessOwner; // NEW
         _verificationDocUrl = profile.verificationDocumentUrl;
         _verificationStatus = profile.verificationStatus;
+        _studyStyleSocial = profile.studyStyleSocial;
+        _studyStyleTemporal = profile.studyStyleTemporal;
       });
     } catch (e) {
       if (mounted) {
@@ -187,6 +191,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         'verification_document_url': _verificationDocUrl,
         // We don't reset status here, but we could if doc changes.
         // For now, let's just keep it as is.
+        'study_style_social': _studyStyleSocial,
+        'study_style_temporal': _studyStyleTemporal,
         'last_updated': DateTime.now().toIso8601String(),
       });
 
@@ -683,6 +689,58 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       ),
                     ],
                   ], // End if (!_isBusinessOwner)
+
+                  if (!_isBusinessOwner) ...[
+                    const SizedBox(height: 32),
+                    _buildLabel(context, 'Study Buddy "Vibe" (Nerd Match)'),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: theme.cardTheme.color,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: theme.dividerColor.withValues(alpha: 0.1)),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.person, size: 20),
+                              const SizedBox(width: 8),
+                              const Text('Quiet'),
+                              Expanded(
+                                child: Slider(
+                                  value: _studyStyleSocial,
+                                  onChanged: (val) =>
+                                      setState(() => _studyStyleSocial = val),
+                                ),
+                              ),
+                              const Text('Social'),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.groups, size: 20),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              const Icon(Icons.wb_sunny, size: 20),
+                              const SizedBox(width: 8),
+                              const Text('Early Bird'),
+                              Expanded(
+                                child: Slider(
+                                  value: _studyStyleTemporal,
+                                  onChanged: (val) =>
+                                      setState(() => _studyStyleTemporal = val),
+                                ),
+                              ),
+                              const Text('Night Owl'),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.nightlight_round, size: 20),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
 
                   const SizedBox(height: 20),
                   _buildLabel(context, 'Bio / About Me'),

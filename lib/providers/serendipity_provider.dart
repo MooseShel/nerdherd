@@ -7,6 +7,8 @@ import '../services/matching_service.dart';
 import '../services/constellation_service.dart';
 import '../models/serendipity_match.dart';
 import '../services/logger_service.dart';
+import 'user_profile_provider.dart';
+import '../models/user_profile.dart';
 
 // Provider for UI state to block map interaction
 final isModalOpenProvider = StateProvider<bool>((ref) => false);
@@ -190,3 +192,43 @@ class NearbySignalsParams {
 final pendingMatchesProvider = StreamProvider<List<SerendipityMatch>>((ref) {
   return matchingService.streamPendingMatches();
 });
+
+// Provider for Nerd Match (Semantic Search)
+final nerdMatchProvider =
+    StateNotifierProvider<NerdMatchNotifier, AsyncValue<List<UserProfile>>>(
+  (ref) => NerdMatchNotifier(ref),
+);
+
+class NerdMatchNotifier extends StateNotifier<AsyncValue<List<UserProfile>>> {
+  final Ref _ref;
+
+  NerdMatchNotifier(this._ref) : super(const AsyncValue.data([]));
+
+  Future<void> findMatches() async {
+    final profile = _ref.read(myProfileProvider).value;
+    if (profile == null || profile.bioEmbedding == null) {
+      state = AsyncValue.error(
+          'Profile incomplete for semantic matching', StackTrace.current);
+      return;
+    }
+
+    state = const AsyncValue.loading();
+    try {
+      final matches = await matchingService.findNerdMatches(
+        queryEmbedding: profile.bioEmbedding!,
+        universityId: profile.universityId,
+        minSocial: (profile.studyStyleSocial - 0.3).clamp(0.0, 1.0),
+        maxSocial: (profile.studyStyleSocial + 0.3).clamp(0.0, 1.0),
+        minTemporal: (profile.studyStyleTemporal - 0.3).clamp(0.0, 1.0),
+        maxTemporal: (profile.studyStyleTemporal + 0.3).clamp(0.0, 1.0),
+      );
+      state = AsyncValue.data(matches);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+
+  void clear() {
+    state = const AsyncValue.data([]);
+  }
+}

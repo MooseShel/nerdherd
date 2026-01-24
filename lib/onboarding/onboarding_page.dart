@@ -30,25 +30,25 @@ class _OnboardingPageState extends State<OnboardingPage> {
       'color': const Color(0xFFFF6B00), // Serendipity Orange
     },
     {
-      'title': 'Ghost Mode',
+      'title': 'Vibe Check',
       'description':
-          'Control your visibility. Go "Ghost" to study in private, or "Live" to broadcast your location to friends.',
+          'Know the crowd before you go. See live occupancy levels and noise ratings for every study spot in real-time.',
+      'icon': Icons.sensors_rounded,
+      'color': Colors.deepPurpleAccent,
+    },
+    {
+      'title': 'AI-Powered Insights',
+      'description':
+          'Get the real vibe. Gemini AI distills user reviews into smart tags and summaries so you always find the perfect spot.',
+      'icon': Icons.psychology_rounded,
+      'color': Colors.tealAccent,
+    },
+    {
+      'title': 'Ghost Mode & Privacy',
+      'description':
+          'Control your visibility. Go "Ghost" for private focus sessions, or stay "Live" to be discovered by peers.',
       'icon': Icons.visibility_off_rounded,
-      'color': Colors.grey,
-    },
-    {
-      'title': 'Liquid Glass Design',
-      'description':
-          'A beautiful new interface designed for clarity and focus, optimized for both light and dark modes.',
-      'icon': Icons.water_drop_rounded,
-      'color': Colors.cyanAccent,
-    },
-    {
-      'title': 'Verified Tutors & More',
-      'description':
-          'Find study spots, book top-rated tutors, and manage your classes all in one place.',
-      'icon': Icons.verified_user_rounded,
-      'color': Colors.greenAccent,
+      'color': Colors.blueGrey,
     },
   ];
 

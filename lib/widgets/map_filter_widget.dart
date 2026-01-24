@@ -88,7 +88,7 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
         AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOutCubic,
-          width: widget.isExpanded ? 160 : 0, // Shrunk from 260
+          width: widget.isExpanded ? 210 : 0, // Increased from 160 to 210
           decoration: BoxDecoration(
             color: theme.cardTheme.color?.withValues(alpha: 0.95),
             borderRadius: BorderRadius.circular(24),
@@ -131,6 +131,7 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
                             // Type Icons & Toggles
                             _buildCompactToggle(
                               icon: Icons.school,
+                              label: "Tutors",
                               activeColor: Colors.purpleAccent,
                               value: widget.currentFilters.showTutors,
                               onChanged: (val) => _updateFilters(widget
@@ -139,6 +140,7 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
                             ),
                             _buildCompactToggle(
                               icon: Icons.person,
+                              label: "Students",
                               activeColor: Colors.greenAccent,
                               value: widget.currentFilters.showStudents,
                               onChanged: (val) => _updateFilters(widget
@@ -147,6 +149,7 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
                             ),
                             _buildCompactToggle(
                               icon: Icons.group,
+                              label: "Classmates",
                               activeColor: theme.colorScheme.secondary,
                               value: widget.currentFilters.showClassmates,
                               onChanged: (val) => _updateFilters(widget
@@ -166,6 +169,7 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
 
                             _buildCompactToggle(
                               icon: Icons.star,
+                              label: "Sponsored",
                               activeColor: const Color(0xFFFFD700),
                               value: widget.currentFilters.showSponsoredSpots,
                               onChanged: (val) => _updateFilters(widget
@@ -174,6 +178,7 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
                             ),
                             _buildCompactToggle(
                               icon: Icons.place,
+                              label: "Public Spots",
                               activeColor: const Color(0xFF6200EE),
                               value: widget.currentFilters.showRegularSpots,
                               onChanged: (val) => _updateFilters(widget
@@ -238,6 +243,7 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
 
   Widget _buildCompactToggle({
     required IconData icon,
+    required String label,
     required Color activeColor,
     required bool value,
     required Function(bool) onChanged,
@@ -247,10 +253,28 @@ class _MapFilterWidgetState extends State<MapFilterWidget>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _MarkerPreview(
-            icon: icon,
-            color: activeColor,
-            isActive: value,
+          Row(
+            children: [
+              _MarkerPreview(
+                icon: icon,
+                color: activeColor,
+                isActive: value,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                      color: value
+                          ? activeColor
+                          : Theme.of(context)
+                              .textTheme
+                              .labelMedium
+                              ?.color
+                              ?.withValues(alpha: 0.6),
+                    ),
+              ),
+            ],
           ),
           Switch(
             value: value,
