@@ -186,6 +186,14 @@ class NotificationService {
         }
       });
 
+      // 5. Background Application Opened Handler (When clicking a notification while app is backgrounded/terminated)
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        logger.info('A new onMessageOpenedApp event was published!');
+
+        // This is THE handler for "Push Notification Click" from background
+        _handleNavigation(message.data);
+      });
+
       // Set background handler (needs to be static or top-level)
       FirebaseMessaging.onBackgroundMessage(
           _firebaseMessagingBackgroundHandler);
@@ -310,45 +318,98 @@ class NotificationService {
     await resetBadge();
 
     final payload = response.payload;
-    if (payload == null) return;
+    // Map payload string (type) back to useful data if needed,
+    // BUT local notifications might have minimal data.
+    // Ideally we pass the FULL data map as a JSON string in payload, but simple is ok.
 
-    logger.info('🔔 Notification tapped with payload: $payload');
-    final parts = payload.split(':');
-    final type = parts[0];
-    final id = parts.length > 1 ? parts[1] : null;
+    // For local notifications, we rely on the payload being just the "type".
+    // But wait - we need the ID (match_id, user_id) to navigate!
+    // The current _showNotification implementation passes `type` as payload.
+    // That's insufficient for navigation. It needs "type:id" or similar.
+
+    // Changing _onNotificationTapped to just parse the simple string is weak.
+    // Let's rely on _handleNavigation which expects a Map.
+    // If we only have a string payload, we try to reconstruct a partial map.
+
+    if (payload != null) {
+      logger.info('🔔 Notification tapped with payload: $payload');
+      // Attempt to parse "type:id" format used in _showNotification (we will need to update _showNotification too)
+      final parts = payload.split(':');
+      final type = parts[0];
+      final id = parts.length > 1 ? parts[1] : null;
+
+      final data = <String, dynamic>{'type': type};
+      if (id != null) {
+        // Generic ID mapping - assumes ID is relevant for the type
+        if (type == 'chat_message') data['sender_id'] = id;
+        // For matches, we might need match_id, but usually we just go to Requests page
+      }
+
+      _handleNavigation(data);
+    }
+  }
+
+  /// Centralized Navigation Logic
+  void _handleNavigation(Map<String, dynamic> data) async {
+    final type = data['type'];
+    logger.info('🧭 Handling navigation for type: $type');
 
     if (navigatorKey.currentState == null) {
-      logger.warning('⚠️ Navigator key not attached to context');
+      logger.warning(
+          '⚠️ Navigator key not attached to context - cannot navigate');
       return;
     }
 
     try {
-      if (type == 'chat_message' && id != null) {
-        // Fetch user profile and navigate to chat
-        final profileData = await supabase
-            .from('profiles')
-            .select()
-            .eq('user_id', id)
-            .maybeSingle();
+      if (type == 'chat_message') {
+        final senderId = data['sender_id']; // from data payload
+        if (senderId != null) {
+          // Fetch profile to navigate
+          final profileData = await supabase
+              .from('profiles')
+              .select()
+              .eq('user_id', senderId)
+              .maybeSingle();
 
-        if (profileData != null) {
-          final profile = UserProfile.fromJson(profileData);
-          navigatorKey.currentState?.push(
-            MaterialPageRoute(
-              builder: (context) => ChatPage(otherUser: profile),
-            ),
-          );
+          if (profileData != null) {
+            final profile = UserProfile.fromJson(profileData);
+            navigatorKey.currentState?.push(
+              MaterialPageRoute(
+                builder: (context) => ChatPage(otherUser: profile),
+              ),
+            );
+          }
         }
-      } else if (type == 'collab_request') {
-        // Navigate to RequestsPage
+      } else if (type == 'match_request' || type == 'collab_request') {
+        // Go to Requests Page
         navigatorKey.currentState?.push(
           MaterialPageRoute(
             builder: (context) => const RequestsPage(),
           ),
         );
+      } else if (type == 'match_accepted') {
+        // Maybe go to Chat or Connections?
+        // For now, let's go to Connections page or Chat
+        final accepterId = data['accepter_id'];
+        if (accepterId != null) {
+          final profileData = await supabase
+              .from('profiles')
+              .select()
+              .eq('user_id', accepterId)
+              .maybeSingle();
+
+          if (profileData != null) {
+            final profile = UserProfile.fromJson(profileData);
+            navigatorKey.currentState?.push(
+              MaterialPageRoute(
+                builder: (context) => ChatPage(otherUser: profile),
+              ),
+            );
+          }
+        }
       }
     } catch (e) {
-      logger.error('Error handling notification navigation', error: e);
+      logger.error('Error handling navigation', error: e);
     }
   }
 
@@ -455,7 +516,7 @@ class NotificationService {
       title,
       body,
       details,
-      payload: type, // Pass type as payload for handling taps
+      payload: "$type", // Pass type (and ideally ID) as payload
     );
 
     logger.info('📬 Notification shown: $title');

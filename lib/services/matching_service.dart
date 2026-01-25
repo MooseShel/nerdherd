@@ -14,6 +14,7 @@ class MatchingService {
   Future<SerendipityMatch?> suggestMatch({
     required String otherUserId,
     required String matchType, // 'proximity', 'constellation', 'temporal'
+    String? message,
   }) async {
     try {
       final currentUserId = _supabase.auth.currentUser?.id;
@@ -49,6 +50,30 @@ class MatchingService {
           .single();
 
       logger.info('Created new match: $matchType');
+
+      // NOTIFICATION: Notify the other user (Receiver)
+      try {
+        await _supabase.from('notifications').insert({
+          'user_id': otherUserId,
+          'type': 'match_request', // Custom type or generic
+          'title': 'New Nerd Match! 🎓',
+          'body': 'Someone nearby wants to study!',
+          'data': {'match_id': data['id'], 'sender_id': currentUserId},
+          'read': false,
+        });
+
+        // STANDARD REQUEST: Create a formal collab_request
+        // This ensures the standard "Accept/Reject" workflow works
+        await _supabase.from('collab_requests').insert({
+          'sender_id': currentUserId,
+          'receiver_id': otherUserId,
+          'status': 'pending',
+          'message': message, // Added message field
+        });
+      } catch (e) {
+        logger.warning('Failed to send match notification/request', error: e);
+      }
+
       return SerendipityMatch.fromJson(data);
     } catch (e) {
       logger.error('Error suggesting match', error: e);
@@ -63,6 +88,67 @@ class MatchingService {
           .from('serendipity_matches')
           .update({'accepted': true}).eq('id', matchId);
       logger.info('Accepted match $matchId');
+
+      // 1. CREATE CONNECTION (Crucial for Chat)
+      // We need to fetch the match to get IDs
+      final matchData = await _supabase
+          .from('serendipity_matches')
+          .select()
+          .eq('id', matchId)
+          .single();
+      final userA = matchData['user_a'];
+      final userB = matchData['user_b'];
+      final currentUserId = _supabase.auth.currentUser?.id;
+
+      // Determine who is the "Other" (the one who sent the request)
+      final otherUserId = (userA == currentUserId) ? userB : userA;
+
+      // Ensure consistent ordering for storage to prevent (A,B) and (B,A) duplicates
+      final id1 = (userA.compareTo(userB) < 0) ? userA : userB;
+      final id2 = (userA.compareTo(userB) < 0) ? userB : userA;
+
+      // Check if connection already exists
+      final existingConnection = await _supabase
+          .from('connections')
+          .select('id')
+          .eq('user_id_1', id1)
+          .eq('user_id_2', id2)
+          .maybeSingle();
+
+      if (existingConnection == null) {
+        try {
+          await _supabase.from('connections').insert({
+            'user_id_1': id1,
+            'user_id_2': id2,
+          });
+          logger.info('Created new connection between $id1 and $id2');
+        } catch (e) {
+          // If duplicate key error (23505), ignore it as the goal is achieved.
+          if (e.toString().contains('23505') ||
+              e.toString().contains('duplicate key')) {
+            logger.info('Connection already exists (caught duplicate error).');
+          } else {
+            rethrow;
+          }
+        }
+      } else {
+        logger.info('Connection already exists between $id1 and $id2');
+      }
+
+      // 2. NOTIFICATION: Notify the Sender
+      try {
+        await _supabase.from('notifications').insert({
+          'user_id': otherUserId,
+          'type': 'match_accepted',
+          'title': 'Match Accepted! 🎉',
+          'body': 'Your study buddy is ready to chat.',
+          'data': {'match_id': matchId, 'accepter_id': currentUserId},
+          'read': false,
+        });
+      } catch (e) {
+        logger.warning('Failed to send accept notification', error: e);
+      }
+
       return true;
     } catch (e) {
       logger.error('Error accepting match $matchId', error: e);
@@ -73,8 +159,30 @@ class MatchingService {
   /// Decline/Remove a match
   Future<bool> declineMatch(String matchId) async {
     try {
-      await _supabase.from('serendipity_matches').delete().eq('id', matchId);
-      logger.info('Declined/Removed match $matchId');
+      // 1. Get match details before deleting (to find the pair)
+      final match = await _supabase
+          .from('serendipity_matches')
+          .select()
+          .eq('id', matchId)
+          .maybeSingle();
+
+      if (match != null) {
+        final u1 = match['user_a'];
+        final u2 = match['user_b'];
+
+        // 2. Delete the match record
+        await _supabase.from('serendipity_matches').delete().eq('id', matchId);
+
+        // 3. ALSO delete/cancel the collab_request (if any)
+        // This ensures the receiver doesn't see a stale request
+        await _supabase
+            .from('collab_requests')
+            .delete()
+            .or('and(sender_id.eq.$u1,receiver_id.eq.$u2),and(sender_id.eq.$u2,receiver_id.eq.$u1)')
+            .eq('status', 'pending');
+
+        logger.info('Declined/Removed match $matchId and related requests');
+      }
       return true;
     } catch (e) {
       logger.error('Error declining match $matchId', error: e);
@@ -118,6 +226,18 @@ class MatchingService {
                   (m.userA == userId || m.userB == userId) && !m.accepted)
               .toList();
           return matches;
+        });
+  }
+
+  /// Stream a single match by ID (to detect acceptance)
+  Stream<SerendipityMatch?> streamMatch(String matchId) {
+    return _supabase
+        .from('serendipity_matches')
+        .stream(primaryKey: ['id'])
+        .eq('id', matchId)
+        .map((data) {
+          if (data.isEmpty) return null;
+          return SerendipityMatch.fromJson(data.first);
         });
   }
 

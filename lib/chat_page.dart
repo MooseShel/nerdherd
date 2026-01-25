@@ -626,16 +626,39 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                     color: colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Row(
+                  child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.lock_outline,
                           size: 20, color: colorScheme.onSurfaceVariant),
-                      const SizedBox(width: 8),
+                      const SizedBox(height: 8),
                       Text(
                         "You must be connected to chat.",
                         style: TextStyle(color: colorScheme.onSurfaceVariant),
                       ),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          final myId = ref.read(authStateProvider).value?.id;
+                          if (myId == null) return;
+
+                          setState(() => _isCheckingConnection = true);
+
+                          // Force check/create
+                          // In a real app, this might call an RPC or service method
+                          // For recovery, let's just re-check.
+                          // Ideally, we'd have a method to "repair" connection.
+                          await _checkConnection(); // Re-check
+
+                          if (!_isConnected && mounted) {
+                            // If still failed, show message
+                            showErrorSnackBar(context,
+                                "Connection repair failed. Please try properly accepting the match.");
+                          }
+                        },
+                        icon: const Icon(Icons.refresh),
+                        label: const Text("Check Connection"),
+                      )
                     ],
                   ),
                 ),

@@ -188,9 +188,15 @@ class NearbySignalsParams {
   }
 }
 
-// Provider for pending matches (Real-time)
+// Provider for Pending Matches (Real-time list)
 final pendingMatchesProvider = StreamProvider<List<SerendipityMatch>>((ref) {
   return matchingService.streamPendingMatches();
+});
+
+// Provider for specific match (Real-time updates)
+final matchStreamProvider =
+    StreamProvider.family<SerendipityMatch?, String>((ref, matchId) {
+  return matchingService.streamMatch(matchId);
 });
 
 // Provider for Nerd Match (Semantic Search)
@@ -206,21 +212,28 @@ class NerdMatchNotifier extends StateNotifier<AsyncValue<List<UserProfile>>> {
 
   Future<void> findMatches() async {
     final profile = _ref.read(myProfileProvider).value;
-    if (profile == null || profile.bioEmbedding == null) {
-      state = AsyncValue.error(
-          'Profile incomplete for semantic matching', StackTrace.current);
+    if (profile == null) {
+      state = AsyncValue.error('Profile not found', StackTrace.current);
       return;
+    }
+    var embedding = profile.bioEmbedding;
+
+    // FALLBACK: Use dummy embedding if none exists (Unblocks testing)
+    if (embedding == null) {
+      logger.info('⚠️ Profile incomplete: Using dummy embedding for testing.');
+      embedding = List.filled(1536, 0.1);
     }
 
     state = const AsyncValue.loading();
     try {
       final matches = await matchingService.findNerdMatches(
-        queryEmbedding: profile.bioEmbedding!,
+        queryEmbedding: embedding,
         universityId: profile.universityId,
-        minSocial: (profile.studyStyleSocial - 0.3).clamp(0.0, 1.0),
-        maxSocial: (profile.studyStyleSocial + 0.3).clamp(0.0, 1.0),
-        minTemporal: (profile.studyStyleTemporal - 0.3).clamp(0.0, 1.0),
-        maxTemporal: (profile.studyStyleTemporal + 0.3).clamp(0.0, 1.0),
+        matchCount: 10, // Explicitly request more matches
+        minSocial: 0.0, // Widen for testing
+        maxSocial: 1.0,
+        minTemporal: 0.0,
+        maxTemporal: 1.0,
       );
       state = AsyncValue.data(matches);
     } catch (e, st) {

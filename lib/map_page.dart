@@ -278,11 +278,28 @@ class _MapPageState extends ConsumerState<MapPage> {
     }
   }
 
+  // Helper for responsive marker scale
+  double _getMarkerScale() {
+    // Target Sizes:
+    // Web: ~45px (Standard cursor interaction)
+    // Mobile: ~70px (Finger accessible)
+    // Base Size: 250px
+    if (kIsWeb) {
+      return 0.18; // 250 * 0.18 = 45px
+    } else {
+      return 0.28; // 250 * 0.28 = 70px
+    }
+  }
+
   Future<Uint8List> _createMarkerImage(IconData icon, Color? color) async {
     final pictureRecorder = ui.PictureRecorder();
     final canvas = Canvas(pictureRecorder);
-    const size = 100.0;
-    const padding = 10.0;
+
+    // INCREASED RESOLUTION: 100 -> 250 for crispness on high DPI screens
+    const size = 250.0;
+
+    // Proportional padding/sizing
+    const padding = size * 0.1; // 10% padding (25px)
     const innerSize = size - (padding * 2);
 
     // DEFENSIVE: Fallback if color is theoretically null (fixes reported crash)
@@ -295,12 +312,14 @@ class _MapPageState extends ConsumerState<MapPage> {
       ..style = PaintingStyle.fill;
 
     // Subtle shadow for 3D effect (diffused)
+    // Scaled blur and offset for larger size
     canvas.drawCircle(
-      const Offset(size / 2, size / 2 + 2),
+      const Offset(size / 2, size / 2 + 5), // +5 offset
       innerSize / 2,
       Paint()
         ..color = Colors.blue.withValues(alpha: 0.3)
-        ..maskFilter = const ui.MaskFilter.blur(BlurStyle.normal, 4),
+        ..maskFilter =
+            const ui.MaskFilter.blur(BlurStyle.normal, 10), // 10 blur
     );
 
     canvas.drawCircle(const Offset(size / 2, size / 2), innerSize / 2, paint);
@@ -309,7 +328,7 @@ class _MapPageState extends ConsumerState<MapPage> {
     final borderPaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.4)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 4;
+      ..strokeWidth = size * 0.04; // 4% stroke (10px)
     canvas.drawCircle(
         const Offset(size / 2, size / 2), innerSize / 2, borderPaint);
 
@@ -362,7 +381,7 @@ class _MapPageState extends ConsumerState<MapPage> {
     return SymbolOptions(
       geometry: LatLng(spot.latitude, spot.longitude),
       iconImage: iconImage,
-      iconSize: 0.4, // MapLibre size multiplier
+      iconSize: _getMarkerScale(), // USE DYNAMIC SCALE
       iconOpacity: 1.0,
     );
   }
@@ -1006,7 +1025,11 @@ class _MapPageState extends ConsumerState<MapPage> {
             SymbolOptions(
               geometry: geometry,
               iconImage: peer.isTutor ? 'marker_tutor' : 'marker_student',
-              iconSize: 0.35, // Balanced size
+              iconSize: _getMarkerScale() *
+                  0.85, // Peers slightly smaller than spots? Actually let's keep them consistent or just slightly smaller.
+              // Let's explicitly try to make them "Normal" size.
+              // If spots are 1.0 scale, peers at 0.85 scale seems okay distinction wise.
+              // 70px * 0.85 = ~60px.
               iconOpacity: opacity,
               // symbolSortKey: 10, // Not supported in this version
             ),
@@ -1027,7 +1050,7 @@ class _MapPageState extends ConsumerState<MapPage> {
                 geometry: _currentLocation!,
                 circleColor: '#00FF00',
                 circleOpacity: 0.3,
-                circleRadius: 28, // Proportional to size 0.4
+                circleRadius: kIsWeb ? 28 : 45, // Larger pulse for mobile
                 circleStrokeWidth: 2,
                 circleStrokeColor: '#00FF00',
                 circleBlur: 0.6,
@@ -1054,7 +1077,7 @@ class _MapPageState extends ConsumerState<MapPage> {
             SymbolOptions(
               geometry: _currentLocation!,
               iconImage: myIcon,
-              iconSize: 0.4,
+              iconSize: _getMarkerScale(),
               iconOpacity: 1.0,
               // Note: We can't force 'icon-allow-overlap' in addSymbol easily,
               // but we cleared nearby spots so it should be fine.

@@ -75,8 +75,8 @@ class ConstellationService {
       logger.info(
           '✨ Constellation: Found ${candidates.length} potential candidates nearby.');
 
-      UserProfile? bestMatch;
-      double bestScore = 0.0;
+      // Collect valid matches
+      List<Map<String, dynamic>> scoredCandidates = [];
 
       for (final candidate in candidates) {
         if (candidate.location == null) {
@@ -101,22 +101,38 @@ class ConstellationService {
         logger.debug(
             '   -> Candidate ${candidate.fullName} (${dist.toInt()}m): Score ${score.toStringAsFixed(2)}');
 
-        // RELAXED THRESHOLD for testing (0.5 -> 0.2)
-        if (score >= 0.2 && score > bestScore) {
-          bestScore = score;
-          bestMatch = candidate;
+        // RELAXED THRESHOLD for testing (0.5 -> 0.1)
+        if (score >= 0.1) {
+          scoredCandidates.add({
+            'candidate': candidate,
+            'score': score,
+          });
         }
       }
 
-      // 2. Action: Suggest Match if found
-      if (bestMatch != null) {
-        logger.info(
-            '✨ Constellation: 🎯 MATCH FOUND! ${bestMatch.fullName} (Score: ${bestScore.toStringAsFixed(2)})');
+      // Sort by Score Descending
+      scoredCandidates.sort(
+          (a, b) => (b['score'] as double).compareTo(a['score'] as double));
 
-        await matchingService.suggestMatch(
-          otherUserId: bestMatch.userId,
-          matchType: 'constellation',
-        );
+      // Suggest Top 5 Matches
+      final topMatches = scoredCandidates.take(5).toList();
+
+      if (topMatches.isNotEmpty) {
+        logger.info(
+            '✨ Constellation: 🎯 Found ${topMatches.length} suitable matches!');
+
+        for (final item in topMatches) {
+          final candidate = item['candidate'] as UserProfile;
+          final score = item['score'] as double;
+
+          logger.info(
+              '   -> Suggesting: ${candidate.fullName} (Score: ${score.toStringAsFixed(2)})');
+
+          await matchingService.suggestMatch(
+            otherUserId: candidate.userId,
+            matchType: 'constellation',
+          );
+        }
       } else {
         logger.info('✨ Constellation: No suitable matches found this time.');
       }

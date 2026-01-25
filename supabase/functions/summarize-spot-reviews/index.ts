@@ -65,8 +65,8 @@ serve(async (req: Request) => {
     ${reviewText}
     `;
 
-        // Call Gemini API - Use v1beta with verified model gemini-2.0-flash
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+        // Call Gemini API - Use v1beta with gemini-2.5-flash-lite (User specified)
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}`;
 
         const geminiRes = await fetch(geminiUrl, {
             method: "POST",

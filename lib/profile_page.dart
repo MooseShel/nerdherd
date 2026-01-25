@@ -12,6 +12,7 @@ import 'university/university_selection_page.dart';
 import 'conversations_page.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'providers/wallet_provider.dart';
+import 'providers/user_profile_provider.dart';
 import 'wallet_page.dart';
 import 'package:intl/intl.dart';
 import 'reviews/reviews_history_page.dart';
@@ -198,6 +199,30 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
       if (mounted) {
         _showSnack('Profile saved successfully!', isError: false);
+      }
+
+      // 2. Trigger Embedding Generation (Explicitly)
+      // This ensures it works even if DB Webhooks are not set up locally
+      try {
+        await supabase.functions.invoke(
+          'generate-profile-embedding',
+          body: {
+            'record': {
+              'user_id': user.id,
+              'bio': _bioController.text.trim(),
+              'current_classes': classesList,
+            }
+          },
+        );
+        logger.info("✅ Triggered manual embedding generation.");
+      } catch (e) {
+        logger.warning(
+            "⚠️ Failed to trigger manual embedding (Function might be down/missing): $e");
+      }
+
+      if (mounted) {
+        // Force refresh of the profile provider to get the new embedding
+        ref.invalidate(myProfileProvider);
         Navigator.pop(context); // Return to map
       }
     } catch (e) {

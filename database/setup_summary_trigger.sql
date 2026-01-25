@@ -17,7 +17,8 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Trigger on every new review
 DROP TRIGGER IF EXISTS on_review_submitted ON public.spot_reviews;
-CREATE TRIGGER on_review_submitted
-  AFTER INSERT ON public.spot_reviews
-  FOR EACH ROW
-  EXECUTE FUNCTION public.trigger_spot_summary();
+-- TRIGGER DISABLED to prevent 429 errors (Double Invocation with Client)
+-- CREATE TRIGGER on_review_submitted
+--   AFTER INSERT ON public.spot_reviews
+--   FOR EACH ROW
+--   EXECUTE FUNCTION public.trigger_spot_summary();

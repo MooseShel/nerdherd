@@ -7,7 +7,7 @@ class NerdMatchReveal extends StatefulWidget {
   final UserProfile matchedUser;
   final double similarity;
   final String subject;
-  final VoidCallback onConnect;
+  final Function(String?) onConnect;
   final VoidCallback onDismiss;
 
   const NerdMatchReveal({
@@ -209,7 +209,48 @@ class _NerdMatchRevealState extends State<NerdMatchReveal>
                         PrimaryButton(
                           label: 'Connect & Say Hi!',
                           fullWidth: true,
-                          onPressed: widget.onConnect,
+                          onPressed: () {
+                            // Show Message Dialog
+                            final msgController = TextEditingController();
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Send a Message 💬'),
+                                content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Text(
+                                        'Say hi to your potential study buddy!'),
+                                    const SizedBox(height: 12),
+                                    TextField(
+                                      controller: msgController,
+                                      autofocus: true,
+                                      decoration: const InputDecoration(
+                                        hintText:
+                                            'e.g. Hey! I\'m working on calc too.',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      maxLines: 3,
+                                    ),
+                                  ],
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                      widget
+                                          .onConnect(msgController.text.trim());
+                                    },
+                                    child: const Text('Send Request'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(height: 12),
                         SecondaryButton(
