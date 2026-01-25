@@ -7,44 +7,45 @@ import '../../config/theme.dart';
 import '../../providers/serendipity_provider.dart';
 import '../../chat_page.dart';
 
-class MatchIntroSheet extends ConsumerWidget {
+class MatchIntroSheet extends ConsumerStatefulWidget {
   final SerendipityMatch match;
 
   const MatchIntroSheet({super.key, required this.match});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MatchIntroSheet> createState() => _MatchIntroSheetState();
+}
+
+class _MatchIntroSheetState extends ConsumerState<MatchIntroSheet> {
+  bool _isAccepting = false;
+
+  @override
+  Widget build(BuildContext context) {
     final myId = ref.watch(myProfileProvider).value?.userId;
     // Check if userA or userB is the other user
-    final otherUserId = match.userA == myId ? match.userB : match.userA;
+    final otherUserId =
+        widget.match.userA == myId ? widget.match.userB : widget.match.userA;
     final otherProfileAsync = ref.watch(profileProvider(otherUserId));
 
     // Watch the real-time match state
-    final liveMatchAsync = ref.watch(matchStreamProvider(match.id));
+    final liveMatchAsync = ref.watch(matchStreamProvider(widget.match.id));
 
     // POLLING FALLBACK: Invalidating the provider every 3s if pending
-    // This ensures that if the stream fails, we still get the update.
     if (liveMatchAsync.value?.accepted == false) {
-      // Use a simple timer effect via a future delay in build (careful with loops) or better, useEffect equivalent.
-      // Since this is a ConsumerWidget, we can't easily use Timer.
-      // We'll use a Future.delayed to trigger a refresh if we're still waiting.
-      // This is a "poor man's poll" but effective for this critical state.
       Future.delayed(const Duration(seconds: 3), () {
-        if (context.mounted && liveMatchAsync.value?.accepted == false) {
-          // Only refresh if we are still pending
-          ref.invalidate(matchStreamProvider(match.id));
+        if (mounted && liveMatchAsync.value?.accepted == false) {
+          ref.invalidate(matchStreamProvider(widget.match.id));
         }
       });
     }
 
     // Use live match or fallback to initial (but prefer live)
-    final liveMatch = liveMatchAsync.valueOrNull ?? match;
+    final liveMatch = liveMatchAsync.valueOrNull ?? widget.match;
 
     // Safety check: If match was deleted remotely, close sheet
     if (liveMatchAsync is AsyncData && liveMatchAsync.value == null) {
-      // Delay pop to avoid build error
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (context.mounted) Navigator.pop(context);
+        if (mounted) Navigator.pop(context);
       });
     }
 
@@ -162,56 +163,87 @@ class MatchIntroSheet extends ConsumerWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () async {
-                  // Accept match logic
-                  final success = await matchingService.acceptMatch(match.id);
+                onPressed: _isAccepting
+                    ? null
+                    : () async {
+                        // Accept match logic
+                        setState(() => _isAccepting = true);
+                        try {
+                          final success = await matchingService
+                              .acceptMatch(widget.match.id);
 
-                  if (context.mounted) {
-                    if (success) {
-                      Navigator.pop(context); // Close sheet
+                          if (mounted) {
+                            if (success) {
+                              Navigator.pop(context); // Close sheet
 
-                      // Navigate to Chat
-                      final profile = otherProfileAsync.value;
-                      if (profile != null) {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => ChatPage(otherUser: profile),
-                          ),
-                        );
-                      }
-                    } else {
-                      // Show error (Match probably declined/deleted)
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content:
-                              const Text('Matches expired or was canceled.'),
-                          backgroundColor: Theme.of(context).colorScheme.error,
-                        ),
-                      );
-                      Navigator.pop(context);
-                    }
-                  }
-                },
+                              // Navigate to Chat
+                              final profile = otherProfileAsync.value;
+                              if (profile != null) {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        ChatPage(otherUser: profile),
+                                  ),
+                                );
+                              }
+                            } else {
+                              // Show error (Match probably declined/deleted)
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text(
+                                      'Matches expired or was canceled.'),
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.error,
+                                ),
+                              );
+                              Navigator.pop(context);
+                            }
+                          }
+                        } catch (e) {
+                          // Handle any exceptions (e.g., duplicate key errors)
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content:
+                                    Text('Match accepted! Opening chat...'),
+                                backgroundColor: AppTheme.serendipityOrange,
+                              ),
+                            );
+                            Navigator.pop(context);
+                          }
+                        } finally {
+                          if (mounted) setState(() => _isAccepting = false);
+                        }
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.serendipityOrange,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                icon: const Icon(Icons.check_circle),
-                label: const Text("Accept Request"),
+                icon: _isAccepting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.check_circle),
+                label: Text(_isAccepting ? "Connecting..." : "Accept Request"),
               ),
             ),
           ],
           const SizedBox(height: 12),
           TextButton(
-            onPressed: () async {
-              // Pop FIRST to avoid viewing a deleted match (avoids crash/race)
-              if (context.mounted) Navigator.pop(context);
+            onPressed: _isAccepting
+                ? null
+                : () async {
+                    // Pop FIRST to avoid viewing a deleted match (avoids crash/race)
+                    if (mounted) Navigator.pop(context);
 
-              await matchingService.declineMatch(match.id);
-              // ref.invalidate is NOT needed and causes "Bad State" because widget is disposed.
-              // Stream will auto-update.
-            },
+                    await matchingService.declineMatch(widget.match.id);
+                  },
             style: TextButton.styleFrom(
               foregroundColor: Colors.grey,
             ),

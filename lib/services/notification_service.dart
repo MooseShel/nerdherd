@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:shared_preferences/shared_preferences.dart'; // Add this
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -143,7 +142,7 @@ class NotificationService {
 
       // 2. Get Token
       // On iOS, we need to wait for APNs token first
-      if (Platform.isIOS) {
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
         String? apnsToken = await messaging.getAPNSToken();
         if (apnsToken == null) {
           await Future.delayed(const Duration(seconds: 3));
@@ -245,7 +244,7 @@ class NotificationService {
       final messaging = FirebaseMessaging.instance;
 
       // On iOS, we need to wait for APNs token first
-      if (Platform.isIOS) {
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
         String? apnsToken = await messaging.getAPNSToken();
         if (apnsToken == null) {
           logger.info('Waiting for APNs token before FCM sync...');
@@ -561,7 +560,9 @@ class NotificationService {
   Future<void> resetBadge() async {
     // Badge is only supported on mobile/macOS, not Web or Windows/Linux
     if (kIsWeb) return;
-    if (!Platform.isIOS && !Platform.isAndroid && !Platform.isMacOS) return;
+    if (defaultTargetPlatform != TargetPlatform.iOS &&
+        defaultTargetPlatform != TargetPlatform.android &&
+        defaultTargetPlatform != TargetPlatform.macOS) return;
 
     try {
       if (await FlutterAppBadger.isAppBadgeSupported()) {

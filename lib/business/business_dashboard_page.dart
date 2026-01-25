@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart'; // NEW
-import 'dart:io'; // For File
+import 'dart:io' as io; // Use alias to avoid conflicts and make it clearer
 import '../models/study_spot.dart';
 import '../providers/user_profile_provider.dart';
+import '../providers/payment_provider.dart';
 
 class BusinessDashboardPage extends ConsumerStatefulWidget {
   const BusinessDashboardPage({super.key});
@@ -114,12 +116,12 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
         return;
       }
 
-      // Call the new pay_sponsorship RPC
-      await _supabase.rpc('pay_sponsorship', params: {
-        'p_user_id': user.id,
-        'p_amount': amount,
-        'p_description': 'Gold Sponsorship for ${spot.name}',
-      });
+      // Call the PaymentService
+      await ref.read(paymentServiceProvider).paySponsorship(
+            spot.id,
+            amount,
+            'Gold Sponsorship for ${spot.name}',
+          );
 
       // Update spot status locally and in DB
       await _supabase.from('study_spots').update({
@@ -261,10 +263,16 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
                       color: Colors.grey[800],
                       borderRadius: BorderRadius.circular(12),
                       image: _selectedImage != null
-                          ? DecorationImage(
-                              image: FileImage(File(_selectedImage!.path)),
-                              fit: BoxFit.cover,
-                            )
+                          ? (kIsWeb
+                              ? DecorationImage(
+                                  image: NetworkImage(_selectedImage!.path),
+                                  fit: BoxFit.cover,
+                                )
+                              : DecorationImage(
+                                  image:
+                                      FileImage(io.File(_selectedImage!.path)),
+                                  fit: BoxFit.cover,
+                                ))
                           : null,
                     ),
                     child: _selectedImage == null

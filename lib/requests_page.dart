@@ -101,16 +101,14 @@ class _RequestsPageState extends State<RequestsPage> {
         final u1 = req['sender_id'];
         final u2 = req['receiver_id'];
 
+        // Create connection using safe database function
         try {
-          await supabase.from('connections').insert({
-            'user_id_1': u1,
-            'user_id_2': u2,
+          await supabase.rpc('create_connection_safe', params: {
+            'uid1': u1,
+            'uid2': u2,
           });
         } catch (e) {
-          // Flattening error handling:
-          // If connection fails (likely duplicate), we log it but PROCEED to accept the request.
-          // This ensures the UI doesn't get stuck.
-          logger.info("Ignored connection insert error (likely duplicate): $e");
+          logger.info("Error calling create_connection_safe: $e");
         }
 
         // 2. Update Status to Accepted (Preserve History)

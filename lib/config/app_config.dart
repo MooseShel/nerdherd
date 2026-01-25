@@ -50,6 +50,15 @@ class AppConfig {
     if (!isDebug) return null;
     return dotenv.env['TEST_USER_PASSWORD'];
   }
+
+  /// Stripe Publishable Key
+  String get stripePublishableKey {
+    final key = dotenv.env['STRIPE_PUBLISHABLE_KEY'];
+    if (key == null || key.isEmpty) {
+      return ''; // Allow empty for now, but should ideally throw if required
+    }
+    return key;
+  }
 }
 
 // Global config instance

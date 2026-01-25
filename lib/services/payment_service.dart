@@ -1,4 +1,6 @@
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import '../models/transaction.dart';
 
 class PaymentService {
@@ -6,28 +8,51 @@ class PaymentService {
 
   PaymentService(this._supabase);
 
-  /// Simulates a deposit of funds into the user's wallet.
-  ///
-  /// In a real app, this would involve a Stripe PaymentIntent.
+  /// Process a deposit using Stripe.
   Future<bool> deposit(double amount) async {
     try {
       final user = _supabase.auth.currentUser;
       if (user == null) throw Exception('User not logged in');
 
-      // Simulate network delay for payment processing
-      await Future.delayed(const Duration(seconds: 2));
+      // 1. Call Edge Function to create PaymentIntent
+      final response = await _supabase.functions.invoke(
+        'stripe-payment',
+        body: {
+          'amount': amount,
+          'customer_email': user.email,
+          'description': 'Nerd Herd Wallet Top-up',
+        },
+      );
 
-      // 1. Log transaction
+      if (response.status != 200) {
+        throw Exception('Failed to create payment intent: ${response.data}');
+      }
+
+      final clientSecret = response.data['clientSecret'] as String;
+
+      // 2. Initialize Payment Sheet
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: clientSecret,
+          merchantDisplayName: 'Nerd Herd',
+          style: ThemeMode.dark, // Adjust based on your app theme
+        ),
+      );
+
+      // 3. Present Payment Sheet
+      await Stripe.instance.presentPaymentSheet();
+
+      // 4. Log transaction in Supabase
+      // NOTE: In a production app, you should rely on Stripe Webhooks
+      // to update the balance securely. This is for MVP demonstration.
       await _supabase.from('transactions').insert({
         'user_id': user.id,
         'amount': amount,
         'type': 'deposit',
-        'description': 'Top up via Card ending in 4242',
+        'description': 'Stripe Top-up',
       });
 
-      // 2. Update wallet balance (using a stored procedure is safer but this works for MVP)
-      // Fetch current balance first to be safe, or use Postgres increment if possible.
-      // For MVP, we'll just read-modify-write knowing race conditions exist.
+      // 5. Update wallet balance
       final profile = await _supabase
           .from('profiles')
           .select('wallet_balance')
@@ -42,6 +67,9 @@ class PaymentService {
 
       return true;
     } catch (e) {
+      if (e is StripeException) {
+        throw Exception('Payment cancelled: ${e.error.localizedMessage}');
+      }
       throw Exception('Deposit failed: ${e.toString()}');
     }
   }
@@ -125,6 +153,26 @@ class PaymentService {
         throw Exception('Insufficient funds in wallet.');
       }
       throw Exception('Payment failed: $msg');
+    }
+  }
+
+  /// Process a sponsorship payment for a study spot.
+  Future<bool> paySponsorship(
+      String spotId, double amount, String description) async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) throw Exception('User not logged in');
+
+      // Call the Database Function (RPC)
+      await _supabase.rpc('pay_sponsorship', params: {
+        'p_user_id': user.id,
+        'p_amount': amount,
+        'p_description': description,
+      });
+
+      return true;
+    } catch (e) {
+      throw Exception('Sponsorship payment failed: ${e.toString()}');
     }
   }
 

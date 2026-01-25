@@ -53,14 +53,16 @@ class MatchingService {
 
       // NOTIFICATION: Notify the other user (Receiver)
       try {
-        await _supabase.from('notifications').insert({
-          'user_id': otherUserId,
-          'type': 'match_request', // Custom type or generic
-          'title': 'New Nerd Match! 🎓',
-          'body': 'Someone nearby wants to study!',
-          'data': {'match_id': data['id'], 'sender_id': currentUserId},
-          'read': false,
-        });
+        // NOTIFICATION: We rely on a database trigger or the collab_requests generic handler
+        // to send the notification. Explicitly inserting one here causes duplicates.
+        // await _supabase.from('notifications').insert({
+        //   'user_id': otherUserId,
+        //   'type': 'match_request', // Custom type or generic
+        //   'title': 'New Nerd Match! 🎓',
+        //   'body': 'Someone nearby wants to study!',
+        //   'data': {'match_id': data['id'], 'sender_id': currentUserId},
+        //   'read': false,
+        // });
 
         // STANDARD REQUEST: Create a formal collab_request
         // This ensures the standard "Accept/Reject" workflow works
@@ -70,8 +72,18 @@ class MatchingService {
           'status': 'pending',
           'message': message, // Added message field
         });
+        logger.info('Created collab_request for match');
       } catch (e) {
-        logger.warning('Failed to send match notification/request', error: e);
+        // Handle duplicate key errors gracefully
+        final errorString = e.toString().toLowerCase();
+        if (errorString.contains('23505') ||
+            errorString.contains('duplicate key') ||
+            errorString.contains('unique constraint')) {
+          logger
+              .info('Collab request already exists (caught duplicate error).');
+        } else {
+          logger.warning('Failed to send match notification/request', error: e);
+        }
       }
 
       return SerendipityMatch.fromJson(data);
@@ -107,32 +119,17 @@ class MatchingService {
       final id1 = (userA.compareTo(userB) < 0) ? userA : userB;
       final id2 = (userA.compareTo(userB) < 0) ? userB : userA;
 
-      // Check if connection already exists
-      final existingConnection = await _supabase
-          .from('connections')
-          .select('id')
-          .eq('user_id_1', id1)
-          .eq('user_id_2', id2)
-          .maybeSingle();
-
-      if (existingConnection == null) {
-        try {
-          await _supabase.from('connections').insert({
-            'user_id_1': id1,
-            'user_id_2': id2,
-          });
-          logger.info('Created new connection between $id1 and $id2');
-        } catch (e) {
-          // If duplicate key error (23505), ignore it as the goal is achieved.
-          if (e.toString().contains('23505') ||
-              e.toString().contains('duplicate key')) {
-            logger.info('Connection already exists (caught duplicate error).');
-          } else {
-            rethrow;
-          }
-        }
-      } else {
-        logger.info('Connection already exists between $id1 and $id2');
+      // 1. CREATE CONNECTION (Crucial for Chat)
+      // Use database function that handles duplicates with ON CONFLICT DO NOTHING
+      try {
+        await _supabase.rpc('create_connection_safe', params: {
+          'uid1': id1,
+          'uid2': id2,
+        });
+        logger.info('Connection ensured between $id1 and $id2');
+      } catch (e) {
+        logger.warning('Error calling create_connection_safe', error: e);
+        // Don't rethrow - function handles duplicates gracefully
       }
 
       // 2. NOTIFICATION: Notify the Sender
@@ -145,8 +142,17 @@ class MatchingService {
           'data': {'match_id': matchId, 'accepter_id': currentUserId},
           'read': false,
         });
+        logger.info('Sent match accepted notification to $otherUserId');
       } catch (e) {
-        logger.warning('Failed to send accept notification', error: e);
+        // Handle duplicate key errors gracefully (e.g., if match was accepted twice)
+        final errorString = e.toString().toLowerCase();
+        if (errorString.contains('23505') ||
+            errorString.contains('duplicate key') ||
+            errorString.contains('unique constraint')) {
+          logger.info('Notification already exists (caught duplicate error).');
+        } else {
+          logger.warning('Failed to send accept notification', error: e);
+        }
       }
 
       return true;

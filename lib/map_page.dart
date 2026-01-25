@@ -849,11 +849,15 @@ class _MapPageState extends ConsumerState<MapPage> {
       if (myId == null) return;
 
       if (accept) {
-        // Create the connection
-        await supabase.from('connections').insert({
-          'user_id_1': senderId,
-          'user_id_2': myId, // Me
-        });
+        // Create the connection using safe database function
+        try {
+          await supabase.rpc('create_connection_safe', params: {
+            'uid1': senderId,
+            'uid2': myId,
+          });
+        } catch (e) {
+          logger.info('Error calling create_connection_safe: $e');
+        }
 
         // Remove the request as it is now an active connection
         await supabase.from('collab_requests').delete().eq('id', requestId);

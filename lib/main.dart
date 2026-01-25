@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 
 import 'auth/auth_gate.dart';
 import 'onboarding/onboarding_page.dart';
@@ -28,7 +28,9 @@ Future<void> main() async {
     logger.info('🚀 Nerd Herd starting up...');
 
     // Initialize Firebase (Only on Mobile to avoid desktop/web errors)
-    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    if (!kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS)) {
       try {
         await Firebase.initializeApp(
           options: DefaultFirebaseOptions.currentPlatform,
@@ -41,9 +43,21 @@ Future<void> main() async {
     }
 
     // Load configuration from .env file
+    logger.info('⚙️ Loading AppConfig...');
     await AppConfig.load();
 
+    // Initialize Stripe (Skip on Web - flutter_stripe uses Platform internally)
+    if (!kIsWeb) {
+      logger.info('💳 Initializing Stripe...');
+      Stripe.publishableKey = appConfig.stripePublishableKey;
+      await Stripe.instance.applySettings();
+      logger.info('✅ Stripe initialized');
+    } else {
+      logger.info('💳 Skipping Stripe on Web (Payment features disabled)');
+    }
+
     // Initialize Supabase with config
+    logger.info('🗄️ Initializing Supabase...');
     await Supabase.initialize(
       url: appConfig.supabaseUrl,
       anonKey: appConfig.supabaseAnonKey,
@@ -52,8 +66,13 @@ Future<void> main() async {
     logger.info('✅ Supabase initialized');
 
     // Initialize notification service
-    await notificationService.initialize();
-    logger.info('✅ Notification service initialized');
+    if (!kIsWeb) {
+      logger.info('🔔 Initializing Notifications...');
+      await notificationService.initialize();
+      logger.info('✅ Notification service initialized');
+    } else {
+      logger.info('🔔 Skipping System Notifications on Web (In-app only)');
+    }
 
     // Check onboarding status
     final prefs = await SharedPreferences.getInstance();
