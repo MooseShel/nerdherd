@@ -10,7 +10,7 @@ class MatchingService {
 
   final _supabase = Supabase.instance.client;
 
-  /// Suggest a match between two users
+  /// Suggest a match body using Atomic RPC
   Future<SerendipityMatch?> suggestMatch({
     required String otherUserId,
     required String matchType, // 'proximity', 'constellation', 'temporal'
@@ -23,141 +23,89 @@ class MatchingService {
         return null;
       }
 
-      // Check if match already exists
-      final existing = await _supabase
-          .from('serendipity_matches')
-          .select()
-          .or('and(user_a.eq.$currentUserId,user_b.eq.$otherUserId),and(user_a.eq.$otherUserId,user_b.eq.$currentUserId)')
-          .or('and(user_a.eq.$currentUserId,user_b.eq.$otherUserId),and(user_a.eq.$otherUserId,user_b.eq.$currentUserId)')
-          .eq('accepted', false) // Only check for pending matches
-          .maybeSingle();
+      logger.info('🚀 Suggesting match via RPC...');
 
-      if (existing != null) {
+      // CALL THE NEW ATOMIC RPC
+      final response = await _supabase.rpc('suggest_match', params: {
+        'target_user_id': otherUserId,
+        'match_type': matchType,
+        'message': message,
+      });
+
+      logger.info('RPC Response: $response');
+
+      if (response['success'] == true) {
+        // Determine if it was new or existing to log correctly
+        final matchId = response['match_id'];
+        final isNew = response['is_new'] == true;
+        final diagCount = response['diag_request_count'] ?? 0;
+
         logger.info(
-            'Pending match already exists between $currentUserId and $otherUserId');
-        return SerendipityMatch.fromJson(existing);
+            '✅ Match handled (RPC). ID: $matchId, New: $isNew, Diag Request Count: $diagCount');
+
+        // We need to fetch the actual match object to return it
+        // (Or we could have returned it from RPC, but fetching is safe)
+        final matchData = await _supabase
+            .from('serendipity_matches')
+            .select()
+            .eq('id', matchId)
+            .single();
+
+        return SerendipityMatch.fromJson(matchData);
+      } else {
+        logger.error('❌ RPC Failed: ${response['error']}');
+        return null;
       }
-
-      // Create new match
-      final data = await _supabase
-          .from('serendipity_matches')
-          .insert({
-            'user_a': currentUserId,
-            'user_b': otherUserId,
-            'match_type': matchType,
-          })
-          .select()
-          .single();
-
-      logger.info('Created new match: $matchType');
-
-      // NOTIFICATION: Notify the other user (Receiver)
-      try {
-        // NOTIFICATION: We rely on a database trigger or the collab_requests generic handler
-        // to send the notification. Explicitly inserting one here causes duplicates.
-        // await _supabase.from('notifications').insert({
-        //   'user_id': otherUserId,
-        //   'type': 'match_request', // Custom type or generic
-        //   'title': 'New Nerd Match! 🎓',
-        //   'body': 'Someone nearby wants to study!',
-        //   'data': {'match_id': data['id'], 'sender_id': currentUserId},
-        //   'read': false,
-        // });
-
-        // STANDARD REQUEST: Create a formal collab_request
-        // This ensures the standard "Accept/Reject" workflow works
-        await _supabase.from('collab_requests').insert({
-          'sender_id': currentUserId,
-          'receiver_id': otherUserId,
-          'status': 'pending',
-          'message': message, // Added message field
-        });
-        logger.info('Created collab_request for match');
-      } catch (e) {
-        // Handle duplicate key errors gracefully
-        final errorString = e.toString().toLowerCase();
-        if (errorString.contains('23505') ||
-            errorString.contains('duplicate key') ||
-            errorString.contains('unique constraint')) {
-          logger
-              .info('Collab request already exists (caught duplicate error).');
-        } else {
-          logger.warning('Failed to send match notification/request', error: e);
-        }
-      }
-
-      return SerendipityMatch.fromJson(data);
     } catch (e) {
-      logger.error('Error suggesting match', error: e);
+      logger.error('Error suggesting match (RPC)', error: e);
       return null;
     }
   }
 
-  /// Accept a match
-  Future<bool> acceptMatch(String matchId) async {
+  /// Stage 1: Receiver expresses interest using Atomic RPC
+  Future<bool> expressInterest(String matchId) async {
     try {
-      await _supabase
-          .from('serendipity_matches')
-          .update({'accepted': true}).eq('id', matchId);
-      logger.info('Accepted match $matchId');
+      logger.info("🚀 Expressing interest in match $matchId via RPC...");
 
-      // 1. CREATE CONNECTION (Crucial for Chat)
-      // We need to fetch the match to get IDs
-      final matchData = await _supabase
-          .from('serendipity_matches')
-          .select()
-          .eq('id', matchId)
-          .single();
-      final userA = matchData['user_a'];
-      final userB = matchData['user_b'];
-      final currentUserId = _supabase.auth.currentUser?.id;
+      final response = await _supabase.rpc('express_interest', params: {
+        'target_match_id': matchId,
+      });
 
-      // Determine who is the "Other" (the one who sent the request)
-      final otherUserId = (userA == currentUserId) ? userB : userA;
+      logger.info('RPC Response: $response');
 
-      // Ensure consistent ordering for storage to prevent (A,B) and (B,A) duplicates
-      final id1 = (userA.compareTo(userB) < 0) ? userA : userB;
-      final id2 = (userA.compareTo(userB) < 0) ? userB : userA;
-
-      // 1. CREATE CONNECTION (Crucial for Chat)
-      // Use database function that handles duplicates with ON CONFLICT DO NOTHING
-      try {
-        await _supabase.rpc('create_connection_safe', params: {
-          'uid1': id1,
-          'uid2': id2,
-        });
-        logger.info('Connection ensured between $id1 and $id2');
-      } catch (e) {
-        logger.warning('Error calling create_connection_safe', error: e);
-        // Don't rethrow - function handles duplicates gracefully
+      if (response['success'] == true) {
+        logger.info('✅ Interest expressed (Stage 1).');
+        return true;
+      } else {
+        logger.error('❌ RPC Failed: ${response['error']}');
+        return false;
       }
-
-      // 2. NOTIFICATION: Notify the Sender
-      try {
-        await _supabase.from('notifications').insert({
-          'user_id': otherUserId,
-          'type': 'match_accepted',
-          'title': 'Match Accepted! 🎉',
-          'body': 'Your study buddy is ready to chat.',
-          'data': {'match_id': matchId, 'accepter_id': currentUserId},
-          'read': false,
-        });
-        logger.info('Sent match accepted notification to $otherUserId');
-      } catch (e) {
-        // Handle duplicate key errors gracefully (e.g., if match was accepted twice)
-        final errorString = e.toString().toLowerCase();
-        if (errorString.contains('23505') ||
-            errorString.contains('duplicate key') ||
-            errorString.contains('unique constraint')) {
-          logger.info('Notification already exists (caught duplicate error).');
-        } else {
-          logger.warning('Failed to send accept notification', error: e);
-        }
-      }
-
-      return true;
     } catch (e) {
-      logger.error('Error accepting match $matchId', error: e);
+      logger.error('Error expressing interest (RPC)', error: e);
+      return false;
+    }
+  }
+
+  /// Stage 2: Sender confirms match using Atomic RPC
+  Future<bool> confirmMatch(String matchId) async {
+    try {
+      logger.info("🚀 Confirming match $matchId via RPC...");
+
+      final response = await _supabase.rpc('confirm_match', params: {
+        'target_match_id': matchId,
+      });
+
+      logger.info('RPC Response: $response');
+
+      if (response['success'] == true) {
+        logger.info('✅ Match confirmed & Connection created (Stage 2).');
+        return true;
+      } else {
+        logger.error('❌ RPC Failed: ${response['error']}');
+        return false;
+      }
+    } catch (e) {
+      logger.error('Error confirming match (RPC)', error: e);
       return false;
     }
   }
@@ -177,17 +125,19 @@ class MatchingService {
         final u2 = match['user_b'];
 
         // 2. Delete the match record
-        await _supabase.from('serendipity_matches').delete().eq('id', matchId);
+        // await _supabase.from('serendipity_matches').delete().eq('id', matchId);
 
-        // 3. ALSO delete/cancel the collab_request (if any)
-        // This ensures the receiver doesn't see a stale request
-        await _supabase
-            .from('collab_requests')
-            .delete()
-            .or('and(sender_id.eq.$u1,receiver_id.eq.$u2),and(sender_id.eq.$u2,receiver_id.eq.$u1)')
-            .eq('status', 'pending');
-
-        logger.info('Declined/Removed match $matchId and related requests');
+        // 3. UPDATE the collab_request to rejected (preserve history)
+        try {
+          await _supabase
+              .from('collab_requests')
+              .update({'status': 'rejected'})
+              .or('and(sender_id.eq.$u1,receiver_id.eq.$u2),and(sender_id.eq.$u2,receiver_id.eq.$u1)')
+              .eq('status', 'pending');
+          logger.info('Marked collab_request as rejected');
+        } catch (e) {
+          logger.warning('Error updating collab_request to rejected', error: e);
+        }
       }
       return true;
     } catch (e) {

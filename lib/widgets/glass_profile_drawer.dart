@@ -315,486 +315,499 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
     final isDark = theme.brightness == Brightness.dark;
 
     return PointerInterceptor(
-      child: GlassContainer(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        blur: 20,
-        opacity: isDark ? 0.9 : 1.0,
-        color: theme.scaffoldBackgroundColor,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Drag Handle
-            Center(
-              child: Container(
-                width: 40,
-                height: 5,
-                margin: const EdgeInsets.only(bottom: 24),
-                decoration: BoxDecoration(
-                  color: theme.dividerColor.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(2.5),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        child: GlassContainer(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          blur: 20,
+          opacity: isDark ? 0.9 : 1.0,
+          color: theme.scaffoldBackgroundColor,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Drag Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 5,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    color: theme.dividerColor.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(2.5),
+                  ),
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Avatar with premium glow
-                      Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: widget.profile.isTutor
-                                ? Colors.amber.withValues(alpha: 0.8)
-                                : theme.primaryColor.withValues(alpha: 0.8),
-                            width: 2,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: (widget.profile.isTutor
-                                      ? Colors.amber
-                                      : theme.primaryColor)
-                                  .withValues(alpha: 0.3),
-                              blurRadius: 20,
-                              spreadRadius: -2,
-                            )
-                          ],
-                        ),
-                        child: Hero(
-                          tag: 'avatar_${widget.profile.userId}',
-                          child: CircleAvatar(
-                            radius: 36, // Slightly larger
-                            backgroundColor: theme.scaffoldBackgroundColor,
-                            backgroundImage: widget.profile.avatarUrl != null
-                                ? (widget.profile.avatarUrl!
-                                        .startsWith('assets/')
-                                    ? AssetImage(widget.profile.avatarUrl!)
-                                        as ImageProvider
-                                    : ResizeImage(
-                                        CachedNetworkImageProvider(
-                                            widget.profile.avatarUrl!),
-                                        width: 200,
-                                      ))
-                                : null,
-                            child: widget.profile.avatarUrl == null
-                                ? Icon(
-                                    widget.profile.isTutor
-                                        ? Icons.school
-                                        : Icons.person,
-                                    color: widget.profile.isTutor
-                                        ? Colors.amber
-                                        : theme.primaryColor,
-                                    size: 32,
-                                  )
-                                : null,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-
-                      // Info
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    widget.profile.fullName?.isNotEmpty == true
-                                        ? widget.profile.fullName!
-                                        : (widget.profile.isTutor
-                                            ? "Verified Tutor"
-                                            : "Student Peer"),
-                                    style:
-                                        theme.textTheme.headlineSmall?.copyWith(
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: -0.5,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                if (widget.profile.isTutor)
-                                  const Padding(
-                                    padding: EdgeInsets.only(left: 6),
-                                    child: Icon(Icons.verified,
-                                        color: Colors.amber, size: 22),
-                                  ),
-                              ],
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Avatar with premium glow
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: widget.profile.isTutor
+                                  ? Colors.amber.withValues(alpha: 0.8)
+                                  : theme.primaryColor.withValues(alpha: 0.8),
+                              width: 2,
                             ),
-                            if (widget.profile.universityName != null ||
-                                _fetchedUniversityName != null) ...[
-                              const SizedBox(height: 2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: (widget.profile.isTutor
+                                        ? Colors.amber
+                                        : theme.primaryColor)
+                                    .withValues(alpha: 0.3),
+                                blurRadius: 20,
+                                spreadRadius: -2,
+                              )
+                            ],
+                          ),
+                          child: Hero(
+                            tag: 'avatar_${widget.profile.userId}',
+                            child: CircleAvatar(
+                              radius: 36, // Slightly larger
+                              backgroundColor: theme.scaffoldBackgroundColor,
+                              backgroundImage: widget.profile.avatarUrl != null
+                                  ? (widget.profile.avatarUrl!
+                                          .startsWith('assets/')
+                                      ? AssetImage(widget.profile.avatarUrl!)
+                                          as ImageProvider
+                                      : ResizeImage(
+                                          CachedNetworkImageProvider(
+                                              widget.profile.avatarUrl!),
+                                          width: 200,
+                                        ))
+                                  : null,
+                              child: widget.profile.avatarUrl == null
+                                  ? Icon(
+                                      widget.profile.isTutor
+                                          ? Icons.school
+                                          : Icons.person,
+                                      color: widget.profile.isTutor
+                                          ? Colors.amber
+                                          : theme.primaryColor,
+                                      size: 32,
+                                    )
+                                  : null,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+
+                        // Info
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Row(
                                 children: [
-                                  const Icon(Icons.school,
-                                      size: 14, color: Colors.grey),
-                                  const SizedBox(width: 4),
                                   Expanded(
                                     child: Text(
-                                      widget.profile.universityName ??
-                                          _fetchedUniversityName!,
-                                      style: TextStyle(
-                                          color: theme
-                                              .textTheme.bodySmall?.color
-                                              ?.withValues(alpha: 0.7),
-                                          fontSize: 13),
-                                      maxLines: 1,
+                                      widget.profile.fullName?.isNotEmpty ==
+                                              true
+                                          ? widget.profile.fullName!
+                                          : (widget.profile.isTutor
+                                              ? "Verified Tutor"
+                                              : "Student Peer"),
+                                      style: theme.textTheme.headlineSmall
+                                          ?.copyWith(
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: -0.5,
+                                      ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
+                                  if (widget.profile.isTutor)
+                                    const Padding(
+                                      padding: EdgeInsets.only(left: 6),
+                                      child: Icon(Icons.verified,
+                                          color: Colors.amber, size: 22),
+                                    ),
                                 ],
                               ),
-                            ],
-                            const SizedBox(height: 4),
-                            if (isMe)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color:
-                                      theme.primaryColor.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                      color: theme.primaryColor
-                                          .withValues(alpha: 0.2)),
-                                ),
-                                child: Text(
-                                  "This is You",
-                                  style: TextStyle(
-                                    color: theme.primaryColor,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              )
-                            else if (widget.profile.isBusinessOwner)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.amber.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                      color:
-                                          Colors.amber.withValues(alpha: 0.5)),
-                                ),
-                                child: const Text(
-                                  "Business Account",
-                                  style: TextStyle(
-                                    color: Colors.amber,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              )
-                            else
-                              Text(
-                                widget.profile.intentTag ?? "Hanging out",
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  color: theme.textTheme.bodyMedium?.color
-                                      ?.withValues(alpha: 0.7),
-                                ),
-                              ),
-                            if (widget.profile.isTutor &&
-                                widget.profile.hourlyRate != null) ...[
-                              const SizedBox(height: 8),
-                              Text(
-                                "\$${widget.profile.hourlyRate}/hr",
-                                style: TextStyle(
-                                  color: theme.colorScheme.tertiary,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                            if (widget.profile.averageRating != null) ...[
-                              const SizedBox(height: 8),
-                              InkWell(
-                                onTap: () {
-                                  showDialog(
-                                    context: context,
-                                    builder: (_) => ReviewsListDialog(
-                                      userId: widget.profile.userId,
-                                      userName:
-                                          widget.profile.fullName ?? "User",
-                                    ),
-                                  );
-                                },
-                                borderRadius: BorderRadius.circular(4),
-                                child: Padding(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 2),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.star_rounded,
-                                          color: Colors.amber, size: 20),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        "${widget.profile.averageRating!.toStringAsFixed(1)} ",
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 15),
-                                      ),
-                                      Expanded(
-                                        child: Text(
-                                          "(${widget.profile.reviewCount ?? 0} reviews)",
-                                          style: TextStyle(
+                              if (widget.profile.universityName != null ||
+                                  _fetchedUniversityName != null) ...[
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.school,
+                                        size: 14, color: Colors.grey),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        widget.profile.universityName ??
+                                            _fetchedUniversityName!,
+                                        style: TextStyle(
                                             color: theme
                                                 .textTheme.bodySmall?.color
-                                                ?.withValues(alpha: 0.6),
-                                            fontSize: 13,
-                                            decoration:
-                                                TextDecoration.underline,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
+                                                ?.withValues(alpha: 0.7),
+                                            fontSize: 13),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                    ],
+                                    ),
+                                  ],
+                                ),
+                              ],
+                              const SizedBox(height: 4),
+                              if (isMe)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: theme.primaryColor
+                                        .withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                        color: theme.primaryColor
+                                            .withValues(alpha: 0.2)),
+                                  ),
+                                  child: Text(
+                                    "This is You",
+                                    style: TextStyle(
+                                      color: theme.primaryColor,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                )
+                              else if (widget.profile.isBusinessOwner)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                        color: Colors.amber
+                                            .withValues(alpha: 0.5)),
+                                  ),
+                                  child: const Text(
+                                    "Business Account",
+                                    style: TextStyle(
+                                      color: Colors.amber,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                )
+                              else
+                                Text(
+                                  widget.profile.intentTag ?? "Hanging out",
+                                  style: theme.textTheme.bodyLarge?.copyWith(
+                                    color: theme.textTheme.bodyMedium?.color
+                                        ?.withValues(alpha: 0.7),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      )
-                    ],
-                  ),
-
-                  if (widget.profile.bio?.isNotEmpty == true) ...[
-                    const SizedBox(height: 32),
-                    const SectionHeader(title: "About"),
-                    const SizedBox(height: 8),
-                    Text(
-                      widget.profile.bio!,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                          height: 1.6,
-                          fontSize: 15,
-                          color: theme.textTheme.bodyMedium?.color
-                              ?.withValues(alpha: 0.8)),
-                    ),
-                  ],
-
-                  const SizedBox(height: 32),
-
-                  // Report Button
-                  if (!isMe)
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton.icon(
-                        onPressed: _reportUser,
-                        icon: Icon(Icons.flag_outlined,
-                            size: 18,
-                            color: theme.textTheme.bodySmall?.color
-                                ?.withValues(alpha: 0.5)),
-                        label: Text('Report User',
-                            style: TextStyle(
-                                color: theme.textTheme.bodySmall?.color
-                                    ?.withValues(alpha: 0.5),
-                                fontSize: 12)),
-                      ),
-                    ),
-
-                  if (!widget.profile.isBusinessOwner) ...[
-                    const SectionHeader(title: "Current Classes"),
-                    const SizedBox(height: 12),
-                    if (widget.profile.currentClasses.isEmpty)
-                      Text("No classes listed",
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(fontStyle: FontStyle.italic)),
-                  ],
-
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: widget.profile.currentClasses.map<Widget>((cls) {
-                      return GlassContainer(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
-                        borderRadius: BorderRadius.circular(20),
-                        color: theme.cardColor.withValues(alpha: 0.5),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 300),
-                          // Constraint prevents massive chip overflow
-                          child: Text(
-                            cls,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-
-                  const SizedBox(height: 40),
-
-                  // Action Buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: isMe
-                            ? Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  SecondaryButton(
-                                    label: "Edit Profile",
-                                    icon: Icons.edit_outlined,
-                                    onPressed: () {
-                                      hapticService.mediumImpact();
-                                      Navigator.pop(context); // Close drawer
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                            builder: (context) =>
-                                                const ProfilePage()),
-                                      );
-                                    },
+                              if (widget.profile.isTutor &&
+                                  widget.profile.hourlyRate != null) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  "\$${widget.profile.hourlyRate}/hr",
+                                  style: TextStyle(
+                                    color: theme.colorScheme.tertiary,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16,
                                   ),
-                                  if (widget.profile.isBusinessOwner) ...[
-                                    const SizedBox(height: 12),
-                                    PrimaryButton(
-                                      label: "Business Dashboard 💼",
+                                ),
+                              ],
+                              if (widget.profile.averageRating != null) ...[
+                                const SizedBox(height: 8),
+                                InkWell(
+                                  onTap: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (_) => ReviewsListDialog(
+                                        userId: widget.profile.userId,
+                                        userName:
+                                            widget.profile.fullName ?? "User",
+                                      ),
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Padding(
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 2),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.star_rounded,
+                                            color: Colors.amber, size: 20),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          "${widget.profile.averageRating!.toStringAsFixed(1)} ",
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 15),
+                                        ),
+                                        Expanded(
+                                          child: Text(
+                                            "(${widget.profile.reviewCount ?? 0} reviews)",
+                                            style: TextStyle(
+                                              color: theme
+                                                  .textTheme.bodySmall?.color
+                                                  ?.withValues(alpha: 0.6),
+                                              fontSize: 13,
+                                              decoration:
+                                                  TextDecoration.underline,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        )
+                      ],
+                    ),
+
+                    if (widget.profile.bio?.isNotEmpty == true) ...[
+                      const SizedBox(height: 32),
+                      const SectionHeader(title: "About"),
+                      const SizedBox(height: 8),
+                      Text(
+                        widget.profile.bio!,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                            height: 1.6,
+                            fontSize: 15,
+                            color: theme.textTheme.bodyMedium?.color
+                                ?.withValues(alpha: 0.8)),
+                      ),
+                    ],
+
+                    const SizedBox(height: 32),
+
+                    // Report Button
+                    if (!isMe)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: _reportUser,
+                          icon: Icon(Icons.flag_outlined,
+                              size: 18,
+                              color: theme.textTheme.bodySmall?.color
+                                  ?.withValues(alpha: 0.5)),
+                          label: Text('Report User',
+                              style: TextStyle(
+                                  color: theme.textTheme.bodySmall?.color
+                                      ?.withValues(alpha: 0.5),
+                                  fontSize: 12)),
+                        ),
+                      ),
+
+                    if (!widget.profile.isBusinessOwner) ...[
+                      const SectionHeader(title: "Current Classes"),
+                      const SizedBox(height: 12),
+                      if (widget.profile.currentClasses.isEmpty)
+                        Text("No classes listed",
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(fontStyle: FontStyle.italic)),
+                    ],
+
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children:
+                          widget.profile.currentClasses.map<Widget>((cls) {
+                        return GlassContainer(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                          borderRadius: BorderRadius.circular(20),
+                          color: theme.cardColor.withValues(alpha: 0.5),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 300),
+                            // Constraint prevents massive chip overflow
+                            child: Text(
+                              cls,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+
+                    const SizedBox(height: 40),
+
+                    // Action Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: isMe
+                              ? Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    SecondaryButton(
+                                      label: "Edit Profile",
+                                      icon: Icons.edit_outlined,
                                       onPressed: () {
                                         hapticService.mediumImpact();
-                                        Navigator.pop(context);
+                                        Navigator.pop(context); // Close drawer
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
                                               builder: (context) =>
-                                                  const BusinessDashboardPage()), // Requires import
+                                                  const ProfilePage()),
                                         );
                                       },
                                     ),
-                                  ],
-                                ],
-                              )
-                            : _isConnected
-                                ? PrimaryButton(
-                                    label: "Message",
-                                    icon: Icons.chat_bubble_outline,
-                                    onPressed: () {
-                                      hapticService.lightImpact();
-                                      Navigator.pop(context);
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => ChatPage(
-                                            otherUser: widget.profile,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  )
-                                : _incomingRequestId != null
-                                    ? PrimaryButton(
-                                        label: "Check Notifications",
+                                    if (widget.profile.isBusinessOwner) ...[
+                                      const SizedBox(height: 12),
+                                      PrimaryButton(
+                                        label: "Business Dashboard 💼",
                                         onPressed: () {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(const SnackBar(
-                                                  content: Text(
-                                                      "Check your Map Notifications!")));
+                                          hapticService.mediumImpact();
+                                          Navigator.pop(context);
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                                builder: (context) =>
+                                                    const BusinessDashboardPage()), // Requires import
+                                          );
                                         },
-                                      )
-                                    : PrimaryButton(
-                                        label: _requestSent
-                                            ? "Request Sent"
-                                            : "Connect",
-                                        isLoading: _isLoading,
-                                        onPressed: (_isLoading || _requestSent)
-                                            ? null
-                                            : () {
-                                                hapticService.lightImpact();
-                                                showDialog(
-                                                  context: context,
-                                                  builder: (ctx) => AlertDialog(
-                                                    title:
-                                                        const Text("Connect?"),
-                                                    content: Text(
-                                                      "Send a connection request to ${widget.profile.fullName ?? 'this peer'}?",
-                                                    ),
-                                                    actions: [
-                                                      TextButton(
-                                                        onPressed: () =>
-                                                            Navigator.pop(ctx),
-                                                        child: const Text(
-                                                            "Cancel"),
-                                                      ),
-                                                      FilledButton(
-                                                        onPressed: () {
-                                                          Navigator.pop(ctx);
-                                                          _sendRequest();
-                                                        },
-                                                        child:
-                                                            const Text("Send"),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                );
-                                              },
                                       ),
-                      ),
-                      if (!isMe && widget.profile.isTutor) ...[
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              hapticService.mediumImpact();
-                              showDialog(
-                                context: context,
-                                builder: (context) => BookingDialog(
-                                  tutorId: widget.profile.userId,
-                                  tutorName: widget.profile.fullName ?? "Tutor",
-                                  hourlyRate: (widget.profile.hourlyRate ?? 0)
-                                      .toDouble(),
-                                ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: theme.colorScheme.tertiary,
-                              foregroundColor: theme.colorScheme.onTertiary,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16)),
-                              elevation: 0,
-                            ),
-                            child: const Text(
-                              "Book Session",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontWeight: FontWeight.w700),
+                                    ],
+                                  ],
+                                )
+                              : _isConnected
+                                  ? PrimaryButton(
+                                      label: "Message",
+                                      icon: Icons.chat_bubble_outline,
+                                      onPressed: () {
+                                        hapticService.lightImpact();
+                                        Navigator.pop(context);
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => ChatPage(
+                                              otherUser: widget.profile,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    )
+                                  : _incomingRequestId != null
+                                      ? PrimaryButton(
+                                          label: "Check Notifications",
+                                          onPressed: () {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(const SnackBar(
+                                                    content: Text(
+                                                        "Check your Map Notifications!")));
+                                          },
+                                        )
+                                      : PrimaryButton(
+                                          label: _requestSent
+                                              ? "Request Sent"
+                                              : "Connect",
+                                          isLoading: _isLoading,
+                                          onPressed: (_isLoading ||
+                                                  _requestSent)
+                                              ? null
+                                              : () {
+                                                  hapticService.lightImpact();
+                                                  showDialog(
+                                                    context: context,
+                                                    builder: (ctx) =>
+                                                        AlertDialog(
+                                                      title: const Text(
+                                                          "Connect?"),
+                                                      content: Text(
+                                                        "Send a connection request to ${widget.profile.fullName ?? 'this peer'}?",
+                                                      ),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.pop(
+                                                                  ctx),
+                                                          child: const Text(
+                                                              "Cancel"),
+                                                        ),
+                                                        FilledButton(
+                                                          onPressed: () {
+                                                            Navigator.pop(ctx);
+                                                            _sendRequest();
+                                                          },
+                                                          child: const Text(
+                                                              "Send"),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  );
+                                                },
+                                        ),
+                        ),
+                        if (!isMe && widget.profile.isTutor) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                hapticService.mediumImpact();
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => BookingDialog(
+                                    tutorId: widget.profile.userId,
+                                    tutorName:
+                                        widget.profile.fullName ?? "Tutor",
+                                    hourlyRate: (widget.profile.hourlyRate ?? 0)
+                                        .toDouble(),
+                                  ),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: theme.colorScheme.tertiary,
+                                foregroundColor: theme.colorScheme.onTertiary,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16)),
+                                elevation: 0,
+                              ),
+                              child: const Text(
+                                "Book Session",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
-                    ],
-                  ),
-
-                  // Separated Rate User Button (Only if verified session exists)
-                  if (!isMe && _isConnected && _canRate) ...[
-                    const SizedBox(height: 16),
-                    SecondaryButton(
-                      label: "Rate User",
-                      icon: Icons.star_rate_rounded,
-                      fullWidth: true,
-                      onPressed: () {
-                        hapticService.lightImpact();
-                        _showRatingDialog();
-                      },
                     ),
+
+                    // Separated Rate User Button (Only if verified session exists)
+                    if (!isMe && _isConnected && _canRate) ...[
+                      const SizedBox(height: 16),
+                      SecondaryButton(
+                        label: "Rate User",
+                        icon: Icons.star_rate_rounded,
+                        fullWidth: true,
+                        onPressed: () {
+                          hapticService.lightImpact();
+                          _showRatingDialog();
+                        },
+                      ),
+                    ],
+                    const SizedBox(height: 24),
                   ],
-                  const SizedBox(height: 24),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

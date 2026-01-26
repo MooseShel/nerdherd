@@ -137,8 +137,9 @@ class _NerdHerdAppState extends ConsumerState<NerdHerdApp>
           ThemeMode.system, // Default to system if loading
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      home:
-          widget.hasSeenOnboarding ? const AuthGate() : const OnboardingPage(),
+      home: (kDebugMode || widget.hasSeenOnboarding)
+          ? const AuthGate()
+          : const OnboardingPage(),
       navigatorKey: navigatorKey,
     );
   }

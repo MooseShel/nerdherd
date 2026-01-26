@@ -37,353 +37,366 @@ class _StudySpotDetailsSheetState extends ConsumerState<StudySpotDetailsSheet> {
     final myProfile = ref.watch(myProfileProvider).value;
 
     return PointerInterceptor(
-      child: GlassContainer(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        blur: 20,
-        opacity: isDark ? 0.9 : 1.0,
-        color: theme.scaffoldBackgroundColor,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Drag Handle
-            Center(
-              child: Container(
-                width: 40,
-                height: 5,
-                margin: const EdgeInsets.only(top: 12, bottom: 12),
-                decoration: BoxDecoration(
-                  color: theme.dividerColor.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(2.5),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        child: GlassContainer(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          blur: 20,
+          opacity: isDark ? 0.9 : 1.0,
+          color: theme.scaffoldBackgroundColor,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Drag Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 5,
+                  margin: const EdgeInsets.only(top: 12, bottom: 12),
+                  decoration: BoxDecoration(
+                    color: theme.dividerColor.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(2.5),
+                  ),
                 ),
               ),
-            ),
 
-            Flexible(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // 1. Header Image
-                    ClipRRect(
-                      borderRadius:
-                          const BorderRadius.vertical(top: Radius.circular(24)),
-                      child: _currentSpot.imageUrl != null
-                          ? CachedNetworkImage(
-                              imageUrl: _currentSpot.imageUrl!,
-                              height: 200,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              placeholder: (_, __) => _buildPlaceholder(isDark),
-                              errorWidget: (_, __, ___) =>
-                                  _buildPlaceholder(isDark),
-                            )
-                          : _buildPlaceholder(isDark),
-                    ),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // 1. Header Image
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(24)),
+                        child: _currentSpot.imageUrl != null
+                            ? CachedNetworkImage(
+                                imageUrl: _currentSpot.imageUrl!,
+                                height: 200,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                placeholder: (_, __) =>
+                                    _buildPlaceholder(isDark),
+                                errorWidget: (_, __, ___) =>
+                                    _buildPlaceholder(isDark),
+                              )
+                            : _buildPlaceholder(isDark),
+                      ),
 
-                    Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // SPONSORED BANNER (If Sponsored)
-                          if (_currentSpot.isSponsored)
-                            Container(
-                              margin: const EdgeInsets.only(bottom: 16),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(colors: [
-                                  Color(0xFFFFD700),
-                                  Color(0xFFFFA500)
-                                ]),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.star,
-                                      color: Colors.black, size: 20),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      _currentSpot.promotionalText
-                                                  ?.isNotEmpty ==
-                                              true
-                                          ? _currentSpot.promotionalText!
-                                          : "Special Offer Available!",
-                                      style: const TextStyle(
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                          // 2. Title & Badge
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // SPONSORED BANNER (If Sponsored)
+                            if (_currentSpot.isSponsored)
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 16),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(colors: [
+                                    Color(0xFFFFD700),
+                                    Color(0xFFFFA500)
+                                  ]),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
                                   children: [
-                                    Text(
-                                      _currentSpot.name,
-                                      style: theme.textTheme.headlineMedium
-                                          ?.copyWith(
-                                        fontWeight: FontWeight.bold,
+                                    const Icon(Icons.star,
+                                        color: Colors.black, size: 20),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        _currentSpot.promotionalText
+                                                    ?.isNotEmpty ==
+                                                true
+                                            ? _currentSpot.promotionalText!
+                                            : "Special Offer Available!",
+                                        style: const TextStyle(
+                                            color: Colors.black,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14),
                                       ),
                                     ),
-                                    if (!_currentSpot.isVerified)
-                                      Text(
-                                        _formatType(_currentSpot.type),
-                                        style: theme.textTheme.bodyMedium
-                                            ?.copyWith(
-                                          color: theme
-                                              .textTheme.bodySmall?.color
-                                              ?.withValues(alpha: 0.7),
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
                                   ],
                                 ),
                               ),
-                              if (_currentSpot.isSponsored) // GOLD BADGE
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                      color: Colors.amber, // Gold
-                                      borderRadius: BorderRadius.circular(20),
-                                      boxShadow: [
-                                        BoxShadow(
-                                            color: Colors.amber
-                                                .withValues(alpha: 0.4),
-                                            blurRadius: 8)
-                                      ]),
-                                  child: const Row(
+
+                            // 2. Title & Badge
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Icon(Icons.workspace_premium,
-                                          size: 16, color: Colors.black),
-                                      SizedBox(width: 4),
                                       Text(
-                                        "SPONSORED",
-                                        style: TextStyle(
-                                            color: Colors.black,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12),
+                                        _currentSpot.name,
+                                        style: theme.textTheme.headlineMedium
+                                            ?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                    ],
-                                  ),
-                                )
-                              else if (_currentSpot.isVerified)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: theme.colorScheme.secondary,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.stars,
-                                          size: 16,
-                                          color: theme.colorScheme.onSecondary),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        "VERIFIED",
-                                        style: TextStyle(
-                                            color:
-                                                theme.colorScheme.onSecondary,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              else
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: theme.disabledColor
-                                        .withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.public,
-                                          size: 16,
-                                          color: theme
-                                              .textTheme.bodySmall?.color
-                                              ?.withValues(alpha: 0.5)),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        "PUBLIC",
-                                        style: TextStyle(
+                                      if (!_currentSpot.isVerified)
+                                        Text(
+                                          _formatType(_currentSpot.type),
+                                          style: theme.textTheme.bodyMedium
+                                              ?.copyWith(
                                             color: theme
                                                 .textTheme.bodySmall?.color
-                                                ?.withValues(alpha: 0.5),
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12),
-                                      ),
+                                                ?.withValues(alpha: 0.7),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
                                     ],
                                   ),
                                 ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 8),
-
-                          if (_currentSpot.incentive != null) ...[
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: Colors.amber.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                    color: Colors.amber.withValues(alpha: 0.5)),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.local_offer,
+                                if (_currentSpot.isSponsored) // GOLD BADGE
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                        color: Colors.amber, // Gold
+                                        borderRadius: BorderRadius.circular(20),
+                                        boxShadow: [
+                                          BoxShadow(
+                                              color: Colors.amber
+                                                  .withValues(alpha: 0.4),
+                                              blurRadius: 8)
+                                        ]),
+                                    child: const Row(
+                                      children: [
+                                        Icon(Icons.workspace_premium,
+                                            size: 20, color: Colors.black),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          "SPONSORED",
+                                          style: TextStyle(
+                                              color: Colors.black,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                else if (_currentSpot.isVerified)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
                                       color: theme.colorScheme.secondary,
-                                      size: 20),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      _currentSpot.incentive!,
-                                      style: TextStyle(
-                                        color: theme.colorScheme.secondary,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.stars,
+                                            size: 20,
+                                            color:
+                                                theme.colorScheme.onSecondary),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          "VERIFIED",
+                                          style: TextStyle(
+                                              color:
+                                                  theme.colorScheme.onSecondary,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                else
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: theme.disabledColor
+                                          .withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.public,
+                                            size: 20,
+                                            color: theme
+                                                .textTheme.bodySmall?.color
+                                                ?.withValues(alpha: 0.5)),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          "PUBLIC",
+                                          style: TextStyle(
+                                              color: theme
+                                                  .textTheme.bodySmall?.color
+                                                  ?.withValues(alpha: 0.5),
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                          ],
-
-                          // NEW: LIVE VIBE SECTION
-                          _buildLiveVibeSection(context, _currentSpot),
-                          const SizedBox(height: 24),
-
-                          // 3. Perks (or Features)
-                          if (_currentSpot.perks.isNotEmpty)
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: _currentSpot.perks.map((perk) {
-                                return Chip(
-                                  label: Text(_formatPerk(perk)),
-                                  backgroundColor: theme.canvasColor,
-                                  labelStyle: theme.textTheme.bodySmall,
-                                  avatar: Icon(_getPerkIcon(perk),
-                                      size: 16, color: theme.primaryColor),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20)),
-                                  side: BorderSide.none,
-                                );
-                              }).toList(),
-                            )
-                          else if (!_currentSpot.isVerified)
-                            // For public spots without specific perks, show generic tags based on type
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                Chip(
-                                  label: const Text("Public Access"),
-                                  backgroundColor: theme.canvasColor,
-                                  labelStyle: theme.textTheme.bodySmall,
-                                  avatar: Icon(Icons.door_front_door,
-                                      size: 16,
-                                      color: theme.primaryColor
-                                          .withValues(alpha: 0.7)),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20)),
-                                  side: BorderSide.none,
-                                ),
-                                Chip(
-                                  label: Text(_formatType(_currentSpot.type)),
-                                  backgroundColor: theme.canvasColor,
-                                  labelStyle: theme.textTheme.bodySmall,
-                                  avatar: Icon(_getTypeIcon(_currentSpot.type),
-                                      size: 16,
-                                      color: theme.primaryColor
-                                          .withValues(alpha: 0.7)),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20)),
-                                  side: BorderSide.none,
-                                ),
                               ],
                             ),
 
-                          const SizedBox(height: 24),
+                            const SizedBox(height: 8),
 
-                          // 4. Action Button
-                          PrimaryButton(
-                            label: "Navigate Here",
-                            icon: Icons.directions,
-                            fullWidth: true,
-                            onPressed: () {
-                              hapticService.mediumImpact();
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text(
-                                        "Navigation started! (Simulation)")),
-                              );
-                            },
-                          ),
+                            if (_currentSpot.incentive != null) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color:
+                                          Colors.amber.withValues(alpha: 0.5)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.local_offer,
+                                        color: theme.colorScheme.secondary,
+                                        size: 20),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        _currentSpot.incentive!,
+                                        style: TextStyle(
+                                          color: theme.colorScheme.secondary,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
 
-                          // 5. Business Owner Action: Sponsor Request
-                          if (myProfile != null &&
-                              myProfile.isBusinessOwner &&
-                              !_currentSpot.isSponsored) ...[
-                            const SizedBox(height: 12),
-                            SecondaryButton(
-                              label: "Claim & Sponsor This Spot",
-                              icon: Icons.monetization_on,
+                            // NEW: LIVE VIBE SECTION
+                            _buildLiveVibeSection(context, _currentSpot),
+                            const SizedBox(height: 24),
+
+                            // 3. Perks (or Features)
+                            if (_currentSpot.perks.isNotEmpty)
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: _currentSpot.perks.map((perk) {
+                                  return Chip(
+                                    label: Text(_formatPerk(perk)),
+                                    backgroundColor: theme.canvasColor,
+                                    labelStyle: theme.textTheme.bodySmall,
+                                    avatar: Icon(_getPerkIcon(perk),
+                                        size: 20, color: theme.primaryColor),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(20)),
+                                    side: BorderSide.none,
+                                  );
+                                }).toList(),
+                              )
+                            else if (!_currentSpot.isVerified)
+                              // For public spots without specific perks, show generic tags based on type
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  Chip(
+                                    label: const Text("Public Access"),
+                                    backgroundColor: theme.canvasColor,
+                                    labelStyle: theme.textTheme.bodySmall,
+                                    avatar: Icon(Icons.door_front_door,
+                                        size: 20,
+                                        color: theme.primaryColor
+                                            .withValues(alpha: 0.7)),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(20)),
+                                    side: BorderSide.none,
+                                  ),
+                                  Chip(
+                                    label: Text(_formatType(_currentSpot.type)),
+                                    backgroundColor: theme.canvasColor,
+                                    labelStyle: theme.textTheme.bodySmall,
+                                    avatar: Icon(
+                                        _getTypeIcon(_currentSpot.type),
+                                        size: 20,
+                                        color: theme.primaryColor
+                                            .withValues(alpha: 0.7)),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(20)),
+                                    side: BorderSide.none,
+                                  ),
+                                ],
+                              ),
+
+                            const SizedBox(height: 24),
+
+                            // 4. Action Button
+                            PrimaryButton(
+                              label: "Navigate Here",
+                              icon: Icons.directions,
                               fullWidth: true,
                               onPressed: () {
                                 hapticService.mediumImpact();
                                 Navigator.pop(context);
-                                Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (context) =>
-                                            const BusinessDashboardPage()));
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                       content: Text(
-                                          "Go to your Dashboard to register this spot (Mock Flow)")),
+                                          "Navigation started! (Simulation)")),
                                 );
                               },
-                            )
-                          ],
+                            ),
 
-                          const SizedBox(height: 12),
-                          SecondaryButton(
-                            label: "Rate this Spot",
-                            icon: Icons.rate_review_outlined,
-                            fullWidth: true,
-                            onPressed: () =>
-                                _showSpotReviewDialog(context, _currentSpot),
-                          ),
-                          const SizedBox(height: 24),
-                        ],
+                            // 5. Business Owner Action: Sponsor Request
+                            if (myProfile != null &&
+                                myProfile.isBusinessOwner &&
+                                !_currentSpot.isSponsored) ...[
+                              const SizedBox(height: 12),
+                              SecondaryButton(
+                                label: "Claim & Sponsor This Spot",
+                                icon: Icons.monetization_on,
+                                fullWidth: true,
+                                onPressed: () {
+                                  hapticService.mediumImpact();
+                                  Navigator.pop(context);
+                                  Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) =>
+                                              const BusinessDashboardPage()));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            "Go to your Dashboard to register this spot (Mock Flow)")),
+                                  );
+                                },
+                              )
+                            ],
+
+                            const SizedBox(height: 12),
+                            SecondaryButton(
+                              label: "Rate this Spot",
+                              icon: Icons.rate_review_outlined,
+                              fullWidth: true,
+                              onPressed: () =>
+                                  _showSpotReviewDialog(context, _currentSpot),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -465,7 +478,7 @@ class _StudySpotDetailsSheetState extends ConsumerState<StudySpotDetailsSheet> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: color),
+          Icon(icon, size: 20, color: color),
           const SizedBox(width: 8),
           Text(
             label,

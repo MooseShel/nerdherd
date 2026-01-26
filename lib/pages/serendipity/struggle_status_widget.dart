@@ -97,12 +97,18 @@ class _StruggleStatusWidgetState extends ConsumerState<StruggleStatusWidget>
             activeColor: Colors.amber, // Gold for match
             onPressed: () {
               // Open List of Pending Matches (Requests)
+              // Manage Modal State to block map gestures
+              ref.read(isModalOpenProvider.notifier).state = true;
               showModalBottomSheet(
                 context: context,
                 isScrollControlled: true,
                 backgroundColor: Colors.transparent,
                 builder: (context) => PendingMatchesSheet(matches: matches),
-              );
+              ).then((_) {
+                if (mounted) {
+                  ref.read(isModalOpenProvider.notifier).state = false;
+                }
+              });
             },
             child: const Icon(Icons.favorite, color: Colors.white),
           );
@@ -143,33 +149,35 @@ class _StruggleStatusWidgetState extends ConsumerState<StruggleStatusWidget>
                   onPressed: () {
                     showDialog(
                       context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Signal Active 📡'),
-                        content: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('Subject: ${signal.subject}'),
-                            const SizedBox(height: 8),
-                            Text(
-                                'Expires in: ${signal.timeRemaining.inMinutes} mins'),
+                      builder: (context) => PointerInterceptor(
+                        child: AlertDialog(
+                          title: const Text('Signal Active 📡'),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('Subject: ${signal.subject}'),
+                              const SizedBox(height: 8),
+                              Text(
+                                  'Expires in: ${signal.timeRemaining.inMinutes} mins'),
+                            ],
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () {
+                                ref
+                                    .read(activeStruggleSignalProvider.notifier)
+                                    .expireSignal();
+                                Navigator.pop(context);
+                              },
+                              child: const Text('Stop Broadcasting',
+                                  style: TextStyle(color: Colors.red)),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Keep Waiting'),
+                            ),
                           ],
                         ),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              ref
-                                  .read(activeStruggleSignalProvider.notifier)
-                                  .expireSignal();
-                              Navigator.pop(context);
-                            },
-                            child: const Text('Stop Broadcasting',
-                                style: TextStyle(color: Colors.red)),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('Keep Waiting'),
-                          ),
-                        ],
                       ),
                     );
                   },
@@ -440,6 +448,7 @@ class _StruggleStatusWidgetState extends ConsumerState<StruggleStatusWidget>
   }
 
   void _showNerdMatchList(List<UserProfile> matches, String subject) {
+    ref.read(isModalOpenProvider.notifier).state = true;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -449,6 +458,8 @@ class _StruggleStatusWidgetState extends ConsumerState<StruggleStatusWidget>
         subject: subject,
         onClose: () => Navigator.pop(context),
       ),
-    );
+    ).then((_) {
+      if (mounted) ref.read(isModalOpenProvider.notifier).state = false;
+    });
   }
 }

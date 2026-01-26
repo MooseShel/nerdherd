@@ -36,6 +36,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
           .select()
           .eq('user_id', user.id)
           .eq('read', false) // Only fetch unread
+          .neq('type', 'message')
+          .neq('type', 'chat_message')
           .order('created_at', ascending: false)
           .limit(50);
 

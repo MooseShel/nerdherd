@@ -19,6 +19,7 @@ class PaymentService {
         'stripe-payment',
         body: {
           'amount': amount,
+          'user_id': user.id, // Mandatory for production webhook matching
           'customer_email': user.email,
           'description': 'Nerd Herd Wallet Top-up',
         },
@@ -42,28 +43,8 @@ class PaymentService {
       // 3. Present Payment Sheet
       await Stripe.instance.presentPaymentSheet();
 
-      // 4. Log transaction in Supabase
-      // NOTE: In a production app, you should rely on Stripe Webhooks
-      // to update the balance securely. This is for MVP demonstration.
-      await _supabase.from('transactions').insert({
-        'user_id': user.id,
-        'amount': amount,
-        'type': 'deposit',
-        'description': 'Stripe Top-up',
-      });
-
-      // 5. Update wallet balance
-      final profile = await _supabase
-          .from('profiles')
-          .select('wallet_balance')
-          .eq('user_id', user.id)
-          .single();
-      final currentBalance =
-          (profile['wallet_balance'] as num?)?.toDouble() ?? 0.0;
-
-      await _supabase.from('profiles').update({
-        'wallet_balance': currentBalance + amount,
-      }).eq('user_id', user.id);
+      // 4. Client-side logging and balance updates removed for Production.
+      // The wallet will update automatically via Supabase Realtime when the Webhook completes.
 
       return true;
     } catch (e) {

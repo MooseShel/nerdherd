@@ -11,6 +11,7 @@ import 'package:cached_network_image/cached_network_image.dart'; // Add this
 import 'models/user_profile.dart';
 import 'widgets/glass_profile_drawer.dart';
 import 'profile_page.dart';
+import 'chat_page.dart';
 import 'services/logger_service.dart';
 import 'services/haptic_service.dart';
 import 'package:flutter/foundation.dart'; // For kIsWeb
@@ -23,6 +24,10 @@ import 'models/study_spot.dart'; // NEW
 import 'providers/user_profile_provider.dart'; // NEW
 import 'widgets/study_spot_details_sheet.dart'; // NEW
 import 'pages/serendipity/struggle_status_widget.dart'; // Serendipity Engine
+import 'services/matching_service.dart';
+import 'config/theme.dart';
+import 'models/serendipity_match.dart';
+import 'pages/serendipity/match_intro_sheet.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nerd_herd/providers/map_provider.dart';
@@ -415,7 +420,25 @@ class _MapPageState extends ConsumerState<MapPage> {
               value: user.id,
             ),
             callback: (payload) async {
-              // newRecord might be empty on DELETE, handled by count fetch below
+              final newRecord = payload.newRecord;
+
+              // SENDER FEEDBACK: Someone is interested in their SOS
+              if (newRecord['type'] == 'buddy_interested' && mounted) {
+                final matchId = newRecord['data']?['match_id'];
+                final interestedId = newRecord['data']?['interested_id'];
+                if (matchId != null && interestedId != null) {
+                  _showBuddyInterestedModal(matchId, interestedId);
+                }
+              }
+
+              // RECEIVER FEEDBACK: Match finalized by sender
+              if (newRecord['type'] == 'match_confirmed' && mounted) {
+                final matchId = newRecord['data']?['match_id'];
+                final confirmerId = newRecord['data']?['confirmer_id'];
+                if (matchId != null && confirmerId != null) {
+                  _showMatchConfirmedModal(matchId, confirmerId);
+                }
+              }
 
               // Refresh count on any change
               final newCount = await supabase
@@ -428,6 +451,174 @@ class _MapPageState extends ConsumerState<MapPage> {
               if (mounted) setState(() => _unreadSystemCount = newCount);
             })
         .subscribe();
+  }
+
+  void _showBuddyInterestedModal(String matchId, String otherUserId) async {
+    try {
+      final profileData = await supabase
+          .from('profiles')
+          .select()
+          .eq('user_id', otherUserId)
+          .maybeSingle();
+
+      if (profileData != null && mounted) {
+        final profile = UserProfile.fromJson(profileData);
+
+        showDialog(
+          context: context,
+          builder: (context) => PointerInterceptor(
+            child: AlertDialog(
+              backgroundColor:
+                  Theme.of(context).cardColor.withValues(alpha: 0.95),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
+              title: const Text('Buddy Interested! 🤩',
+                  textAlign: TextAlign.center),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundImage: profile.avatarUrl != null &&
+                            profile.avatarUrl!.isNotEmpty
+                        ? (profile.avatarUrl!.startsWith('assets/')
+                            ? AssetImage(profile.avatarUrl!) as ImageProvider
+                            : CachedNetworkImageProvider(profile.avatarUrl!))
+                        : null,
+                    child: profile.avatarUrl == null
+                        ? const Icon(Icons.person, size: 40)
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                      '${profile.fullName ?? "A buddy"} wants to study with you!',
+                      textAlign: TextAlign.center),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Later'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    // Open the match sheet for confirmation
+                    _showMatchIntroSheetById(matchId);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.serendipityOrange,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Review & Confirm'),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      logger.error("Error showing buddy interested modal", error: e);
+    }
+  }
+
+  void _showMatchConfirmedModal(String matchId, String otherUserId) async {
+    try {
+      final profileData = await supabase
+          .from('profiles')
+          .select()
+          .eq('user_id', otherUserId)
+          .maybeSingle();
+
+      if (profileData != null && mounted) {
+        final profile = UserProfile.fromJson(profileData);
+
+        showDialog(
+          context: context,
+          builder: (context) => PointerInterceptor(
+            child: AlertDialog(
+              backgroundColor:
+                  Theme.of(context).cardColor.withValues(alpha: 0.95),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
+              title: const Text('Match Confirmed! 🎉',
+                  textAlign: TextAlign.center),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundImage: profile.avatarUrl != null &&
+                            profile.avatarUrl!.isNotEmpty
+                        ? (profile.avatarUrl!.startsWith('assets/')
+                            ? AssetImage(profile.avatarUrl!) as ImageProvider
+                            : CachedNetworkImageProvider(profile.avatarUrl!))
+                        : null,
+                    child: profile.avatarUrl == null
+                        ? const Icon(Icons.person, size: 40)
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                      '${profile.fullName ?? "Your buddy"} is ready! Handshake complete.',
+                      textAlign: TextAlign.center),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Later'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => ChatPage(otherUser: profile)),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Start Chatting'),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      logger.error("Error showing match confirmed modal", error: e);
+    }
+  }
+
+  void _showMatchIntroSheetById(String matchId) async {
+    try {
+      final matchData = await supabase
+          .from('serendipity_matches')
+          .select()
+          .eq('id', matchId)
+          .single();
+
+      if (mounted) {
+        final match = SerendipityMatch.fromJson(matchData);
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (context) => PointerInterceptor(
+            child: MatchIntroSheet(match: match),
+          ),
+        );
+      }
+    } catch (e) {
+      logger.error("Error showing match intro sheet from ID", error: e);
+    }
   }
 
   // _subscribeToMessages REMOVED - using totalUnreadMessagesProvider
@@ -849,33 +1040,89 @@ class _MapPageState extends ConsumerState<MapPage> {
       if (myId == null) return;
 
       if (accept) {
-        // Create the connection using safe database function
-        try {
+        // CRITICAL: Find the corresponding match record first
+        final matchRecord = await supabase
+            .from('serendipity_matches')
+            .select()
+            .or('and(user_a.eq.$senderId,user_b.eq.$myId),and(user_a.eq.$myId,user_b.eq.$senderId)')
+            .eq('accepted', false)
+            .maybeSingle();
+
+        if (matchRecord != null) {
+          // Use the new RPC to accept the match atomically
+          logger.info("🚀 Accepting match via RPC from notification dialog...");
+          final matchingService = MatchingService();
+          final success =
+              await matchingService.expressInterest(matchRecord['id']);
+
+          if (success) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("Match Accepted & Connected!"),
+                  backgroundColor: Colors.green,
+                ),
+              );
+
+              // AUTO-NAVIGATE RECEIVER TO CHAT
+              try {
+                final profileData = await supabase
+                    .from('profiles')
+                    .select()
+                    .eq('user_id', senderId)
+                    .maybeSingle();
+
+                if (profileData != null && mounted) {
+                  final profile = UserProfile.fromJson(profileData);
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ChatPage(otherUser: profile),
+                    ),
+                  );
+                }
+              } catch (e) {
+                logger.error("Error navigating to chat after acceptance",
+                    error: e);
+              }
+            }
+          } else {
+            throw Exception("accept_match RPC failed");
+          }
+        } else {
+          // Fallback: Old collab_request without match (legacy)
+          logger.warning(
+              "No match found for request $requestId, using legacy accept");
           await supabase.rpc('create_connection_safe', params: {
             'uid1': senderId,
             'uid2': myId,
           });
-        } catch (e) {
-          logger.info('Error calling create_connection_safe: $e');
-        }
+          await supabase.from('collab_requests').update({
+            'status': 'accepted',
+          }).eq('id', requestId);
 
-        // Remove the request as it is now an active connection
-        await supabase.from('collab_requests').delete().eq('id', requestId);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Request Accepted & Connected!"),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        }
       } else {
-        // Rejecting: Set status to rejected (or delete if you prefer)
+        // Rejecting
         await supabase.from('collab_requests').update({
           'status': 'rejected',
         }).eq('id', requestId);
-      }
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                accept ? "Request Accepted & Connected!" : "Request Rejected"),
-            backgroundColor: accept ? Colors.green : Colors.grey,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Request Rejected"),
+              backgroundColor: Colors.grey,
+            ),
+          );
+        }
       }
     } catch (e) {
       logger.error("Error responding to request", error: e);
@@ -897,8 +1144,6 @@ class _MapPageState extends ConsumerState<MapPage> {
     final myProfile = ref.read(myProfileProvider).value;
 
     try {
-      logger.debug(
-          "📍 Updating markers for ${_peers.length} peer(s) and ${_studySpots.length} spots");
       try {
         await mapController?.clearCircles();
         await mapController?.clearSymbols();
@@ -937,8 +1182,16 @@ class _MapPageState extends ConsumerState<MapPage> {
         }
 
         try {
+          final style = _getSpotSymbolStyle(spot);
+          // DEFENSIVE: Ensure geometry is valid
+          if (style.geometry == null ||
+              !style.geometry!.latitude.isFinite ||
+              !style.geometry!.longitude.isFinite) {
+            continue;
+          }
+
           await mapController?.addSymbol(
-            _getSpotSymbolStyle(spot),
+            style,
             {
               'is_study_spot': true,
               'spot_id': spot.id,
@@ -991,7 +1244,18 @@ class _MapPageState extends ConsumerState<MapPage> {
         }
 
         // Only skip if NO LOCATION at all
-        if (peer.location == null) continue;
+        if (peer.location == null) {
+          logger.debug("⚠️ Skipping peer ${peer.userId} due to NULL location");
+          continue;
+        }
+
+        // DOUBLE CHECK: Ensure coordinates are valid numbers
+        try {
+          // Access private properties if possible, or just rely on the fact that geometry isn't null
+          // But maplibre might still fail if the internal points are null.
+          // We can't easily inspect MapLibre Geometry object deeply without overhead,
+          // so we rely on the try-catch block below.
+        } catch (_) {}
 
         // Opacity is always 1.0 since we only show active users
         double opacity = 1.0;
@@ -1025,15 +1289,18 @@ class _MapPageState extends ConsumerState<MapPage> {
 
         try {
           if (!mounted) break; // STOP if the widget is disposed
+
+          // DEFENSIVE: Ensure geometry is valid
+          if (!geometry.latitude.isFinite || !geometry.longitude.isFinite) {
+            continue;
+          }
+
           await mapController?.addSymbol(
             SymbolOptions(
               geometry: geometry,
               iconImage: peer.isTutor ? 'marker_tutor' : 'marker_student',
               iconSize: _getMarkerScale() *
-                  0.85, // Peers slightly smaller than spots? Actually let's keep them consistent or just slightly smaller.
-              // Let's explicitly try to make them "Normal" size.
-              // If spots are 1.0 scale, peers at 0.85 scale seems okay distinction wise.
-              // 70px * 0.85 = ~60px.
+                  1.1, // Increased from 0.85 to make user icons more visible
               iconOpacity: opacity,
               // symbolSortKey: 10, // Not supported in this version
             ),
@@ -1049,18 +1316,21 @@ class _MapPageState extends ConsumerState<MapPage> {
         // Pulse: ONLY draw if "Study Mode" (Ghost Mode Disabled) is ON
         if (_isStudyMode) {
           try {
-            await mapController?.addCircle(
-              CircleOptions(
-                geometry: _currentLocation!,
-                circleColor: '#00FF00',
-                circleOpacity: 0.3,
-                circleRadius: kIsWeb ? 28 : 45, // Larger pulse for mobile
-                circleStrokeWidth: 2,
-                circleStrokeColor: '#00FF00',
-                circleBlur: 0.6,
-              ),
-              {'is_me': true, 'is_pulse': true},
-            );
+            if (_currentLocation != null &&
+                _currentLocation!.latitude.isFinite) {
+              await mapController?.addCircle(
+                CircleOptions(
+                  geometry: _currentLocation!,
+                  circleColor: '#00FF00',
+                  circleOpacity: 0.3,
+                  circleRadius: kIsWeb ? 28 : 45, // Larger pulse for mobile
+                  circleStrokeWidth: 2,
+                  circleStrokeColor: '#00FF00',
+                  circleBlur: 0.6,
+                ),
+                {'is_me': true, 'is_pulse': true},
+              );
+            }
           } catch (e) {
             logger.warning("⚠️ Failed to draw my pulse", error: e);
           }
@@ -1255,11 +1525,6 @@ class _MapPageState extends ConsumerState<MapPage> {
         final newPeers = <String, UserProfile>{};
         for (var profile in data) {
           newPeers[profile.userId] = profile;
-          // Log specific user details to check for null locations
-          if (profile.userId != supabase.auth.currentUser?.id) {
-            logger.debug(
-                "   > Peer ${profile.userId} | Loc: ${profile.location} | Updated: ${profile.lastUpdated}");
-          }
         }
         setState(() => _peers = newPeers);
         _updateMapMarkers();
@@ -1272,6 +1537,16 @@ class _MapPageState extends ConsumerState<MapPage> {
         setState(() => _studySpots = spots);
         _updateMapMarkers();
       });
+    });
+
+    // 4. Watch for match acceptance to turn off SOS (Instant UI feedback)
+    ref.listen(pendingMatchesProvider, (previous, next) {
+      if (previous?.hasValue == true && next.hasValue) {
+        if (next.value!.length < previous!.value!.length) {
+          logger.info("📡 Match status changed, refreshing SOS signal status.");
+          ref.read(activeStruggleSignalProvider.notifier).refresh();
+        }
+      }
     });
 
     // 4. Trigger marker update when Profile loads (Fix for "Me" icon delay)
@@ -1408,7 +1683,7 @@ class _MapPageState extends ConsumerState<MapPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.search,
-                            color: theme.colorScheme.primary, size: 18),
+                            color: theme.colorScheme.primary, size: 22),
                         const SizedBox(width: 6),
                         Text(
                           "Search This Area",

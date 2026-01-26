@@ -54,8 +54,8 @@ class _SerendipityMatchDialogState
 
       // Send connection request
       await _supabase.from('collab_requests').insert({
-        'from_user_id': currentUserId,
-        'to_user_id': widget.otherUser.userId,
+        'sender_id': currentUserId,
+        'receiver_id': widget.otherUser.userId,
         'status': 'pending',
       });
 

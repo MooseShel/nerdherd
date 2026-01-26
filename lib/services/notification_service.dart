@@ -267,20 +267,14 @@ class NotificationService {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return;
 
+    // Use direct update instead of RPC to avoid "updated_at" column errors in the DB function
     try {
-      // Call the RPC function we created
-      await supabase.rpc('update_fcm_token', params: {'token': token});
-      logger.info('✅ FCM Token saved to database');
+      await supabase
+          .from('profiles')
+          .update({'fcm_token': token}).eq('user_id', userId);
+      logger.info('✅ FCM Token saved to database (Direct)');
     } catch (e) {
       logger.error('Error saving FCM token', error: e);
-      // Fallback: Try direct update if RPC fails (though RPC is preferred for security)
-      try {
-        await supabase
-            .from('profiles')
-            .update({'fcm_token': token}).eq('user_id', userId);
-      } catch (e2) {
-        logger.error('Fallback update also failed', error: e2);
-      }
     }
   }
 
@@ -515,7 +509,7 @@ class NotificationService {
       title,
       body,
       details,
-      payload: "$type", // Pass type (and ideally ID) as payload
+      payload: type, // Pass type (and ideally ID) as payload
     );
 
     logger.info('📬 Notification shown: $title');
@@ -562,7 +556,9 @@ class NotificationService {
     if (kIsWeb) return;
     if (defaultTargetPlatform != TargetPlatform.iOS &&
         defaultTargetPlatform != TargetPlatform.android &&
-        defaultTargetPlatform != TargetPlatform.macOS) return;
+        defaultTargetPlatform != TargetPlatform.macOS) {
+      return;
+    }
 
     try {
       if (await FlutterAppBadger.isAppBadgeSupported()) {

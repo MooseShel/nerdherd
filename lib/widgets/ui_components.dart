@@ -73,7 +73,7 @@ class SettingsTile extends StatelessWidget {
             color: theme.colorScheme.secondary,
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Icon(icon, color: iconColor ?? theme.primaryColor, size: 20),
+          child: Icon(icon, color: iconColor ?? theme.primaryColor, size: 24),
         ),
         title: Text(
           title,
