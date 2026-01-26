@@ -125,7 +125,7 @@ class MatchingService {
         final u2 = match['user_b'];
 
         // 2. Delete the match record
-        // await _supabase.from('serendipity_matches').delete().eq('id', matchId);
+        await _supabase.from('serendipity_matches').delete().eq('id', matchId);
 
         // 3. UPDATE the collab_request to rejected (preserve history)
         try {
@@ -176,11 +176,23 @@ class MatchingService {
         .stream(primaryKey: ['id'])
         .order('created_at', ascending: false)
         .map((data) {
-          final matches = data
-              .map((e) => SerendipityMatch.fromJson(e))
-              .where((m) =>
-                  (m.userA == userId || m.userB == userId) && !m.accepted)
-              .toList();
+          final now = DateTime.now();
+          final matches =
+              data.map((e) => SerendipityMatch.fromJson(e)).where((m) {
+            final isMyMatch = m.userA == userId || m.userB == userId;
+            if (!isMyMatch) return false;
+
+            // Include pending matches
+            if (!m.accepted) return true;
+
+            // ALSO include recent accepted matches (e.g. last 1 hour)
+            // so we can show "Friend Found" in the UI
+            if (now.difference(m.createdAt).inHours < 1) {
+              return true;
+            }
+
+            return false;
+          }).toList();
           return matches;
         });
   }

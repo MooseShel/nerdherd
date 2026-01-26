@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart'; // For kIsWeb
+import 'dart:convert'; // Add this for JSON encoding
 import 'package:shared_preferences/shared_preferences.dart'; // Add this
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_core/firebase_core.dart'; // Required for Firebase.apps check
@@ -326,19 +327,24 @@ class NotificationService {
 
     if (payload != null) {
       logger.info('🔔 Notification tapped with payload: $payload');
-      // Attempt to parse "type:id" format used in _showNotification (we will need to update _showNotification too)
-      final parts = payload.split(':');
-      final type = parts[0];
-      final id = parts.length > 1 ? parts[1] : null;
 
-      final data = <String, dynamic>{'type': type};
-      if (id != null) {
-        // Generic ID mapping - assumes ID is relevant for the type
-        if (type == 'chat_message') data['sender_id'] = id;
-        // For matches, we might need match_id, but usually we just go to Requests page
+      try {
+        final data = jsonDecode(payload) as Map<String, dynamic>;
+        _handleNavigation(data);
+      } catch (e) {
+        logger.warning(
+            'Failed to parse notification payload as JSON: $payload. Attempting legacy parsing.');
+        // Legacy parsing for "type" or "type:id"
+        final parts = payload.split(':');
+        final type = parts[0];
+        final id = parts.length > 1 ? parts[1] : null;
+
+        final data = <String, dynamic>{'type': type};
+        if (id != null) {
+          if (type == 'chat_message') data['sender_id'] = id;
+        }
+        _handleNavigation(data);
       }
-
-      _handleNavigation(data);
     }
   }
 
@@ -380,7 +386,26 @@ class NotificationService {
             builder: (context) => const RequestsPage(),
           ),
         );
-      } else if (type == 'match_accepted') {
+      } else if (type == 'friend_sos') {
+        // Auto-Connected Friend SOS -> Go straight to Chat
+        final senderId = data['sender_id'];
+        if (senderId != null) {
+          final profileData = await supabase
+              .from('profiles')
+              .select()
+              .eq('user_id', senderId)
+              .maybeSingle();
+
+          if (profileData != null) {
+            final profile = UserProfile.fromJson(profileData);
+            navigatorKey.currentState?.push(
+              MaterialPageRoute(
+                builder: (context) => ChatPage(otherUser: profile),
+              ),
+            );
+          }
+        }
+      } else if (type == 'match_accepted' || type == 'match_confirmed') {
         // Maybe go to Chat or Connections?
         // For now, let's go to Connections page or Chat
         final accepterId = data['accepter_id'];
@@ -504,12 +529,16 @@ class NotificationService {
     );
 
     // Show notification
+    // Encode the full data map as the payload so we don't lose context on tap
+    final payloadMap = data ?? {'type': type};
+    if (!payloadMap.containsKey('type')) payloadMap['type'] = type;
+
     await _notifications.show(
       id.hashCode, // Use notification ID hash as int ID
       title,
       body,
       details,
-      payload: type, // Pass type (and ideally ID) as payload
+      payload: jsonEncode(payloadMap),
     );
 
     logger.info('📬 Notification shown: $title');

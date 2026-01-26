@@ -90,7 +90,6 @@ class _StruggleStatusWidgetState extends ConsumerState<StruggleStatusWidget>
         if (signal != null &&
             matchesState.hasValue &&
             matchesState.value!.isNotEmpty) {
-          final matches = matchesState.value!;
           // Show Match Found Button (Gold)
           return _buildGlassButton(
             context,
@@ -103,7 +102,7 @@ class _StruggleStatusWidgetState extends ConsumerState<StruggleStatusWidget>
                 context: context,
                 isScrollControlled: true,
                 backgroundColor: Colors.transparent,
-                builder: (context) => PendingMatchesSheet(matches: matches),
+                builder: (context) => const PendingMatchesSheet(),
               ).then((_) {
                 if (mounted) {
                   ref.read(isModalOpenProvider.notifier).state = false;

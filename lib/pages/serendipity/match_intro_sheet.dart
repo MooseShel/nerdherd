@@ -267,7 +267,7 @@ class _MatchIntroSheetState extends ConsumerState<MatchIntroSheet> {
                       await matchingService.declineMatch(widget.match.id);
                     },
               style: TextButton.styleFrom(foregroundColor: Colors.grey),
-              child: const Text("Decline Match"),
+              child: const Text("Maybe Later"),
             ),
           ],
         ),
