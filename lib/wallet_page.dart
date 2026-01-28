@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:nerd_herd/providers/wallet_provider.dart';
 import 'package:nerd_herd/providers/payment_provider.dart';
+import 'package:nerd_herd/providers/user_profile_provider.dart';
 import 'package:nerd_herd/models/transaction.dart';
+import 'package:nerd_herd/models/user_profile.dart';
 
 class WalletPage extends ConsumerStatefulWidget {
   const WalletPage({super.key});
@@ -17,6 +19,36 @@ class _WalletPageState extends ConsumerState<WalletPage> {
   bool _isActionLoading = false;
 
   Future<void> _handleTopUp() async {
+    final profileAsync = ref.read(myProfileProvider);
+    final UserProfile? profile = profileAsync.value;
+
+    if (profile == null || profile.stripeCustomerId == null) {
+      if (mounted) {
+        await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Add Payment Method'),
+            content: const Text(
+                'Please add a saved credit card in "Manage Saved Cards" before you can top up your wallet.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Got it'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _handleManageCards();
+                },
+                child: const Text('Add Card Now'),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
+
     final amountController = TextEditingController();
     final result = await showDialog<double>(
       context: context,
@@ -187,6 +219,8 @@ class _WalletPageState extends ConsumerState<WalletPage> {
     final theme = Theme.of(context);
     final balanceAsync = ref.watch(walletBalanceProvider);
     final historyAsync = ref.watch(paymentHistoryProvider);
+    // Ensure profile is watched so it's fresh for _handleTopUp
+    ref.watch(myProfileProvider);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,

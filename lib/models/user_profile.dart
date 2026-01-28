@@ -87,6 +87,9 @@ class UserProfile {
   /// Timestamp of when the user agreed to the tutor platform fee.
   final DateTime? tutorFeeAgreedAt;
 
+  /// Stripe Customer ID linked to the user.
+  final String? stripeCustomerId;
+
   UserProfile({
     required this.userId,
     this.universityId,
@@ -117,6 +120,7 @@ class UserProfile {
     this.studyStyleTemporal = 0.5,
     this.matchSimilarity,
     this.tutorFeeAgreedAt,
+    this.stripeCustomerId,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -176,6 +180,7 @@ class UserProfile {
       tutorFeeAgreedAt: json['tutor_fee_agreed_at'] != null
           ? DateTime.tryParse(json['tutor_fee_agreed_at'])
           : null,
+      stripeCustomerId: json['stripe_customer_id'],
     );
   }
 
@@ -210,6 +215,7 @@ class UserProfile {
       'last_updated': DateTime.now().toIso8601String(),
       if (tutorFeeAgreedAt != null)
         'tutor_fee_agreed_at': tutorFeeAgreedAt!.toIso8601String(),
+      if (stripeCustomerId != null) 'stripe_customer_id': stripeCustomerId,
     };
   }
 
@@ -241,6 +247,7 @@ class UserProfile {
     double? studyStyleSocial,
     double? studyStyleTemporal,
     DateTime? tutorFeeAgreedAt,
+    String? stripeCustomerId,
   }) {
     return UserProfile(
       userId: userId ?? this.userId,
@@ -272,6 +279,7 @@ class UserProfile {
       studyStyleSocial: studyStyleSocial ?? this.studyStyleSocial,
       studyStyleTemporal: studyStyleTemporal ?? this.studyStyleTemporal,
       tutorFeeAgreedAt: tutorFeeAgreedAt ?? this.tutorFeeAgreedAt,
+      stripeCustomerId: stripeCustomerId ?? this.stripeCustomerId,
     );
   }
 }
