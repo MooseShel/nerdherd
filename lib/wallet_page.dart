@@ -200,13 +200,31 @@ class _WalletPageState extends ConsumerState<WalletPage> {
   }
 
   Future<void> _handleManageCards() async {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Starting Stripe Manage Cards (v2.1.5)...'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    }
     setState(() => _isActionLoading = true);
     try {
       await ref.read(paymentControllerProvider.notifier).manageCards();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Manage Cards Call Finished'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Manage Cards Error: $e'),
+              backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -238,8 +256,18 @@ class _WalletPageState extends ConsumerState<WalletPage> {
               icon: const Icon(Icons.arrow_back_ios_new),
               onPressed: () => Navigator.pop(context),
             ),
-            title: const Text('My Wallet',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('My Wallet',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                Text('Build v2.1.5 (Deployment Test)',
+                    style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white.withValues(alpha: 0.5))),
+              ],
+            ),
           ),
           SliverPadding(
             padding: const EdgeInsets.all(20),
