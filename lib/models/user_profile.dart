@@ -84,6 +84,9 @@ class UserProfile {
   /// Semantic Match Similarity (0.0 - 1.0)
   final double? matchSimilarity;
 
+  /// Timestamp of when the user agreed to the tutor platform fee.
+  final DateTime? tutorFeeAgreedAt;
+
   UserProfile({
     required this.userId,
     this.universityId,
@@ -113,6 +116,7 @@ class UserProfile {
     this.studyStyleSocial = 0.5,
     this.studyStyleTemporal = 0.5,
     this.matchSimilarity,
+    this.tutorFeeAgreedAt,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -169,6 +173,9 @@ class UserProfile {
       studyStyleTemporal:
           (json['study_style_temporal'] as num?)?.toDouble() ?? 0.5,
       matchSimilarity: (json['similarity'] as num?)?.toDouble(),
+      tutorFeeAgreedAt: json['tutor_fee_agreed_at'] != null
+          ? DateTime.tryParse(json['tutor_fee_agreed_at'])
+          : null,
     );
   }
 
@@ -201,6 +208,8 @@ class UserProfile {
       if (location != null) 'lat': location!.latitude,
       if (location != null) 'long': location!.longitude,
       'last_updated': DateTime.now().toIso8601String(),
+      if (tutorFeeAgreedAt != null)
+        'tutor_fee_agreed_at': tutorFeeAgreedAt!.toIso8601String(),
     };
   }
 
@@ -231,6 +240,7 @@ class UserProfile {
     List<double>? bioEmbedding,
     double? studyStyleSocial,
     double? studyStyleTemporal,
+    DateTime? tutorFeeAgreedAt,
   }) {
     return UserProfile(
       userId: userId ?? this.userId,
@@ -261,6 +271,7 @@ class UserProfile {
       bioEmbedding: bioEmbedding ?? this.bioEmbedding,
       studyStyleSocial: studyStyleSocial ?? this.studyStyleSocial,
       studyStyleTemporal: studyStyleTemporal ?? this.studyStyleTemporal,
+      tutorFeeAgreedAt: tutorFeeAgreedAt ?? this.tutorFeeAgreedAt,
     );
   }
 }

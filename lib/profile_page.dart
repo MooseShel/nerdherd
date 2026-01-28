@@ -43,6 +43,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   final ImagePicker _picker = ImagePicker();
   String? _verificationDocUrl;
   String _verificationStatus = 'pending';
+  DateTime? _tutorFeeAgreedAt;
   final double _averageRating = 0.0;
   final int _reviewCount = 0;
   double _studyStyleSocial = 0.5;
@@ -86,6 +87,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         _verificationStatus = profile.verificationStatus;
         _studyStyleSocial = profile.studyStyleSocial;
         _studyStyleTemporal = profile.studyStyleTemporal;
+        _tutorFeeAgreedAt = profile.tutorFeeAgreedAt;
       });
     } catch (e) {
       if (mounted) {
@@ -195,6 +197,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         // For now, let's just keep it as is.
         'study_style_social': _studyStyleSocial,
         'study_style_temporal': _studyStyleTemporal,
+        'tutor_fee_agreed_at': _tutorFeeAgreedAt?.toIso8601String(),
         'last_updated': DateTime.now().toIso8601String(),
       });
 
@@ -390,6 +393,100 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _showTutorDisclosure() async {
+    final theme = Theme.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: theme.cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Row(
+          children: [
+            Icon(Icons.info_outline, color: Colors.amber),
+            SizedBox(width: 12),
+            Text('Tutor Platform Fee'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'To help maintain Nerd Herd and provide secure payments, a platform fee is applied to tutor transactions:',
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+              ),
+              child: Column(
+                children: [
+                  _buildFeeRow('Tutor Payout', '80%'),
+                  const Divider(height: 24),
+                  _buildFeeRow('Platform Fee', '20%'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'By enabling Tutor Mode, you agree to these terms and confirm that you have read our pricing policy.',
+              style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel', style: TextStyle(color: theme.hintColor)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('I Agree & Continue'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      if (mounted) {
+        setState(() {
+          _isTutor = true;
+          _tutorFeeAgreedAt = DateTime.now();
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _isTutor = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildFeeRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+        Text(value,
+            style: const TextStyle(
+                color: Colors.amber,
+                fontWeight: FontWeight.bold,
+                fontSize: 18)),
+      ],
+    );
   }
 
   @override
@@ -621,7 +718,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         ),
                         Switch(
                           value: _isTutor,
-                          onChanged: (val) => setState(() => _isTutor = val),
+                          onChanged: (val) {
+                            if (val) {
+                              _showTutorDisclosure();
+                            } else {
+                              setState(() => _isTutor = false);
+                            }
+                          },
                           activeThumbColor: Colors.amber,
                         ),
                       ],
