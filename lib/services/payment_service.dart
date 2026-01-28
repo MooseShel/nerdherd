@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import '../models/transaction.dart';
+import 'logger_service.dart';
 
 class PaymentService {
   final SupabaseClient _supabase;
@@ -10,6 +12,11 @@ class PaymentService {
 
   /// Process a deposit using Stripe (top-up).
   Future<bool> deposit(double amount) async {
+    if (kIsWeb) {
+      logger.warning('Stripe Payment Sheet is not supported on Web.');
+      throw Exception(
+          'Stripe Payment Sheet is only supported on Mobile (iOS/Android). Please use the mobile app for top-ups.');
+    }
     try {
       final user = _supabase.auth.currentUser;
       if (user == null) throw Exception('User not logged in');
@@ -28,6 +35,7 @@ class PaymentService {
       );
 
       if (response.status != 200) {
+        logger.error('Failed to init payment: ${response.data}');
         throw Exception('Failed to init payment: ${response.data}');
       }
 
@@ -45,6 +53,7 @@ class PaymentService {
           // These two params enable "Saved Cards"
           customerId: customerId,
           customerEphemeralKeySecret: ephemeralKey,
+          returnURL: 'nerdherd://stripe-redirect',
         ),
       );
 
@@ -53,6 +62,7 @@ class PaymentService {
 
       return true;
     } catch (e) {
+      logger.error('Deposit failed', error: e);
       if (e is StripeException) {
         throw Exception('Payment cancelled: ${e.error.localizedMessage}');
       }
@@ -62,6 +72,11 @@ class PaymentService {
 
   /// Open the "Manage Payment Methods" sheet (Save/Remove cards).
   Future<void> managePaymentMethods() async {
+    if (kIsWeb) {
+      logger.warning('Stripe Customer Sheet is not supported on Web.');
+      throw Exception(
+          'Managing cards is only supported on Mobile (iOS/Android).');
+    }
     try {
       final user = _supabase.auth.currentUser;
       if (user == null) throw Exception('User not logged in');
@@ -77,6 +92,7 @@ class PaymentService {
       );
 
       if (response.status != 200) {
+        logger.error('Failed to init setup: ${response.data}');
         throw Exception('Failed to init setup: ${response.data}');
       }
 
@@ -90,12 +106,15 @@ class PaymentService {
           customerEphemeralKeySecret: data['ephemeralKey'],
           merchantDisplayName: 'Nerd Herd',
           style: ThemeMode.dark,
+          returnURL: 'nerdherd://stripe-redirect',
         ),
       );
 
       // 3. Present
       await Stripe.instance.presentCustomerSheet();
+      logger.info('✅ Customer sheet presented');
     } catch (e) {
+      logger.error('Manage Cards failed', error: e);
       if (e is StripeException) {
         // User cancelled or error
         return;

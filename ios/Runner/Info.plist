@@ -65,5 +65,18 @@
 		<array>
 			<string>remote-notification</string>
 		</array>
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLName</key>
+				<string>nerdherd</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>nerdherd</string>
+				</array>
+			</dict>
+		</array>
 	</dict>
 </plist>
