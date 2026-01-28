@@ -71,11 +71,10 @@ class _MatchListSheetState extends ConsumerState<MatchListSheet> {
                   _sentRequests.add(user.userId);
                 });
 
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Request Sent! 📨')),
-                  );
-                }
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Request Sent! 📨')),
+                );
               },
               child: const Text('Send Request'),
             ),
@@ -184,13 +183,26 @@ class _MatchListSheetState extends ConsumerState<MatchListSheet> {
                                             fontWeight: FontWeight.bold,
                                             fontSize: 16),
                                       ),
+                                      if (user.matchSimilarity != null)
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(bottom: 4),
+                                          child: Text(
+                                            "${(user.matchSimilarity! * 100).toInt()}% Match ✨",
+                                            style: const TextStyle(
+                                                color: Colors.green,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12),
+                                          ),
+                                        ),
                                       if (user.isTutor)
                                         Container(
                                           margin: const EdgeInsets.only(top: 4),
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 6, vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: Colors.blue.withOpacity(0.1),
+                                            color: Colors.blue
+                                                .withValues(alpha: 0.1),
                                             borderRadius:
                                                 BorderRadius.circular(4),
                                           ),

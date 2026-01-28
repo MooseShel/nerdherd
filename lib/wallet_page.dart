@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -24,7 +25,7 @@ class _WalletPageState extends ConsumerState<WalletPage> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Enter amount to deposit (Simulated Card: **** 4242)'),
+            const Text('Enter amount to deposit'),
             const SizedBox(height: 16),
             TextField(
               controller: amountController,
@@ -166,6 +167,21 @@ class _WalletPageState extends ConsumerState<WalletPage> {
     }
   }
 
+  Future<void> _handleManageCards() async {
+    setState(() => _isActionLoading = true);
+    try {
+      await ref.read(paymentControllerProvider.notifier).manageCards();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isActionLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -209,14 +225,36 @@ class _WalletPageState extends ConsumerState<WalletPage> {
                     child: _buildActionButton(
                       label: 'Withdraw',
                       icon: Icons.account_balance_wallet_outlined,
-                      color: Colors.amber,
-                      onTap: _handleWithdraw,
+                      color: (balanceAsync.value ?? 0) > 0
+                          ? Colors.amber
+                          : Colors.grey,
+                      onTap: (balanceAsync.value ?? 0) > 0
+                          ? () => _handleWithdraw()
+                          : null,
                     ),
                   ),
                 ],
               ),
             ),
           ),
+          if (!kIsWeb)
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 20)
+                  .copyWith(top: 8, bottom: 8),
+              sliver: SliverToBoxAdapter(
+                child: OutlinedButton.icon(
+                  onPressed: _isActionLoading ? null : _handleManageCards,
+                  icon: const Icon(Icons.credit_card),
+                  label: const Text('Manage Saved Cards'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    side: BorderSide(color: theme.dividerColor),
+                  ),
+                ),
+              ),
+            ),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -292,7 +330,7 @@ class _WalletPageState extends ConsumerState<WalletPage> {
     required String label,
     required IconData icon,
     required Color color,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
   }) {
     return InkWell(
       onTap: _isActionLoading ? null : onTap,

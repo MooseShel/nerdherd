@@ -1,4 +1,5 @@
 import 'package:maplibre_gl/maplibre_gl.dart';
+import 'dart:convert';
 
 class UserProfile {
   /// Unique identifier for the user (UUID from Supabase Auth).
@@ -80,6 +81,9 @@ class UserProfile {
   /// Study style: 0.0 (Morning) to 1.0 (Night).
   final double studyStyleTemporal;
 
+  /// Semantic Match Similarity (0.0 - 1.0)
+  final double? matchSimilarity;
+
   UserProfile({
     required this.userId,
     this.universityId,
@@ -108,6 +112,7 @@ class UserProfile {
     this.bioEmbedding,
     this.studyStyleSocial = 0.5,
     this.studyStyleTemporal = 0.5,
+    this.matchSimilarity,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -151,14 +156,19 @@ class UserProfile {
       walletBalance: (json['wallet_balance'] as num?)?.toDouble() ?? 0.0,
       verificationDocumentUrl: json['verification_document_url'],
       verificationStatus: json['verification_status'] ?? 'pending',
+      // ignore: deprecated_member_use_from_same_package
       serendipityEnabled: json['serendipity_enabled'] ?? false,
       bioEmbedding: json['bio_embedding'] != null
-          ? List<double>.from(
-              (json['bio_embedding'] as List).map((e) => (e as num).toDouble()))
+          ? (json['bio_embedding'] is String
+              ? List<double>.from((jsonDecode(json['bio_embedding']) as List)
+                  .map((e) => (e as num).toDouble()))
+              : List<double>.from((json['bio_embedding'] as List)
+                  .map((e) => (e as num).toDouble())))
           : null,
       studyStyleSocial: (json['study_style_social'] as num?)?.toDouble() ?? 0.5,
       studyStyleTemporal:
           (json['study_style_temporal'] as num?)?.toDouble() ?? 0.5,
+      matchSimilarity: (json['similarity'] as num?)?.toDouble(),
     );
   }
 
@@ -182,6 +192,7 @@ class UserProfile {
       'wallet_balance': walletBalance,
       'verification_document_url': verificationDocumentUrl,
       'verification_status': verificationStatus,
+      // ignore: deprecated_member_use_from_same_package
       'serendipity_enabled':
           serendipityEnabled, // Deprecated but kept for schema compatibility
       'study_style_social': studyStyleSocial,
@@ -245,7 +256,7 @@ class UserProfile {
       verificationDocumentUrl:
           verificationDocumentUrl ?? this.verificationDocumentUrl,
       verificationStatus: verificationStatus ?? this.verificationStatus,
-      // ignore: deprecated_member_use
+      // ignore: deprecated_member_use_from_same_package
       serendipityEnabled: serendipityEnabled ?? this.serendipityEnabled,
       bioEmbedding: bioEmbedding ?? this.bioEmbedding,
       studyStyleSocial: studyStyleSocial ?? this.studyStyleSocial,

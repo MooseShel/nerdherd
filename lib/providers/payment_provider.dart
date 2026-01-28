@@ -46,4 +46,9 @@ class PaymentController extends _$PaymentController {
     await service.processPayment(senderId, receiverId, amount, description);
     ref.invalidate(paymentHistoryProvider);
   }
+
+  Future<void> manageCards() async {
+    final service = ref.read(paymentServiceProvider);
+    await service.managePaymentMethods();
+  }
 }

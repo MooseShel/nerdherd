@@ -220,20 +220,25 @@ class NerdMatchNotifier extends StateNotifier<AsyncValue<List<UserProfile>>> {
 
     // FALLBACK: Use dummy embedding if none exists (Unblocks testing)
     if (embedding == null) {
-      logger.info('⚠️ Profile incomplete: Using dummy embedding for testing.');
-      embedding = List.filled(1536, 0.1);
+      logger.info(
+          '⚠️ Profile incomplete: Using dummy embedding (Gemini/768) for testing.');
+      embedding = List.filled(768, 0.1);
     }
+
+    // VIBE MATCHING: Apply a tolerance window around user's preference
+    // e.g. If I am 0.8 (Social), look for 0.55 to 1.0
+    const tolerance = 0.25;
 
     state = const AsyncValue.loading();
     try {
       final matches = await matchingService.findNerdMatches(
         queryEmbedding: embedding,
         universityId: profile.universityId,
-        matchCount: 10, // Explicitly request more matches
-        minSocial: 0.0, // Widen for testing
-        maxSocial: 1.0,
-        minTemporal: 0.0,
-        maxTemporal: 1.0,
+        matchCount: 10,
+        minSocial: (profile.studyStyleSocial - tolerance).clamp(0.0, 1.0),
+        maxSocial: (profile.studyStyleSocial + tolerance).clamp(0.0, 1.0),
+        minTemporal: (profile.studyStyleTemporal - tolerance).clamp(0.0, 1.0),
+        maxTemporal: (profile.studyStyleTemporal + tolerance).clamp(0.0, 1.0),
       );
       state = AsyncValue.data(matches);
     } catch (e, st) {

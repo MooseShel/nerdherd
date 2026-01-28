@@ -2,13 +2,10 @@
 -- SERENDIPITY ENGINE: TWO-STEP HANDSHAKE (FINAL STAGE)
 -- ==============================================================================
 
--- 0. SCHEMA UPDATE
+-- 0. SCHEMA UPDATE (Self-Healing)
 ALTER TABLE public.serendipity_matches ADD COLUMN IF NOT EXISTS receiver_interested BOOLEAN DEFAULT FALSE;
 
 -- 0.1 SUGGEST MATCH (Stage 0: System or User finds a buddy)
--- LOGIC: 
--- - If Connected: Auto-Accept (Straight to Chat)
--- - If NOT Connected: Force Handshake (Reset to Pending)
 CREATE OR REPLACE FUNCTION public.suggest_match(
     target_user_id UUID,
     match_type TEXT,
@@ -61,7 +58,7 @@ BEGIN
         UPDATE public.serendipity_matches
         SET accepted = v_are_connected,
             receiver_interested = v_are_connected,
-            match_type = match_type,
+            match_type = suggest_match.match_type,
             created_at = NOW() 
         WHERE id = v_match_id;
     END IF;
@@ -205,42 +202,3 @@ EXCEPTION WHEN OTHERS THEN
     RETURN jsonb_build_object('success', false, 'error', SQLERRM);
 END;
 $$;
-
-
--- 3. NOTIFICATION TRIGGER (For Collab Requests)
-CREATE OR REPLACE FUNCTION notify_new_request() RETURNS TRIGGER AS $$
-DECLARE
-  sender_name TEXT;
-  receiver_exists BOOLEAN;
-  v_type TEXT;
-  v_title TEXT;
-  v_body TEXT;
-BEGIN
-  SELECT EXISTS(SELECT 1 FROM auth.users WHERE id = NEW.receiver_id) INTO receiver_exists;
-  
-  IF receiver_exists THEN
-    SELECT COALESCE(full_name, intent_tag, 'Someone') INTO sender_name FROM profiles WHERE user_id = NEW.sender_id;
-
-    IF NEW.status = 'accepted' THEN
-        v_type := 'friend_sos';
-        v_title := 'SOS from Friend! 🚨';
-        v_body := sender_name || ' needs help! (Auto-Connected)';
-    ELSIF NEW.status = 'pending' THEN
-        v_type := 'request';
-        v_title := 'New Collaboration Request';
-        v_body := sender_name || ' wants to connect with you!';
-    ELSE
-        RETURN NEW;
-    END IF;
-
-    PERFORM create_notification(
-      NEW.receiver_id,
-      v_type,
-      v_title,
-      v_body,
-      jsonb_build_object('request_id', NEW.id, 'sender_id', NEW.sender_id)
-    );
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;

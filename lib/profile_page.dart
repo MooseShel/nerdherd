@@ -17,6 +17,7 @@ import 'wallet_page.dart';
 import 'package:intl/intl.dart';
 import 'reviews/reviews_history_page.dart';
 import 'business/business_dashboard_page.dart'; // NEW IMPORT
+import 'services/ai_service.dart'; // For Gemini Embeddings
 
 final supabase = Supabase.instance.client;
 
@@ -201,23 +202,24 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         _showSnack('Profile saved successfully!', isError: false);
       }
 
-      // 2. Trigger Embedding Generation (Explicitly)
-      // This ensures it works even if DB Webhooks are not set up locally
+      // 2. Client-Side Embedding Generation (Gemini)
+      // Since we don't have Edge Functions setup locally, we use the client API key
       try {
-        await supabase.functions.invoke(
-          'generate-profile-embedding',
-          body: {
-            'record': {
-              'user_id': user.id,
-              'bio': _bioController.text.trim(),
-              'current_classes': classesList,
-            }
-          },
-        );
-        logger.info("✅ Triggered manual embedding generation.");
+        if (_bioController.text.isNotEmpty || intent.isNotEmpty) {
+          final textToEmbed = "$intent: ${_bioController.text.trim()}";
+          logger.info("Generating embedding for: $textToEmbed");
+
+          final embedding = await aiService.generateEmbedding(textToEmbed);
+
+          if (embedding != null) {
+            await supabase
+                .from('profiles')
+                .update({'bio_embedding': embedding}).eq('user_id', user.id);
+            logger.info("✅ Gemini Embedding (768 dims) generated and saved.");
+          }
+        }
       } catch (e) {
-        logger.warning(
-            "⚠️ Failed to trigger manual embedding (Function might be down/missing): $e");
+        logger.warning("⚠️ Failed to generate embedding: $e");
       }
 
       if (mounted) {

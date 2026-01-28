@@ -8,43 +8,48 @@ class PaymentService {
 
   PaymentService(this._supabase);
 
-  /// Process a deposit using Stripe.
+  /// Process a deposit using Stripe (top-up).
   Future<bool> deposit(double amount) async {
     try {
       final user = _supabase.auth.currentUser;
       if (user == null) throw Exception('User not logged in');
 
-      // 1. Call Edge Function to create PaymentIntent
+      // 1. Call Edge Function (Payment Mode)
+      // This now returns customerId and ephemeralKey to allow saving/reusing cards
       final response = await _supabase.functions.invoke(
         'stripe-payment',
         body: {
           'amount': amount,
-          'user_id': user.id, // Mandatory for production webhook matching
+          'user_id': user.id,
           'customer_email': user.email,
+          'mode': 'payment', // Explicit mode
           'description': 'Nerd Herd Wallet Top-up',
         },
       );
 
       if (response.status != 200) {
-        throw Exception('Failed to create payment intent: ${response.data}');
+        throw Exception('Failed to init payment: ${response.data}');
       }
 
-      final clientSecret = response.data['clientSecret'] as String;
+      final data = response.data;
+      final clientSecret = data['clientSecret'] as String;
+      final customerId = data['customer'] as String?;
+      final ephemeralKey = data['ephemeralKey'] as String?;
 
       // 2. Initialize Payment Sheet
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
           paymentIntentClientSecret: clientSecret,
           merchantDisplayName: 'Nerd Herd',
-          style: ThemeMode.dark, // Adjust based on your app theme
+          style: ThemeMode.dark,
+          // These two params enable "Saved Cards"
+          customerId: customerId,
+          customerEphemeralKeySecret: ephemeralKey,
         ),
       );
 
       // 3. Present Payment Sheet
       await Stripe.instance.presentPaymentSheet();
-
-      // 4. Client-side logging and balance updates removed for Production.
-      // The wallet will update automatically via Supabase Realtime when the Webhook completes.
 
       return true;
     } catch (e) {
@@ -52,6 +57,50 @@ class PaymentService {
         throw Exception('Payment cancelled: ${e.error.localizedMessage}');
       }
       throw Exception('Deposit failed: ${e.toString()}');
+    }
+  }
+
+  /// Open the "Manage Payment Methods" sheet (Save/Remove cards).
+  Future<void> managePaymentMethods() async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) throw Exception('User not logged in');
+
+      // 1. Call Edge Function (Setup Mode)
+      final response = await _supabase.functions.invoke(
+        'stripe-payment',
+        body: {
+          'user_id': user.id,
+          'customer_email': user.email,
+          'mode': 'setup',
+        },
+      );
+
+      if (response.status != 200) {
+        throw Exception('Failed to init setup: ${response.data}');
+      }
+
+      final data = response.data;
+
+      // 2. Initialize Customer Sheet
+      await Stripe.instance.initCustomerSheet(
+        // ignore: deprecated_member_use
+        customerSheetInitParams: CustomerSheetInitParams(
+          customerId: data['customer'],
+          customerEphemeralKeySecret: data['ephemeralKey'],
+          merchantDisplayName: 'Nerd Herd',
+          style: ThemeMode.dark,
+        ),
+      );
+
+      // 3. Present
+      await Stripe.instance.presentCustomerSheet();
+    } catch (e) {
+      if (e is StripeException) {
+        // User cancelled or error
+        return;
+      }
+      throw Exception('Manage Cards failed: $e');
     }
   }
 

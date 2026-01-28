@@ -286,13 +286,13 @@ class _MapPageState extends ConsumerState<MapPage> {
   // Helper for responsive marker scale
   double _getMarkerScale() {
     // Target Sizes:
-    // Web: ~45px (Standard cursor interaction)
-    // Mobile: ~70px (Finger accessible)
-    // Base Size: 250px
+    // Web: ~50px (Standard cursor interaction) -> 350 * 0.14
+    // Mobile: ~90px (Finger accessible) -> 350 * 0.26
+    // Base Resolution: 350px
     if (kIsWeb) {
-      return 0.18; // 250 * 0.18 = 45px
+      return 0.14;
     } else {
-      return 0.28; // 250 * 0.28 = 70px
+      return 0.26;
     }
   }
 
@@ -300,8 +300,8 @@ class _MapPageState extends ConsumerState<MapPage> {
     final pictureRecorder = ui.PictureRecorder();
     final canvas = Canvas(pictureRecorder);
 
-    // INCREASED RESOLUTION: 100 -> 250 for crispness on high DPI screens
-    const size = 250.0;
+    // INCREASED RESOLUTION: 250 -> 350 for crispness on high DPI screens (Retina/OLED)
+    const size = 350.0;
 
     // Proportional padding/sizing
     const padding = size * 0.1; // 10% padding (25px)
@@ -1295,16 +1295,19 @@ class _MapPageState extends ConsumerState<MapPage> {
             continue;
           }
 
+          // SANITIZE DATA: Remove large fields not needed for map interaction to prevent serialization errors
+          final peerData = peer.toJson();
+          peerData.remove('bio_embedding'); // Heavy vector data
+          peerData.remove('verification_document_url'); // Unnecessary string
           await mapController?.addSymbol(
             SymbolOptions(
               geometry: geometry,
               iconImage: peer.isTutor ? 'marker_tutor' : 'marker_student',
-              iconSize: _getMarkerScale() *
-                  1.1, // Increased from 0.85 to make user icons more visible
+              iconSize: _getMarkerScale() * 1.1,
               iconOpacity: opacity,
-              // symbolSortKey: 10, // Not supported in this version
+              zIndex: 10, // Priority over spots
             ),
-            peer.toJson(),
+            peerData,
           );
         } catch (e) {
           logger.warning("⚠️ Failed to add symbol: ${e.toString()}", error: e);
@@ -1323,7 +1326,9 @@ class _MapPageState extends ConsumerState<MapPage> {
                   geometry: _currentLocation!,
                   circleColor: '#00FF00',
                   circleOpacity: 0.3,
-                  circleRadius: kIsWeb ? 28 : 45, // Larger pulse for mobile
+                  circleRadius: kIsWeb
+                      ? 35
+                      : 55, // 50px/90px diam -> 25/45 rad -> 35/55 halo
                   circleStrokeWidth: 2,
                   circleStrokeColor: '#00FF00',
                   circleBlur: 0.6,
@@ -1353,8 +1358,9 @@ class _MapPageState extends ConsumerState<MapPage> {
               iconImage: myIcon,
               iconSize: _getMarkerScale(),
               iconOpacity: 1.0,
+              zIndex: 999, // Force "Me" to be on top and win collisions
               // Note: We can't force 'icon-allow-overlap' in addSymbol easily,
-              // but we cleared nearby spots so it should be fine.
+              // but zIndex/symbolSortKey often determines priority.
             ),
             {'is_me': true},
           );

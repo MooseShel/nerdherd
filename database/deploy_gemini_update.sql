@@ -1,4 +1,18 @@
--- RPC Function to find semantic matches using GEMINI (768 dims)
+-- MIGRATION: Switch from OpenAI (1536) to Gemini (768) Embeddings
+
+-- 1. Drop the old function (Signature must match exactly to drop)
+DROP FUNCTION IF EXISTS match_nerds(vector, float, int, float, float, float, float, text); 
+-- Note: 'vector' usually matches, but being specific is safer if needed.
+-- Trying generic drop if possible, or specific:
+DROP FUNCTION IF EXISTS match_nerds(vector(1536), float, int, float, float, float, float, text);
+
+-- 2. Clear existing embeddings as they are incompatible
+UPDATE profiles SET bio_embedding = NULL;
+
+-- 3. Alter the column type
+ALTER TABLE profiles ALTER COLUMN bio_embedding TYPE vector(768);
+
+-- 4. Create the new function
 CREATE OR REPLACE FUNCTION match_nerds(
   query_embedding vector(768),
   match_threshold float,

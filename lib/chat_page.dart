@@ -650,7 +650,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                           // Ideally, we'd have a method to "repair" connection.
                           await _checkConnection(); // Re-check
 
-                          if (!_isConnected && mounted) {
+                          if (!context.mounted) return;
+                          if (!_isConnected) {
                             // If still failed, show message
                             showErrorSnackBar(context,
                                 "Connection repair failed. Please try properly accepting the match.");

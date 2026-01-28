@@ -44,6 +44,13 @@ class _OnboardingPageState extends State<OnboardingPage> {
       'color': Colors.tealAccent,
     },
     {
+      'title': 'Secure Wallet & Payments',
+      'description':
+          'Manage your funds with ease. Add saved cards for instant top-ups and secure, one-tap payments across the platform.',
+      'icon': Icons.account_balance_wallet_rounded,
+      'color': Colors.amber,
+    },
+    {
       'title': 'Ghost Mode & Privacy',
       'description':
           'Control your visibility. Go "Ghost" for private focus sessions, or stay "Live" to be discovered by peers.',

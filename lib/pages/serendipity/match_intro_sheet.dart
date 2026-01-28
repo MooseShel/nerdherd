@@ -180,6 +180,7 @@ class _MatchIntroSheetState extends ConsumerState<MatchIntroSheet> {
                         // Navigation handled by stream listener or manually here
                         final profile = otherProfileAsync.value;
                         if (profile != null) {
+                          if (!context.mounted) return;
                           Navigator.pop(context);
                           Navigator.of(context).push(
                             MaterialPageRoute(
@@ -243,15 +244,14 @@ class _MatchIntroSheetState extends ConsumerState<MatchIntroSheet> {
                     setState(() => _isActionInProgress = true);
                     final success =
                         await matchingService.expressInterest(liveMatch.id);
-                    if (mounted) {
-                      setState(() => _isActionInProgress = false);
-                      if (!success) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'Could not express interest. Try again.')),
-                        );
-                      }
+                    if (!context.mounted) return;
+                    setState(() => _isActionInProgress = false);
+                    if (!success) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content:
+                                Text('Could not express interest. Try again.')),
+                      );
                     }
                   },
                 ),

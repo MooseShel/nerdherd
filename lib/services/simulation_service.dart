@@ -66,6 +66,11 @@ class SimulationService {
       location: location,
       lastUpdated: DateTime.now(), // Online now
       bio: "Automated study buddy",
+      // Random Vibe Scores
+      studyStyleSocial: _random.nextDouble(), // 0.0 to 1.0
+      studyStyleTemporal: _random.nextDouble(),
+      // Mock Gemini Embedding (768 dims)
+      bioEmbedding: List.generate(768, (_) => (_random.nextDouble() - 0.5) * 2),
     );
   }
 

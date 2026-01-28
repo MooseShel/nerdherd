@@ -205,7 +205,7 @@ class _StruggleStatusWidgetState extends ConsumerState<StruggleStatusWidget>
                               shape: BoxShape.circle,
                               border: Border.all(
                                 color: AppTheme.serendipityOrange
-                                    .withOpacity(1 - _controller.value),
+                                    .withValues(alpha: 1 - _controller.value),
                                 width: 2,
                               ),
                             ),
@@ -335,10 +335,20 @@ class _StruggleStatusWidgetState extends ConsumerState<StruggleStatusWidget>
               ),
               ElevatedButton(
                 onPressed: () async {
+                  final subject = subjectController.text.trim();
+                  if (subject.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter a subject (e.g. Calculus)'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
                   debugPrint("🆘 Broadcasting Signal - Enabling Map");
 
                   final meters = (radiusMiles * 1609.34).toInt();
-                  final subject = subjectController.text;
                   final conf = 6 - confidence;
 
                   final radiusNotifier =

@@ -47,14 +47,13 @@ Future<void> main() async {
     await AppConfig.load();
 
     // Initialize Stripe (Skip on Web - flutter_stripe uses Platform internally)
+    // Initialize Stripe
+    logger.info('💳 Initializing Stripe...');
+    Stripe.publishableKey = appConfig.stripePublishableKey;
     if (!kIsWeb) {
-      logger.info('💳 Initializing Stripe...');
-      Stripe.publishableKey = appConfig.stripePublishableKey;
       await Stripe.instance.applySettings();
-      logger.info('✅ Stripe initialized');
-    } else {
-      logger.info('💳 Skipping Stripe on Web (Payment features disabled)');
     }
+    logger.info('✅ Stripe initialized');
 
     // Initialize Supabase with config
     logger.info('🗄️ Initializing Supabase...');
