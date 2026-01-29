@@ -53,8 +53,8 @@ class _AuthGateState extends ConsumerState<AuthGate> {
     return authState.when(
       data: (user) {
         if (user != null) {
-          return AppStartupManager(
-            child: const BiometricGuard(
+          return const AppStartupManager(
+            child: BiometricGuard(
               child: UniversityCheck(child: MapPage()),
             ),
           );

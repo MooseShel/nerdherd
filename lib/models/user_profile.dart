@@ -204,8 +204,8 @@ class UserProfile {
       'wallet_balance': walletBalance,
       'verification_document_url': verificationDocumentUrl,
       'verification_status': verificationStatus,
-      // ignore: deprecated_member_use_from_same_package
       'serendipity_enabled':
+          // ignore: deprecated_member_use_from_same_package
           serendipityEnabled, // Deprecated but kept for schema compatibility
       'study_style_social': studyStyleSocial,
       'study_style_temporal': studyStyleTemporal,

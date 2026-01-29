@@ -52,7 +52,7 @@ extension RemoteLogging on LoggerService {
   }
 
   void remoteFatal(String message, {dynamic error, StackTrace? stackTrace}) {
-    this.fatal(message, error: error, stackTrace: stackTrace);
+    fatal(message, error: error, stackTrace: stackTrace);
     remoteLogger?.logRemote(
       level: 'fatal',
       message: message,
