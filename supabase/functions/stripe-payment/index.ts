@@ -4,7 +4,7 @@ import Stripe from 'https://esm.sh/stripe@14.14.0'
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
-  apiVersion: '2023-10-16',
+  apiVersion: '2024-12-18.acacia',
   httpClient: Stripe.createFetchHttpClient(),
 })
 
@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
       // Create Ephemeral Key for Customer Sheet
       const ephemeralKey = await stripe.ephemeralKeys.create(
         { customer: customerId },
-        { apiVersion: '2023-10-16' }
+        { apiVersion: '2024-12-18.acacia' }
       )
       // Create SetupIntent
       const setupIntent = await stripe.setupIntents.create({
@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
     // Create Ephemeral Key for reusing saved cards
     const ephemeralKey = await stripe.ephemeralKeys.create(
       { customer: customerId },
-      { apiVersion: '2023-10-16' }
+      { apiVersion: '2024-12-18.acacia' }
     )
 
     const paymentIntent = await stripe.paymentIntents.create({

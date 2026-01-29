@@ -338,7 +338,7 @@ class _WalletPageState extends ConsumerState<WalletPage> {
               children: [
                 const Text('My Wallet',
                     style: TextStyle(fontWeight: FontWeight.bold)),
-                Text('Build v2.1.11 - Web Checkout Enabled',
+                Text('Build v2.1.12 - Multi-Platform Stripe Fixed',
                     style: TextStyle(
                         fontSize: 10,
                         color: Colors.white.withValues(alpha: 0.5))),
@@ -375,24 +375,23 @@ class _WalletPageState extends ConsumerState<WalletPage> {
               ),
             ),
           ),
-          if (!kIsWeb)
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20)
-                  .copyWith(top: 8, bottom: 8),
-              sliver: SliverToBoxAdapter(
-                child: OutlinedButton.icon(
-                  onPressed: _isActionLoading ? null : _handleManageCards,
-                  icon: const Icon(Icons.credit_card),
-                  label: const Text('Manage Saved Cards'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    side: BorderSide(color: theme.dividerColor),
-                  ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 20)
+                .copyWith(top: 8, bottom: 8),
+            sliver: SliverToBoxAdapter(
+              child: OutlinedButton.icon(
+                onPressed: _isActionLoading ? null : _handleManageCards,
+                icon: const Icon(Icons.credit_card),
+                label: const Text('Manage Saved Cards'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  side: BorderSide(color: theme.dividerColor),
                 ),
               ),
             ),
+          ),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),

@@ -145,6 +145,7 @@ class PaymentService {
         customerSheetInitParams: CustomerSheetInitParams(
           customerId: data['customer'],
           customerEphemeralKeySecret: data['ephemeralKey'],
+          setupIntentClientSecret: data['setupIntent'], // ADDED THIS
           merchantDisplayName: 'Nerd Herd',
           style: ThemeMode.dark,
           returnURL: 'nerdherd://stripe-redirect',
