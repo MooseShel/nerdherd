@@ -7,6 +7,9 @@ import 'package:nerd_herd/providers/payment_provider.dart';
 import 'package:nerd_herd/providers/user_profile_provider.dart';
 import 'package:nerd_herd/models/transaction.dart';
 import 'package:nerd_herd/models/user_profile.dart';
+import 'package:nerd_herd/services/remote_logger_service.dart';
+import 'package:nerd_herd/services/logger_service.dart';
+import 'package:flutter/services.dart';
 
 class WalletPage extends ConsumerStatefulWidget {
   const WalletPage({super.key});
@@ -127,6 +130,69 @@ class _WalletPageState extends ConsumerState<WalletPage> {
     }
   }
 
+  Future<void> _showErrorDialog(String title, dynamic error) async {
+    final errorMsg = error.toString();
+    logger.remoteError('$title | UI Dialog', error: error);
+
+    if (!mounted) return;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red),
+            const SizedBox(width: 12),
+            Text(title),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('The following error occurred:'),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  errorMsg,
+                  style: const TextStyle(
+                      fontFamily: 'monospace', fontSize: 13, color: Colors.red),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'This error has been logged automatically. You can also copy it to send to support.',
+                style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: errorMsg));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Error copied to clipboard')),
+              );
+            },
+            child: const Text('Copy Error'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Dismiss'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _handleWithdraw() async {
     final currentBalance = ref.read(walletBalanceProvider).value ?? 0.0;
     if (currentBalance <= 0) {
@@ -236,13 +302,7 @@ class _WalletPageState extends ConsumerState<WalletPage> {
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Manage Cards Error: $e'),
-              backgroundColor: Colors.red),
-        );
-      }
+      _showErrorDialog('Manage Cards Failed', e);
     } finally {
       if (mounted) setState(() => _isActionLoading = false);
     }

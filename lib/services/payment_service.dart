@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import '../models/transaction.dart';
 import 'logger_service.dart';
+import 'remote_logger_service.dart';
 
 class PaymentService {
   final SupabaseClient _supabase;
@@ -61,8 +62,8 @@ class PaymentService {
       await Stripe.instance.presentPaymentSheet();
 
       return true;
-    } catch (e) {
-      logger.error('Deposit failed', error: e);
+    } catch (e, st) {
+      logger.remoteError('Deposit failed', error: e, stackTrace: st);
       if (e is StripeException) {
         throw Exception('${e.error.localizedMessage} (Code: ${e.error.code})');
       }
@@ -113,8 +114,8 @@ class PaymentService {
       // 3. Present
       await Stripe.instance.presentCustomerSheet();
       logger.info('✅ Customer sheet presented');
-    } catch (e) {
-      logger.error('Manage Cards failed', error: e);
+    } catch (e, st) {
+      logger.remoteError('Manage Cards failed', error: e, stackTrace: st);
       if (e is StripeException) {
         throw Exception('${e.error.localizedMessage} (Code: ${e.error.code})');
       }

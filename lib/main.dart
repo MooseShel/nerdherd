@@ -12,6 +12,7 @@ import 'onboarding/onboarding_page.dart';
 import 'config/app_config.dart';
 import 'services/logger_service.dart';
 import 'services/notification_service.dart';
+import 'services/remote_logger_service.dart';
 import 'config/navigation.dart';
 import 'config/theme.dart';
 
@@ -63,6 +64,9 @@ Future<void> main() async {
     );
 
     logger.info('✅ Supabase initialized');
+
+    // Initialize Remote logging
+    remoteLogger = RemoteLoggerService(Supabase.instance.client);
 
     // Initialize notification service
     if (!kIsWeb) {
