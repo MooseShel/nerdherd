@@ -68,11 +68,17 @@ Future<void> main() async {
     // Initialize Remote logging
     remoteLogger = RemoteLoggerService(Supabase.instance.client);
 
-    // Initialize notification service
+    // Initialize notification service - Safe and Non-blocking
     if (!kIsWeb) {
       logger.info('🔔 Initializing Notifications...');
-      await notificationService.initialize();
-      logger.info('✅ Notification service initialized');
+      notificationService.initialize().catchError((e) {
+        logger.error('Failed to init notifications in main', error: e);
+        remoteLogger?.logRemote(
+          level: 'error',
+          message: 'Notification Init Failed (Main): $e',
+          error: e,
+        );
+      });
     } else {
       logger.info('🔔 Skipping System Notifications on Web (In-app only)');
     }
@@ -85,6 +91,12 @@ Future<void> main() async {
     FlutterError.onError = (FlutterErrorDetails details) {
       logger.fatal("Flutter Framework Error",
           error: details.exception, stackTrace: details.stack);
+      remoteLogger?.logRemote(
+        level: 'fatal',
+        message: 'Flutter Framework Error: ${details.exception}',
+        error: details.exception,
+        stackTrace: details.stack,
+      );
     };
 
     runApp(ProviderScope(
@@ -93,6 +105,12 @@ Future<void> main() async {
   }, (error, stack) {
     // Catch all other unhandled async errors
     logger.fatal("Unhandled Async Error", error: error, stackTrace: stack);
+    remoteLogger?.logRemote(
+      level: 'fatal',
+      message: 'Unhandled Async Error: $error',
+      error: error,
+      stackTrace: stack,
+    );
   });
 }
 

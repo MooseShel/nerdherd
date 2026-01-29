@@ -53,10 +53,10 @@ class _AuthGateState extends ConsumerState<AuthGate> {
     return authState.when(
       data: (user) {
         if (user != null) {
-          notificationService.subscribeToNotifications();
-          notificationService.syncToken(); // Sync token after login
-          return const BiometricGuard(
-            child: UniversityCheck(child: MapPage()),
+          return AppStartupManager(
+            child: const BiometricGuard(
+              child: UniversityCheck(child: MapPage()),
+            ),
           );
         } else {
           notificationService.unsubscribe();
@@ -134,5 +134,42 @@ class _BiometricGuardState extends State<BiometricGuard> {
         ),
       ),
     );
+  }
+}
+
+/// New Wrapper to handle side-effects safely in initState after login
+class AppStartupManager extends StatefulWidget {
+  final Widget child;
+  const AppStartupManager({super.key, required this.child});
+
+  @override
+  State<AppStartupManager> createState() => _AppStartupManagerState();
+}
+
+class _AppStartupManagerState extends State<AppStartupManager> {
+  @override
+  void initState() {
+    super.initState();
+    // Use addPostFrameCallback to ensure we don't block the initial build
+    // and that we only run these side effects once per session login.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initServices();
+    });
+  }
+
+  Future<void> _initServices() async {
+    try {
+      logger.info("🎬 AppStartupManager: Syncing services...");
+      await notificationService.subscribeToNotifications();
+      await notificationService.syncToken();
+      logger.info("✅ AppStartupManager: Sync complete");
+    } catch (e) {
+      logger.error("AppStartupManager: Error during sync", error: e);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.child;
   }
 }
