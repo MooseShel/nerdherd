@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
         cancel_url: 'https://nerd-herd-one.vercel.app/wallet?canceled=true',
         metadata: { user_id: user_id, amount_raw: amount.toString() },
       })
-      return new Response(JSON.parse(JSON.stringify({ url: session.url })), {
+      return new Response(JSON.stringify({ url: session.url }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       })
