@@ -1,9 +1,13 @@
 -- Migration: Create Debug Logs Table
 -- Purpose: Capture application errors and fatals for remote debugging.
 
-CREATE TABLE IF NOT EXISTS public.debug_logs (
+-- Drop existing table and policies if they exist
+DROP TABLE IF EXISTS public.debug_logs CASCADE;
+
+-- Create the table with all required columns
+CREATE TABLE public.debug_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    user_id UUID REFERENCES auth.users ON DELETE SET NULL,
     level TEXT NOT NULL, -- e.g., 'error', 'fatal'
     message TEXT NOT NULL,
     error_details TEXT,
@@ -14,6 +18,10 @@ CREATE TABLE IF NOT EXISTS public.debug_logs (
 
 -- Enable RLS
 ALTER TABLE public.debug_logs ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Allow individual insert access for debug_logs" ON public.debug_logs;
+DROP POLICY IF EXISTS "Allow individual read access for debug_logs" ON public.debug_logs;
 
 -- Allow authenticated users to insert their own logs
 CREATE POLICY "Allow individual insert access for debug_logs"
@@ -27,6 +35,6 @@ CREATE POLICY "Allow individual read access for debug_logs"
     USING (auth.uid() = user_id);
 
 -- Enable Realtime
-alter publication supabase_realtime add table debug_logs;
+ALTER PUBLICATION supabase_realtime ADD TABLE debug_logs;
 
 COMMENT ON TABLE public.debug_logs IS 'Stores application error logs for remote diagnostic purposes.';
