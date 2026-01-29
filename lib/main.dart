@@ -145,6 +145,24 @@ class _NerdHerdAppState extends ConsumerState<NerdHerdApp>
     if (state == AppLifecycleState.resumed) {
       // Reset badge when app comes to foreground
       notificationService.resetBadge();
+
+      // Refresh Supabase session to prevent stale token errors
+      _refreshSessionSafe();
+    }
+  }
+
+  Future<void> _refreshSessionSafe() async {
+    try {
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session != null) {
+        logger.debug("🔄 Attempting to refresh session on resume...");
+        await Supabase.instance.client.auth.refreshSession();
+        logger.debug("✅ Session refreshed successfully");
+      }
+    } catch (e) {
+      // Only warn, don't crash - often network issues or already valid
+      logger.warning("⚠️ Failed to refresh session on resume (non-fatal)",
+          error: e);
     }
   }
 

@@ -877,6 +877,9 @@ class _MapPageState extends ConsumerState<MapPage> {
               }
             }
           }
+        }, onError: (error, stackTrace) {
+          logger.error('❌ Error in collab_requests stream: $error',
+              error: error, stackTrace: stackTrace);
         });
   }
 
@@ -1020,6 +1023,10 @@ class _MapPageState extends ConsumerState<MapPage> {
     _presenceChannel?.subscribe((status, error) {
       if (status == RealtimeSubscribeStatus.subscribed) {
         _updatePresenceTracking();
+      } else if (status == RealtimeSubscribeStatus.channelError) {
+        logger.error("❌ Presence channel error: $error");
+      } else if (status == RealtimeSubscribeStatus.timedOut) {
+        logger.warning("⚠️ Presence channel timed out");
       }
     });
   }
