@@ -108,7 +108,31 @@ Deno.serve(async (req) => {
       })
     }
 
-    // 4. PAYMENT MODE (Charge)
+    // 4. CHECKOUT MODE (Top-up on Web)
+    if (mode === 'checkout') {
+      if (!amount) throw new Error('Amount is required for checkout')
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        line_items: [{
+          price_data: {
+            currency: currency,
+            product_data: { name: 'Wallet Top-up', description: description || 'Nerd Herd Wallet Top-up' },
+            unit_amount: Math.round(amount * 100),
+          },
+          quantity: 1,
+        }],
+        mode: 'payment',
+        success_url: 'https://nerd-herd-one.vercel.app/wallet?success=true',
+        cancel_url: 'https://nerd-herd-one.vercel.app/wallet?canceled=true',
+        metadata: { user_id: user_id, amount_raw: amount.toString() },
+      })
+      return new Response(JSON.parse(JSON.stringify({ url: session.url })), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
+    // 5. PAYMENT MODE (Mobile Charge via Sheet)
     if (!amount) throw new Error('Amount is required for payment mode')
 
     // Create Ephemeral Key for reusing saved cards

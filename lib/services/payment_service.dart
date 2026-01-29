@@ -18,7 +18,32 @@ class PaymentService {
       final user = _supabase.auth.currentUser;
       if (user == null) throw Exception('User not logged in');
 
-      // 1. Call Edge Function (Payment Mode)
+      if (kIsWeb) {
+        logger.info('Opening Stripe Checkout for Web Top-up...');
+        final response = await _supabase.functions.invoke(
+          'stripe-payment',
+          body: {
+            'amount': amount,
+            'user_id': user.id,
+            'customer_email': user.email,
+            'mode': 'checkout',
+            'description': 'Nerd Herd Wallet Top-up',
+          },
+        );
+
+        if (response.status == 200 && response.data['url'] != null) {
+          final url = Uri.parse(response.data['url']);
+          if (await canLaunchUrl(url)) {
+            await launchUrl(url, mode: LaunchMode.externalApplication);
+            return true;
+          } else {
+            throw Exception('Could not launch Stripe Checkout');
+          }
+        }
+        throw Exception('Failed to generate Checkout link: ${response.data}');
+      }
+
+      // 1. Call Edge Function (Payment Mode - Mobile Only)
       // This now returns customerId and ephemeralKey to allow saving/reusing cards
       final response = await _supabase.functions.invoke(
         'stripe-payment',

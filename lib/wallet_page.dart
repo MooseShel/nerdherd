@@ -338,7 +338,7 @@ class _WalletPageState extends ConsumerState<WalletPage> {
               children: [
                 const Text('My Wallet',
                     style: TextStyle(fontWeight: FontWeight.bold)),
-                Text('Build v2.1.10 - Web Support Enabled',
+                Text('Build v2.1.11 - Web Checkout Enabled',
                     style: TextStyle(
                         fontSize: 10,
                         color: Colors.white.withValues(alpha: 0.5))),
