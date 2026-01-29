@@ -96,7 +96,19 @@ Deno.serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
     }
 
-    // 3. PAYMENT MODE (Charge)
+    // 3. PORTAL MODE (Manage Cards on Web)
+    if (mode === 'portal') {
+      const session = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: 'https://nerd-herd-one.vercel.app/wallet', // Fallback to a valid origin or dynamic from req
+      })
+      return new Response(JSON.stringify({ url: session.url }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
+    // 4. PAYMENT MODE (Charge)
     if (!amount) throw new Error('Amount is required for payment mode')
 
     // Create Ephemeral Key for reusing saved cards

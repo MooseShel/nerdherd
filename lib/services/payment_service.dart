@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/transaction.dart';
 import 'logger_service.dart';
 import 'remote_logger_service.dart';
@@ -13,11 +14,6 @@ class PaymentService {
 
   /// Process a deposit using Stripe (top-up).
   Future<bool> deposit(double amount) async {
-    if (kIsWeb) {
-      logger.warning('Stripe Payment Sheet is not supported on Web.');
-      throw Exception(
-          'Stripe Payment Sheet is only supported on Mobile (iOS/Android). Please use the mobile app for top-ups.');
-    }
     try {
       final user = _supabase.auth.currentUser;
       if (user == null) throw Exception('User not logged in');
@@ -73,10 +69,29 @@ class PaymentService {
 
   /// Open the "Manage Payment Methods" sheet (Save/Remove cards).
   Future<void> managePaymentMethods() async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
     if (kIsWeb) {
-      logger.warning('Stripe Customer Sheet is not supported on Web.');
-      throw Exception(
-          'Managing cards is only supported on Mobile (iOS/Android).');
+      logger.info('Opening Stripe Billing Portal for Web...');
+      final response = await _supabase.functions.invoke(
+        'stripe-payment',
+        body: {
+          'user_id': user.id,
+          'customer_email': user.email,
+          'mode': 'portal',
+        },
+      );
+      if (response.status == 200 && response.data['url'] != null) {
+        final url = Uri.parse(response.data['url']);
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+        } else {
+          throw Exception('Could not launch Stripe Portal');
+        }
+        return;
+      }
+      throw Exception('Failed to generate Billing Portal link');
     }
     try {
       final user = _supabase.auth.currentUser;
