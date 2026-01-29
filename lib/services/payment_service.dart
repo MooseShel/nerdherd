@@ -19,7 +19,6 @@ class PaymentService {
       if (user == null) throw Exception('User not logged in');
 
       if (kIsWeb) {
-        logger.info('Opening Stripe Checkout for Web Top-up...');
         final response = await _supabase.functions.invoke(
           'stripe-payment',
           body: {
@@ -98,7 +97,6 @@ class PaymentService {
     if (user == null) throw Exception('User not logged in');
 
     if (kIsWeb) {
-      logger.info('Opening Stripe Billing Portal for Web...');
       final response = await _supabase.functions.invoke(
         'stripe-payment',
         body: {
