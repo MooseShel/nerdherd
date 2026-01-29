@@ -64,7 +64,7 @@ class PaymentService {
     } catch (e) {
       logger.error('Deposit failed', error: e);
       if (e is StripeException) {
-        throw Exception('Payment cancelled: ${e.error.localizedMessage}');
+        throw Exception('${e.error.localizedMessage} (Code: ${e.error.code})');
       }
       throw Exception('Deposit failed: ${e.toString()}');
     }
@@ -116,8 +116,7 @@ class PaymentService {
     } catch (e) {
       logger.error('Manage Cards failed', error: e);
       if (e is StripeException) {
-        // User cancelled or error
-        return;
+        throw Exception('${e.error.localizedMessage} (Code: ${e.error.code})');
       }
       throw Exception('Manage Cards failed: $e');
     }

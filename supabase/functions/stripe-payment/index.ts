@@ -144,15 +144,24 @@ async function getOrCreateCustomer(userId: string, email: string): Promise<strin
   const { data, error } = await supabase
     .from('profiles')
     .select('stripe_customer_id')
-    .eq('user_id', userId) // Assuming 'user_id' column exists, otherwise 'id'
+    .eq('user_id', userId)
     .single()
 
-  if (error && error.code !== 'PGRST116') { // PGRST116 = JSON object requested, multiple (or no) results returned? No, single() on 0 rows.
+  if (error && error.code !== 'PGRST116') {
     console.error("Error fetching profile:", error)
   }
 
   if (data?.stripe_customer_id) {
-    return data.stripe_customer_id
+    try {
+      // VERIFY: Check if customer still exists in Stripe
+      const existingCustomer = await stripe.customers.retrieve(data.stripe_customer_id)
+      if (existingCustomer && !existingCustomer.deleted) {
+        return existingCustomer.id
+      }
+      console.log(`Stripe Customer ${data.stripe_customer_id} found in DB but is deleted/invalid in Stripe. Creating new one.`)
+    } catch (err) {
+      console.warn(`Stripe Customer ${data.stripe_customer_id} failed retrieval: ${err.message}. Creating new one.`)
+    }
   }
 
   // 2. Create new Stripe Customer

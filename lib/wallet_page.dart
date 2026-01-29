@@ -18,6 +18,22 @@ class WalletPage extends ConsumerStatefulWidget {
 class _WalletPageState extends ConsumerState<WalletPage> {
   bool _isActionLoading = false;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('WALLET LOADED: v2.1.7 (Full Error Logging Ready)'),
+            backgroundColor: Colors.blueAccent,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    });
+  }
+
   Future<void> _handleTopUp() async {
     final profileAsync = ref.read(myProfileProvider);
     final UserProfile? profile = profileAsync.value;
@@ -262,7 +278,7 @@ class _WalletPageState extends ConsumerState<WalletPage> {
               children: [
                 const Text('My Wallet',
                     style: TextStyle(fontWeight: FontWeight.bold)),
-                Text('Build v2.1.5 (Deployment Test)',
+                Text('Build v2.1.7 - Diagnostic Release',
                     style: TextStyle(
                         fontSize: 10,
                         color: Colors.white.withValues(alpha: 0.5))),
