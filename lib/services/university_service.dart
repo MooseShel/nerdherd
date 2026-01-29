@@ -44,16 +44,20 @@ class UniversityService {
 
   Future<List<Course>> getCourses(String universityId, {String? query}) async {
     try {
-      var queryBuilder =
-          _supabase.from('courses').select().eq('university_id', universityId);
+      var queryBuilder = _supabase
+          .from('courses')
+          .select()
+          .eq('university_id', universityId)
+          .eq('is_active', true);
 
       if (query != null && query.isNotEmpty) {
-        // Search by code OR title
+        // Search by course_code OR title
         queryBuilder =
-            queryBuilder.or('code.ilike.%$query%,title.ilike.%$query%');
+            queryBuilder.or('course_code.ilike.%$query%,title.ilike.%$query%');
       }
 
-      final data = await queryBuilder.order('code', ascending: true).limit(50);
+      final data =
+          await queryBuilder.order('course_code', ascending: true).limit(100);
       return (data as List).map((e) => Course.fromJson(e)).toList();
     } catch (e) {
       logger.error("Error fetching courses", error: e);
@@ -63,8 +67,8 @@ class UniversityService {
 
   Future<List<Course>> getMyCourses(String userId) async {
     try {
-      // Join enrollments with courses
-      final data = await _supabase.from('enrollments').select('''
+      // Join user_courses with courses
+      final data = await _supabase.from('user_courses').select('''
             course_id,
             courses:course_id (*)
           ''').eq('user_id', userId);
@@ -93,7 +97,7 @@ class UniversityService {
     try {
       // Use INSERT to avoid triggering UPDATE RLS policies.
       try {
-        await _supabase.from('enrollments').insert({
+        await _supabase.from('user_courses').insert({
           'user_id': userId,
           'course_id': courseId,
         });
@@ -117,7 +121,7 @@ class UniversityService {
   Future<void> unenroll(String userId, String courseId) async {
     try {
       await _supabase
-          .from('enrollments')
+          .from('user_courses')
           .delete()
           .eq('user_id', userId)
           .eq('course_id', courseId);
@@ -132,7 +136,7 @@ class UniversityService {
   Future<void> _syncProfileClasses(String userId) async {
     try {
       final courses = await getMyCourses(userId);
-      final classLabels = courses.map((c) => c.code).toList();
+      final classLabels = courses.map((c) => c.courseCode).toList();
       await _supabase
           .from('profiles')
           .update({'current_classes': classLabels}).eq('user_id', userId);
@@ -142,108 +146,11 @@ class UniversityService {
   }
 
   // --- Simulation / Seeding ---
+  // REMOVED: Fake university seeding (Hogwarts, Nerd Herd U)
+  // Real universities (UH, HCC) are now seeded via SQL migration scripts
 
   Future<void> seedSimulationData() async {
-    try {
-      // 1. Seed Nerd Herd University (Default)
-      final nerdCheck = await _supabase
-          .from('universities')
-          .select()
-          .eq('name', 'Nerd Herd University')
-          .limit(1);
-
-      if ((nerdCheck as List).isEmpty) {
-        logger.info("🌱 Seeding Nerd Herd University...");
-        final uniRes = await _supabase
-            .from('universities')
-            .insert({
-              'name': 'Nerd Herd University',
-              'domain': 'nerdherd.edu',
-              'logo_url':
-                  'https://img.freepik.com/free-vector/gradient-high-school-logo-design_23-2149626932.jpg'
-            })
-            .select()
-            .single();
-
-        final uniId = uniRes['id'];
-
-        // Create Courses for Nerd Herd U
-        final courses = [
-          {
-            'code': 'CS101',
-            'title': 'Intro to Computer Science',
-            'term': 'Fall 2024'
-          },
-          {'code': 'CS201', 'title': 'Data Structures', 'term': 'Fall 2024'},
-          {'code': 'MATH101', 'title': 'Calculus I', 'term': 'Fall 2024'},
-          {'code': 'PHYS101', 'title': 'Physics I', 'term': 'Fall 2024'},
-          {
-            'code': 'ENG101',
-            'title': 'English Composition',
-            'term': 'Fall 2024'
-          },
-          {'code': 'ART101', 'title': 'Art History', 'term': 'Fall 2024'},
-        ];
-
-        for (var c in courses) {
-          await _supabase.from('courses').insert({
-            'university_id': uniId,
-            ...c,
-          });
-        }
-        logger.info("🌱 Nerd Herd University Seeded!");
-      }
-
-      // 2. Seed Hogwarts (Requested Feature)
-      final hogwartsCheck = await _supabase
-          .from('universities')
-          .select()
-          .eq('name', 'Hogwarts School of Witchcraft and Wizardry')
-          .limit(1);
-
-      if ((hogwartsCheck as List).isEmpty) {
-        logger.info("🧙‍♂️ Seeding Hogwarts...");
-        final hogRes = await _supabase
-            .from('universities')
-            .insert({
-              'name': 'Hogwarts School of Witchcraft and Wizardry',
-              'domain': 'hogwarts.edu',
-              'logo_url': 'assets/images/hogwarts_icon.jpg'
-            })
-            .select()
-            .single();
-
-        final hogId = hogRes['id'];
-        final hogCourses = [
-          {'code': 'POTIONS101', 'title': 'Potions', 'term': 'Year 1'},
-          {
-            'code': 'DADA101',
-            'title': 'Defense Against the Dark Arts',
-            'term': 'Year 1'
-          },
-          {'code': 'CHARMS101', 'title': 'Charms', 'term': 'Year 1'},
-          {'code': 'TRANS101', 'title': 'Transfiguration', 'term': 'Year 1'},
-          {'code': 'HERB101', 'title': 'Herbology', 'term': 'Year 1'},
-          {'code': 'ASTRO101', 'title': 'Astronomy', 'term': 'Year 1'},
-          {'code': 'HISTM101', 'title': 'History of Magic', 'term': 'Year 1'},
-          {'code': 'FLY101', 'title': 'Flying', 'term': 'Year 1'},
-        ];
-
-        for (var c in hogCourses) {
-          await _supabase.from('courses').insert({
-            'university_id': hogId,
-            ...c,
-          });
-        }
-        logger.info("🧙‍♂️ Hogwarts Seeded!");
-      }
-    } catch (e) {
-      if (e is PostgrestException && e.code == 'PGRST205') {
-        logger.error(
-            "🚨 Missing 'universities' table! Cannot seed data. Please run the SQL migration script.");
-      } else {
-        logger.error("Seeding failed", error: e);
-      }
-    }
+    // No-op: Real data is managed via database migrations
+    logger.info("✅ Using real university data from database migration.");
   }
 }

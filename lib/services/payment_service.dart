@@ -64,6 +64,19 @@ class PaymentService {
       final clientSecret = data['clientSecret'] as String;
       final customerId = data['customer'] as String?;
       final ephemeralKey = data['ephemeralKey'] as String?;
+      final publishableKey = data['publishableKey'] as String?;
+
+      // Set Stripe publishable key dynamically from server response
+      if (publishableKey != null && publishableKey.isNotEmpty) {
+        Stripe.publishableKey = publishableKey;
+        if (!kIsWeb) {
+          await Stripe.instance.applySettings();
+        }
+        logger.info('✅ Stripe publishable key set and applied');
+      } else {
+        logger.error('⚠️ No publishable key returned from server');
+        throw Exception('Stripe publishable key not available');
+      }
 
       // 2. Initialize Payment Sheet
       await Stripe.instance.initPaymentSheet(
@@ -136,6 +149,19 @@ class PaymentService {
       }
 
       final data = response.data;
+      final publishableKey = data['publishableKey'] as String?;
+
+      // Set Stripe publishable key dynamically from server response
+      if (publishableKey != null && publishableKey.isNotEmpty) {
+        Stripe.publishableKey = publishableKey;
+        if (!kIsWeb) {
+          await Stripe.instance.applySettings();
+        }
+        logger.info('✅ Stripe publishable key set and applied');
+      } else {
+        logger.error('⚠️ No publishable key returned from server');
+        throw Exception('Stripe publishable key not available');
+      }
 
       // 2. Initialize Customer Sheet
       await Stripe.instance.initCustomerSheet(

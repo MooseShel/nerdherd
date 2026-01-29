@@ -1,0 +1,112 @@
+[
+    {
+        "university": "UH",
+        "university_name": "University of Houston",
+        "department_code": "COSC",
+        "department_name": "Computer Science",
+        "course_code": "COSC 1301",
+        "course_number": "1301",
+        "title": "Introduction to Computing",
+        "credits": 3,
+        "description": "Introduction to Computing - Computer Science course at University of Houston"
+    },
+    {
+        "university": "UH",
+        "university_name": "University of Houston",
+        "department_code": "COSC",
+        "department_name": "Computer Science",
+        "course_code": "COSC 1336",
+        "course_number": "1336",
+        "title": "Programming Fundamentals I",
+        "credits": 3,
+        "description": "Programming Fundamentals I - Computer Science course at University of Houston"
+    },
+    {
+        "university": "UH",
+        "university_name": "University of Houston",
+        "department_code": "COSC",
+        "department_name": "Computer Science",
+        "course_code": "COSC 1437",
+        "course_number": "1437",
+        "title": "Programming Fundamentals II",
+        "credits": 4,
+        "description": "Programming Fundamentals II - Computer Science course at University of Houston"
+    },
+    {
+        "university": "UH",
+        "university_name": "University of Houston",
+        "department_code": "COSC",
+        "department_name": "Computer Science",
+        "course_code": "COSC 2336",
+        "course_number": "2336",
+        "title": "Programming Fundamentals III",
+        "credits": 3,
+        "description": "Programming Fundamentals III - Computer Science course at University of Houston"
+    },
+    {
+        "university": "UH",
+        "university_name": "University of Houston",
+        "department_code": "COSC",
+        "department_name": "Computer Science",
+        "course_code": "COSC 2425",
+        "course_number": "2425",
+        "title": "Computer Organization",
+        "credits": 4,
+        "description": "Computer Organization - Computer Science course at University of Houston"
+    },
+    {
+        "university": "UH",
+        "university_name": "University of Houston",
+        "department_code": "COSC",
+        "department_name": "Computer Science",
+        "course_code": "COSC 3320",
+        "course_number": "3320",
+        "title": "Data Structures",
+        "credits": 3,
+        "description": "Data Structures - Computer Science course at University of Houston"
+    },
+    {
+        "university": "UH",
+        "university_name": "University of Houston",
+        "department_code": "COSC",
+        "department_name": "Computer Science",
+        "course_code": "COSC 3340",
+        "course_number": "3340",
+        "title": "Introduction to Automata and Computability Theory",
+        "credits": 3,
+        "description": "Introduction to Automata and Computability Theory - Computer Science course at University of Houston"
+    },
+    {
+        "university": "UH",
+        "university_name": "University of Houston",
+        "department_code": "COSC",
+        "department_name": "Computer Science",
+        "course_code": "COSC 3380",
+        "course_number": "3380",
+        "title": "Database Systems",
+        "credits": 3,
+        "description": "Database Systems - Computer Science course at University of Houston"
+    },
+    {
+        "university": "UH",
+        "university_name": "University of Houston",
+        "department_code": "COSC",
+        "department_name": "Computer Science",
+        "course_code": "COSC 4315",
+        "course_number": "4315",
+        "title": "Programming Languages and Paradigms",
+        "credits": 3,
+        "description": "Programming Languages and Paradigms - Computer Science course at University of Houston"
+    },
+    {
+        "university": "UH",
+        "university_name": "University of Houston",
+        "department_code": "COSC",
+        "department_name": "Computer Science",
+        "course_code": "COSC 4353",
+        "course_number": "4353",
+        "title": "Algorithm Design and Analysis",
+        "credits": 3,
+        "description": "Algorithm Design and Analysis - Computer Science course at University of Houston"
+    }
+]

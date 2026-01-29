@@ -215,11 +215,11 @@ class _UniversitySelectionPageState
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                  if (uni.domain != null)
+                                  if (uni.location != null)
                                     Padding(
                                       padding: const EdgeInsets.only(top: 4),
                                       child: Text(
-                                        uni.domain!,
+                                        uni.location!,
                                         style: TextStyle(
                                           color: Colors.white
                                               .withValues(alpha: 0.8),

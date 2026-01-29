@@ -161,6 +161,7 @@ Deno.serve(async (req) => {
         paymentIntentId: paymentIntent.id,
         ephemeralKey: ephemeralKey.secret, // Required for PaymentSheet
         customer: customerId,
+        publishableKey: Deno.env.get('STRIPE_PUBLISHABLE_KEY'), // Add publishable key
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
     )

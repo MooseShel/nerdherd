@@ -155,7 +155,7 @@ class _CourseImportPageState extends ConsumerState<CourseImportPage> {
                   }
 
                   return ListTile(
-                    title: Text(course.code,
+                    title: Text(course.courseCode,
                         style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text(course.title),
                     trailing:

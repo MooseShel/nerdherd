@@ -1,180 +1,122 @@
-# Database Migration Guide
+# Real College Course Integration - Migration Guide
 
-This guide will help you apply the database migrations to your Supabase project.
+## Overview
+This guide walks you through migrating from fake "Hogwarts" data to real University of Houston and Houston Community College courses.
 
 ## Prerequisites
-- Access to your Supabase project dashboard
-- SQL Editor access
+- Supabase project with admin access
+- Python 3.x installed (for running the scraper)
+- Backup of current database (recommended)
 
-## Migrations to Apply
+## Step-by-Step Migration
 
-### 1. Enhanced Chat Migration
-**File**: `database/enhance_chat.sql`
-
-**What it does**:
-- Creates `typing_status` table for real-time typing indicators
-- Adds columns to `messages` table: `delivered_at`, `message_type`, `media_url`
-- Creates `chat-images` storage bucket
-- Sets up RLS policies for chat images
-
-**To apply**:
-1. Open Supabase Dashboard → SQL Editor
-2. Copy contents of `enhance_chat.sql`
-3. Paste and run
-4. Verify: Check that `typing_status` table exists
-
-### 2. Notifications Migration
-**File**: `database/create_notifications.sql`
-
-**What it does**:
-- Creates `notifications` table
-- Creates `create_notification()` helper function
-- Sets up triggers for:
-  - New collaboration requests
-  - New messages
-  - Request accepted
-- Creates performance indexes
-
-**To apply**:
-1. Open Supabase Dashboard → SQL Editor
-2. Copy contents of `create_notifications.sql`
-3. Paste and run
-4. Verify: Check that `notifications` table exists and triggers are created
-
-## Verification Steps
-
-### Check Tables
-```sql
--- Verify typing_status table
-SELECT * FROM typing_status LIMIT 1;
-
--- Verify notifications table
-SELECT * FROM notifications LIMIT 1;
-
--- Verify messages columns
-SELECT message_type, media_url, delivered_at FROM messages LIMIT 1;
+### Step 1: Generate Course Data
+```bash
+cd scripts
+pip install -r requirements.txt
+python scrape_courses.py
 ```
 
-### Check Storage Bucket
-1. Go to Storage in Supabase Dashboard
-2. Verify `chat-images` bucket exists
-3. Check policies are set
+This creates:
+- `courses.json` - For Supabase import
+- `courses.csv` - For review
 
-### Check Triggers
+**Output**: 150+ real courses from UH and HCC
+
+### Step 2: Run Database Migration
+1. Open Supabase SQL Editor
+2. Run `database/migrate_real_courses.sql`
+3. Verify tables created:
+   - `universities`
+   - `departments`
+   - `courses`
+   - `user_courses`
+
+### Step 3: Import Course Data
+
+**Option A: CSV Import (Recommended)**
+1. Go to Supabase Dashboard > Table Editor
+2. Select `courses` table
+3. Click "Insert" > "Import data from CSV"
+4. Upload `scripts/courses.csv`
+5. Map columns and import
+
+**Option B: SQL Import**
+1. Use `database/import_courses.sql` as a template
+2. Modify for your specific courses
+3. Run in SQL Editor
+
+### Step 4: Verify Data
+Run this query in SQL Editor:
 ```sql
--- List all triggers
-SELECT trigger_name, event_object_table 
-FROM information_schema.triggers 
-WHERE trigger_schema = 'public';
+SELECT 
+  u.short_name,
+  d.name AS department,
+  COUNT(*) AS course_count
+FROM courses c
+JOIN universities u ON c.university_id = u.id
+JOIN departments d ON c.department_id = d.id
+GROUP BY u.short_name, d.name
+ORDER BY u.short_name, d.name;
 ```
 
-You should see:
-- `trigger_notify_new_request` on `collab_requests`
-- `trigger_notify_new_message` on `messages`
-- `trigger_notify_request_accepted` on `collab_requests`
+Expected output: ~150 courses across 14 departments
+
+### Step 5: Update Flutter App
+The app code changes will be handled separately. This includes:
+- Updating `UniversityService.dart`
+- Creating `CourseSelector` widget
+- Updating onboarding flow
+- Adding course search functionality
+
+### Step 6: User Migration
+For existing users with "Hogwarts" courses:
+1. Show migration prompt on app launch
+2. Guide through new course selection
+3. Archive old data
+4. Update user profiles
+
+## Rollback Plan
+If something goes wrong:
+```sql
+-- Drop new tables
+DROP TABLE IF EXISTS user_courses CASCADE;
+DROP TABLE IF EXISTS courses CASCADE;
+DROP TABLE IF EXISTS departments CASCADE;
+DROP TABLE IF EXISTS universities CASCADE;
+
+-- Restore from backup
+-- (Use your backup restoration method)
+```
+
+## Testing Checklist
+- [ ] Universities table has 2 entries (UH, HCC)
+- [ ] Departments table has ~28 entries
+- [ ] Courses table has 150+ entries
+- [ ] Search function works: `SELECT * FROM search_courses('programming')`
+- [ ] RLS policies allow public read access
+- [ ] User course enrollment works
 
 ## Troubleshooting
 
-### Error: "relation already exists"
-- Tables may already exist from a previous migration
-- Use `DROP TABLE IF EXISTS` before creating, or skip that part
+### Issue: CSV import fails
+**Solution**: Check column mapping, ensure UUIDs are generated correctly
 
-### Error: "function already exists"
-- Functions may already exist
-- Use `CREATE OR REPLACE FUNCTION` (already in the SQL)
+### Issue: Foreign key violations
+**Solution**: Ensure universities and departments are inserted before courses
 
-### Storage bucket error
-- Bucket may already exist
-- The SQL uses `ON CONFLICT DO NOTHING` so it should be safe
+### Issue: Duplicate course codes
+**Solution**: Check for conflicts in course_code, use ON CONFLICT DO NOTHING
 
-## Testing After Migration
+## Next Steps
+After successful migration:
+1. Update Flutter app code
+2. Deploy new app version
+3. Monitor user migration progress
+4. Gather feedback on course selection UX
 
-1. **Test Typing Status**:
-   ```sql
-   INSERT INTO typing_status (user_id, chat_with, is_typing)
-   VALUES ('your-user-id', 'other-user-id', true);
-   ```
-
-2. **Test Notification Creation**:
-   ```sql
-   -- This should auto-create a notification via trigger
-   INSERT INTO collab_requests (sender_id, receiver_id, status)
-   VALUES ('sender-id', 'receiver-id', 'pending');
-   
-   -- Check notification was created
-   SELECT * FROM notifications WHERE user_id = 'receiver-id';
-   ```
-
-3. **Test Image Upload**:
-   - Use the app to upload a chat image
-   - Verify it appears in `chat-images` bucket
-   - Check RLS policies allow access
-
-## Rollback (if needed)
-
-If you need to undo the migrations:
-
-```sql
--- Drop notifications system
-DROP TRIGGER IF EXISTS trigger_notify_new_request ON collab_requests;
-DROP TRIGGER IF EXISTS trigger_notify_new_message ON messages;
-DROP TRIGGER IF EXISTS trigger_notify_request_accepted ON collab_requests;
-DROP FUNCTION IF EXISTS notify_new_request();
-DROP FUNCTION IF EXISTS notify_new_message();
-DROP FUNCTION IF EXISTS notify_request_accepted();
-DROP FUNCTION IF EXISTS create_notification(UUID, TEXT, TEXT, TEXT, JSONB);
-DROP TABLE IF EXISTS notifications;
-
--- Drop typing status
-DROP TABLE IF EXISTS typing_status;
-
--- Remove message columns (optional, may break existing data)
-ALTER TABLE messages DROP COLUMN IF EXISTS delivered_at;
-ALTER TABLE messages DROP COLUMN IF EXISTS message_type;
-ALTER TABLE messages DROP COLUMN IF EXISTS media_url;
-```
-
-## Next Steps After Migration
-
-1. Run the Flutter app
-2. Test each feature:
-   - Send a collaboration request
-   - Send a chat message
-   - Upload an image in chat
-   - Check notifications appear
-3. Monitor Supabase logs for any errors
-
-### 3. Admin Portal Migration
-**Files**:
-- `database/add_admin_columns.sql`
-- `database/admin_policies.sql`
-
-**What it does**:
-- Adds `is_admin` and `is_banned` columns to `profiles` table.
-- Enables RLS policies for admins to manage all profiles.
-
-**To apply**:
-1. Open Supabase Dashboard → SQL Editor
-2. Run contents of `add_admin_columns.sql`.
-3. Run contents of `admin_policies.sql`.
-4. **Important**: Grant yourself admin access:
-   ```sql
-   UPDATE public.profiles SET is_admin = true WHERE user_id = auth.uid();
-   ```
-
-### 4. Payment Integration Migration
-**File**: `database/payment_schema.sql`
-
-**What it does**:
-- Adds `wallet_balance` column to `profiles`.
-- Creates `transactions` table with RLS policies.
-
-**To apply**:
-1. Open Supabase Dashboard → SQL Editor
-2. Run contents of `payment_schema.sql`.
-3. Run contents of `enable_realtime_transactions.sql` (Required for transaction list updates).
-4. Run contents of `alter_appointments_payment.sql` (Adds price/paid columns).
-5. Run contents of `create_payment_rpc.sql` (Secure payment function).
-6. Run contents of `fix_transaction_types.sql` (Transaction types constraint).
-7. Run contents of `fix_reviews_rls.sql` (Allow reviewing completed appointments).
-8. Verify: Check `wallet_balance` column in `profiles` and new `transactions` table.
+## Support
+For issues, check:
+- Supabase logs for SQL errors
+- App logs for Flutter errors
+- User feedback for UX issues
