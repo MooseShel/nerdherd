@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/transaction.dart';
 import 'logger_service.dart';
 import 'remote_logger_service.dart';
+import '../config/app_config.dart';
 
 class PaymentService {
   final SupabaseClient _supabase;
@@ -66,15 +67,22 @@ class PaymentService {
       final ephemeralKey = data['ephemeralKey'] as String?;
       final publishableKey = data['publishableKey'] as String?;
 
-      // Set Stripe publishable key dynamically from server response
-      if (publishableKey != null && publishableKey.isNotEmpty) {
-        Stripe.publishableKey = publishableKey;
+      // Set Stripe publishable key dynamically from server response OR fallback to local config
+      String finalPublishableKey = publishableKey ?? '';
+      if (finalPublishableKey.isEmpty) {
+        logger.warning(
+            '⚠️ No publishable key returned from server, falling back to local AppConfig');
+        finalPublishableKey = appConfig.stripePublishableKey;
+      }
+
+      if (finalPublishableKey.isNotEmpty) {
+        Stripe.publishableKey = finalPublishableKey;
         if (!kIsWeb) {
           await Stripe.instance.applySettings();
         }
         logger.info('✅ Stripe publishable key set and applied');
       } else {
-        logger.error('⚠️ No publishable key returned from server');
+        logger.error('⚠️ No publishable key available (Server or Local)');
         throw Exception('Stripe publishable key not available');
       }
 
@@ -151,15 +159,22 @@ class PaymentService {
       final data = response.data;
       final publishableKey = data['publishableKey'] as String?;
 
-      // Set Stripe publishable key dynamically from server response
-      if (publishableKey != null && publishableKey.isNotEmpty) {
-        Stripe.publishableKey = publishableKey;
+      // Set Stripe publishable key dynamically from server response OR fallback to local config
+      String finalPublishableKey = publishableKey ?? '';
+      if (finalPublishableKey.isEmpty) {
+        logger.warning(
+            '⚠️ No publishable key returned from server, falling back to local AppConfig');
+        finalPublishableKey = appConfig.stripePublishableKey;
+      }
+
+      if (finalPublishableKey.isNotEmpty) {
+        Stripe.publishableKey = finalPublishableKey;
         if (!kIsWeb) {
           await Stripe.instance.applySettings();
         }
         logger.info('✅ Stripe publishable key set and applied');
       } else {
-        logger.error('⚠️ No publishable key returned from server');
+        logger.error('⚠️ No publishable key available (Server or Local)');
         throw Exception('Stripe publishable key not available');
       }
 

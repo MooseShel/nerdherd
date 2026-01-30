@@ -745,82 +745,91 @@ class _MapPageState extends ConsumerState<MapPage> {
   }
 
   Future<void> _checkLocationPermissions() async {
-    hapticService.lightImpact();
-    bool serviceEnabled;
-    LocationPermission permission;
+    if (_isCheckingPermissions) return;
+    _isCheckingPermissions = true;
 
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return;
-    }
+    try {
+      hapticService.lightImpact();
+      bool serviceEnabled;
+      LocationPermission permission;
 
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
+      serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
         return;
       }
-    }
 
-    logger.debug("📍 Permission status: $permission");
-    if (permission == LocationPermission.whileInUse ||
-        permission == LocationPermission.always) {
-      // 1. Zoom to cached location immediately for responsiveness (non-blocking)
-      if (_currentLocation != null && mapController != null) {
-        logger.debug("📍 Recentering to cached location: $_currentLocation");
-        unawaited(mapController!.animateCamera(
-          CameraUpdate.newLatLngZoom(_currentLocation!, 15),
-          duration: const Duration(milliseconds: 800),
-        ));
+      permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          return;
+        }
       }
 
-      // 2. ALWAYS try to get a fresh location to ensure accuracy (non-blocking)
-      unawaited(() async {
-        try {
-          logger.debug("📍 Fetching fresh position...");
-          final position = await Geolocator.getCurrentPosition(
-              desiredAccuracy: LocationAccuracy.high,
-              timeLimit: const Duration(seconds: 10));
-
-          final freshLatLng = LatLng(position.latitude, position.longitude);
-          logger.debug("📍 Got fresh position: $freshLatLng");
-
-          _updateOwnLocation(freshLatLng);
-
-          if (mapController != null && mounted) {
-            unawaited(mapController!.animateCamera(
-              CameraUpdate.newLatLngZoom(freshLatLng, 15),
-              duration: const Duration(milliseconds: 800),
-            ));
-          }
-        } catch (e) {
-          // Just a timeout/fail, we will rely on the stream. Not a critical warning.
-          logger.debug(
-              "ℹ️ Location check timed out (expected on some devices), waiting for stream...",
-              error: e);
-          // Fallback to last known position
-          try {
-            // getLastKnownPosition is not supported on Web
-            if (!kIsWeb) {
-              final position = await Geolocator.getLastKnownPosition();
-              if (position != null && mapController != null && mounted) {
-                logger.debug("📍 Using last known position: $position");
-                unawaited(mapController!.animateCamera(
-                  CameraUpdate.newLatLngZoom(
-                    LatLng(position.latitude, position.longitude),
-                    15,
-                  ),
-                  duration: const Duration(milliseconds: 800),
-                ));
-              }
-            }
-          } catch (e2) {
-            logger.error("❌ Could not get any location", error: e2);
-          }
+      logger.debug("📍 Permission status: $permission");
+      if (permission == LocationPermission.whileInUse ||
+          permission == LocationPermission.always) {
+        // 1. Zoom to cached location immediately for responsiveness (non-blocking)
+        if (_currentLocation != null && mapController != null) {
+          logger.debug("📍 Recentering to cached location: $_currentLocation");
+          unawaited(mapController!.animateCamera(
+            CameraUpdate.newLatLngZoom(_currentLocation!, 15),
+            duration: const Duration(milliseconds: 800),
+          ));
         }
-      }());
+
+        // 2. ALWAYS try to get a fresh location to ensure accuracy (non-blocking)
+        unawaited(() async {
+          try {
+            logger.debug("📍 Fetching fresh position...");
+            final position = await Geolocator.getCurrentPosition(
+                desiredAccuracy: LocationAccuracy.high,
+                timeLimit: const Duration(seconds: 10));
+
+            final freshLatLng = LatLng(position.latitude, position.longitude);
+            logger.debug("📍 Got fresh position: $freshLatLng");
+
+            _updateOwnLocation(freshLatLng);
+
+            if (mapController != null && mounted) {
+              unawaited(mapController!.animateCamera(
+                CameraUpdate.newLatLngZoom(freshLatLng, 15),
+                duration: const Duration(milliseconds: 800),
+              ));
+            }
+          } catch (e) {
+            // Just a timeout/fail, we will rely on the stream. Not a critical warning.
+            logger.debug(
+                "ℹ️ Location check timed out (expected on some devices), waiting for stream...",
+                error: e);
+            // Fallback to last known position
+            try {
+              // getLastKnownPosition is not supported on Web
+              if (!kIsWeb) {
+                final position = await Geolocator.getLastKnownPosition();
+                if (position != null && mapController != null && mounted) {
+                  logger.debug("📍 Using last known position: $position");
+                  unawaited(mapController!.animateCamera(
+                    CameraUpdate.newLatLngZoom(
+                      LatLng(position.latitude, position.longitude),
+                      15,
+                    ),
+                    duration: const Duration(milliseconds: 800),
+                  ));
+                }
+              }
+            } catch (e2) {
+              logger.error("❌ Could not get any location", error: e2);
+            }
+          }
+        }());
+      }
+    } finally {
+      _isCheckingPermissions = false;
     }
   }
+
+  bool _isCheckingPermissions = false;
 
   bool _isStyleLoaded = false; // Guard for Annotation Manager
 

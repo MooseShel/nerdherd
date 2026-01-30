@@ -34,15 +34,9 @@ Stream<LatLng> userLocation(Ref ref) async* {
 
   permission = await Geolocator.checkPermission();
   if (permission == LocationPermission.denied) {
-    permission = await Geolocator.requestPermission();
-    if (permission == LocationPermission.denied) {
-      // Permissions are denied, next time you could try
-      // requesting permissions again (this is also where
-      // Android's shouldShowRequestPermissionRationale
-      // returned true. According to Android guidelines
-      // your App should show an explanatory UI now.
-      return;
-    }
+    // DO NOT Request permission here. Let the UI layer (MapPage) handle it.
+    // Just yield nothing or return.
+    return;
   }
 
   if (permission == LocationPermission.deniedForever) {
