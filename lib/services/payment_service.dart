@@ -104,6 +104,10 @@ class PaymentService {
 
       return true;
     } catch (e, st) {
+      if (e is StripeException && e.error.code == FailureCode.Canceled) {
+        logger.info('User cancelled deposit');
+        return false;
+      }
       logger.remoteError('Deposit failed', error: e, stackTrace: st);
       if (e is StripeException) {
         throw Exception('${e.error.localizedMessage} (Code: ${e.error.code})');
@@ -195,6 +199,10 @@ class PaymentService {
       await Stripe.instance.presentCustomerSheet();
       logger.info('✅ Customer sheet presented');
     } catch (e, st) {
+      if (e is StripeException && e.error.code == FailureCode.Canceled) {
+        logger.info('User cancelled manage cards');
+        return;
+      }
       logger.remoteError('Manage Cards failed', error: e, stackTrace: st);
       if (e is StripeException) {
         throw Exception('${e.error.localizedMessage} (Code: ${e.error.code})');
