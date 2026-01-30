@@ -28,10 +28,13 @@ class PaymentController extends _$PaymentController {
   @override
   void build() {}
 
-  Future<void> deposit(double amount) async {
+  Future<bool> deposit(double amount) async {
     final service = ref.read(paymentServiceProvider);
-    await service.deposit(amount);
-    ref.invalidate(paymentHistoryProvider); // Refresh history
+    final success = await service.deposit(amount);
+    if (success) {
+      ref.invalidate(paymentHistoryProvider); // Refresh history only on success
+    }
+    return success;
   }
 
   Future<void> withdraw(double amount) async {

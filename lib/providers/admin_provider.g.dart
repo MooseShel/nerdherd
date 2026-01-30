@@ -6,7 +6,7 @@ part of 'admin_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$adminStatsHash() => r'03a507d3ea245d09768859bdaca5b661b0ab64df';
+String _$adminStatsHash() => r'0416e88780a72fff19f6e237a8943fd7d205316b';
 
 /// See also [adminStats].
 @ProviderFor(adminStats)
@@ -22,7 +22,7 @@ final adminStatsProvider = FutureProvider<AdminStats>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef AdminStatsRef = FutureProviderRef<AdminStats>;
-String _$supportTicketsHash() => r'a736d270f0ff94ada2a61c3d33d871c32380f2d5';
+String _$supportTicketsHash() => r'369a3f53894238515c7516b979a0ab24e76dfc8a';
 
 /// See also [supportTickets].
 @ProviderFor(supportTickets)

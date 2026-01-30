@@ -93,8 +93,9 @@ class _WalletPageState extends ConsumerState<WalletPage> {
     if (result != null) {
       setState(() => _isActionLoading = true);
       try {
-        await ref.read(paymentControllerProvider.notifier).deposit(result);
-        if (mounted) {
+        final success =
+            await ref.read(paymentControllerProvider.notifier).deposit(result);
+        if (mounted && success) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
                 content: Text('Top-up successful!'),

@@ -6,7 +6,7 @@ part of 'chat_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$chatServiceHash() => r'7708cff0cc02987717334313779b76bf166f5cdc';
+String _$chatServiceHash() => r'6a3dec1974511d569a1a8642884782e527a7ebb6';
 
 /// See also [chatService].
 @ProviderFor(chatService)
@@ -22,7 +22,7 @@ final chatServiceProvider = Provider<ChatService>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef ChatServiceRef = ProviderRef<ChatService>;
-String _$typingStatusHash() => r'92fbde8be6d87b6cf82d77dbc1e2a3865b8270c0';
+String _$typingStatusHash() => r'27cf47f47dee1566df4debe0a8bfa92394b48ba4';
 
 /// Copied from Dart SDK
 class _SystemHash {

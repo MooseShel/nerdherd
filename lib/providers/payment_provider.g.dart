@@ -6,7 +6,7 @@ part of 'payment_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$paymentServiceHash() => r'1a396a8993005bc7fee8c59827700ea603031442';
+String _$paymentServiceHash() => r'3bc8e63a5c3e0e049501827aad5780ef98c4e8f4';
 
 /// See also [paymentService].
 @ProviderFor(paymentService)
@@ -23,7 +23,7 @@ final paymentServiceProvider = Provider<PaymentService>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef PaymentServiceRef = ProviderRef<PaymentService>;
-String _$paymentHistoryHash() => r'1ec349ea466961e845e81ccf84754162a36b6fda';
+String _$paymentHistoryHash() => r'6fdda4f5900e27c107533e2c8f70cb59bc0b2564';
 
 /// See also [paymentHistory].
 @ProviderFor(paymentHistory)
@@ -40,7 +40,7 @@ final paymentHistoryProvider = FutureProvider<List<Transaction>>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef PaymentHistoryRef = FutureProviderRef<List<Transaction>>;
-String _$paymentControllerHash() => r'f737e18af00733267ccc41552c76e615b6d7eea6';
+String _$paymentControllerHash() => r'21c018d59af7456afc00e8610b1c595863754775';
 
 /// See also [PaymentController].
 @ProviderFor(PaymentController)

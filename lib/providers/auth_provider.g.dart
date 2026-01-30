@@ -6,7 +6,7 @@ part of 'auth_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$supabaseClientHash() => r'deacb610ba5a2a6164a9836f0ed10a1e9de80426';
+String _$supabaseClientHash() => r'2df5a38617329a3bb0a7e149189bea875722d7b8';
 
 /// See also [supabaseClient].
 @ProviderFor(supabaseClient)
@@ -23,7 +23,7 @@ final supabaseClientProvider = Provider<SupabaseClient>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef SupabaseClientRef = ProviderRef<SupabaseClient>;
-String _$authStateHash() => r'3d74545306dc46c71fd17d7be00186845380d282';
+String _$authStateHash() => r'aa41b57b04ee20ffa8eed236af88072b866ce936';
 
 /// See also [AuthState].
 @ProviderFor(AuthState)
