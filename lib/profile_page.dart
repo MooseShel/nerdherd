@@ -2,22 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'models/user_profile.dart'; // Ensure this matches your project structure
-import 'requests_page.dart';
-import 'connections_page.dart';
-import 'settings_page.dart';
-import 'schedule_page.dart';
-import 'services/logger_service.dart';
-import 'university/university_selection_page.dart';
-import 'conversations_page.dart';
+import 'package:nerd_herd/models/user_profile.dart';
+import 'package:nerd_herd/requests_page.dart';
+import 'package:nerd_herd/connections_page.dart';
+import 'package:nerd_herd/settings_page.dart';
+import 'package:nerd_herd/schedule_page.dart';
+import 'package:nerd_herd/services/logger_service.dart';
+import 'package:nerd_herd/university/university_selection_page.dart';
+import 'package:nerd_herd/conversations_page.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'providers/wallet_provider.dart';
-import 'providers/user_profile_provider.dart';
-import 'wallet_page.dart';
+import 'package:nerd_herd/providers/wallet_provider.dart';
+import 'package:nerd_herd/providers/user_profile_provider.dart';
+import 'package:nerd_herd/providers/university_provider.dart';
+import 'package:nerd_herd/wallet_page.dart';
 import 'package:intl/intl.dart';
-import 'reviews/reviews_history_page.dart';
-import 'business/business_dashboard_page.dart'; // NEW IMPORT
-import 'services/ai_service.dart'; // For Gemini Embeddings
+import 'package:nerd_herd/reviews/reviews_history_page.dart';
+import 'package:nerd_herd/business/business_dashboard_page.dart';
+import 'package:nerd_herd/services/ai_service.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -48,6 +49,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   final int _reviewCount = 0;
   double _studyStyleSocial = 0.5;
   double _studyStyleTemporal = 0.5;
+  bool _useUniversityTheme = true;
 
   @override
   void initState() {
@@ -88,6 +90,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         _studyStyleSocial = profile.studyStyleSocial;
         _studyStyleTemporal = profile.studyStyleTemporal;
         _tutorFeeAgreedAt = profile.tutorFeeAgreedAt;
+        _useUniversityTheme = profile.useUniversityTheme;
       });
     } catch (e) {
       if (mounted) {
@@ -198,6 +201,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         'study_style_social': _studyStyleSocial,
         'study_style_temporal': _studyStyleTemporal,
         'tutor_fee_agreed_at': _tutorFeeAgreedAt?.toIso8601String(),
+        'use_university_theme': _useUniversityTheme,
         'last_updated': DateTime.now().toIso8601String(),
       });
 
@@ -492,13 +496,20 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final myUniAsync = ref.watch(myUniversityProvider);
+    final myUni = myUniAsync.value;
+    final useUniTheme = _useUniversityTheme;
+
+    final uniColor = (useUniTheme && myUni?.primaryColorInt != null)
+        ? Color(myUni!.primaryColorInt!)
+        : theme.primaryColor;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text('Edit Profile',
             style: theme.textTheme.titleLarge
-                ?.copyWith(fontWeight: FontWeight.bold)),
+                ?.copyWith(fontWeight: FontWeight.bold, color: uniColor)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
@@ -583,7 +594,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     child: TextButton(
                       onPressed: _pickImage,
                       child: Text("Change Photo",
-                          style: TextStyle(color: theme.primaryColor)),
+                          style: TextStyle(color: uniColor)),
                     ),
                   ),
                   if (_reviewCount > 0) ...[
@@ -678,7 +689,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         const SizedBox(width: 8),
                         IconButton(
                           icon: const Icon(Icons.school),
-                          color: theme.primaryColor,
+                          color: uniColor,
                           tooltip: 'Import from University',
                           onPressed: () async {
                             // Navigate to University Selection
@@ -705,6 +716,30 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             hint: 'https://...',
                             onChanged: (val) => setState(() {})),
                       ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Use Campus Branding',
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        Switch(
+                          value: _useUniversityTheme,
+                          onChanged: (val) {
+                            setState(() => _useUniversityTheme = val);
+                          },
+                          activeThumbColor: uniColor,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      "Toggle this to use university colors (like UH Red) or return to original app colors.",
+                      style: theme.textTheme.bodySmall,
                     ),
                     const SizedBox(height: 24),
 
@@ -1044,14 +1079,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     child: FilledButton(
                       onPressed: _saveProfile,
                       style: FilledButton.styleFrom(
-                        backgroundColor: theme.primaryColor,
+                        backgroundColor: uniColor,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16)),
                       ),
                       child: const Text('Save Changes',
                           style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold)),
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white)),
                     ),
                   ),
 

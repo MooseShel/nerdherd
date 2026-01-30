@@ -342,5 +342,152 @@ final myEnrollmentsProvider = AutoDisposeFutureProvider<List<Course>>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef MyEnrollmentsRef = AutoDisposeFutureProviderRef<List<Course>>;
+String _$universityByIdHash() => r'704886239dcf973ab8cea98c66aaaf5ddb59b57f';
+
+/// See also [universityById].
+@ProviderFor(universityById)
+const universityByIdProvider = UniversityByIdFamily();
+
+/// See also [universityById].
+class UniversityByIdFamily extends Family<AsyncValue<University?>> {
+  /// See also [universityById].
+  const UniversityByIdFamily();
+
+  /// See also [universityById].
+  UniversityByIdProvider call(
+    String id,
+  ) {
+    return UniversityByIdProvider(
+      id,
+    );
+  }
+
+  @override
+  UniversityByIdProvider getProviderOverride(
+    covariant UniversityByIdProvider provider,
+  ) {
+    return call(
+      provider.id,
+    );
+  }
+
+  static const Iterable<ProviderOrFamily>? _dependencies = null;
+
+  @override
+  Iterable<ProviderOrFamily>? get dependencies => _dependencies;
+
+  static const Iterable<ProviderOrFamily>? _allTransitiveDependencies = null;
+
+  @override
+  Iterable<ProviderOrFamily>? get allTransitiveDependencies =>
+      _allTransitiveDependencies;
+
+  @override
+  String? get name => r'universityByIdProvider';
+}
+
+/// See also [universityById].
+class UniversityByIdProvider extends AutoDisposeFutureProvider<University?> {
+  /// See also [universityById].
+  UniversityByIdProvider(
+    String id,
+  ) : this._internal(
+          (ref) => universityById(
+            ref as UniversityByIdRef,
+            id,
+          ),
+          from: universityByIdProvider,
+          name: r'universityByIdProvider',
+          debugGetCreateSourceHash:
+              const bool.fromEnvironment('dart.vm.product')
+                  ? null
+                  : _$universityByIdHash,
+          dependencies: UniversityByIdFamily._dependencies,
+          allTransitiveDependencies:
+              UniversityByIdFamily._allTransitiveDependencies,
+          id: id,
+        );
+
+  UniversityByIdProvider._internal(
+    super._createNotifier, {
+    required super.name,
+    required super.dependencies,
+    required super.allTransitiveDependencies,
+    required super.debugGetCreateSourceHash,
+    required super.from,
+    required this.id,
+  }) : super.internal();
+
+  final String id;
+
+  @override
+  Override overrideWith(
+    FutureOr<University?> Function(UniversityByIdRef provider) create,
+  ) {
+    return ProviderOverride(
+      origin: this,
+      override: UniversityByIdProvider._internal(
+        (ref) => create(ref as UniversityByIdRef),
+        from: from,
+        name: null,
+        dependencies: null,
+        allTransitiveDependencies: null,
+        debugGetCreateSourceHash: null,
+        id: id,
+      ),
+    );
+  }
+
+  @override
+  AutoDisposeFutureProviderElement<University?> createElement() {
+    return _UniversityByIdProviderElement(this);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is UniversityByIdProvider && other.id == id;
+  }
+
+  @override
+  int get hashCode {
+    var hash = _SystemHash.combine(0, runtimeType.hashCode);
+    hash = _SystemHash.combine(hash, id.hashCode);
+
+    return _SystemHash.finish(hash);
+  }
+}
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+mixin UniversityByIdRef on AutoDisposeFutureProviderRef<University?> {
+  /// The parameter `id` of this provider.
+  String get id;
+}
+
+class _UniversityByIdProviderElement
+    extends AutoDisposeFutureProviderElement<University?>
+    with UniversityByIdRef {
+  _UniversityByIdProviderElement(super.provider);
+
+  @override
+  String get id => (origin as UniversityByIdProvider).id;
+}
+
+String _$myUniversityHash() => r'f0292f93d2c394e400b7173717dc22a9ede3744b';
+
+/// See also [myUniversity].
+@ProviderFor(myUniversity)
+final myUniversityProvider = AutoDisposeFutureProvider<University?>.internal(
+  myUniversity,
+  name: r'myUniversityProvider',
+  debugGetCreateSourceHash:
+      const bool.fromEnvironment('dart.vm.product') ? null : _$myUniversityHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef MyUniversityRef = AutoDisposeFutureProviderRef<University?>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

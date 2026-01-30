@@ -105,7 +105,10 @@ class _WalletPageState extends ConsumerState<WalletPage> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
+            SnackBar(
+                content: Text(
+                    'Failed: ${e.toString().replaceAll("Exception: ", "")}'),
+                backgroundColor: Colors.red),
           );
         }
       } finally {
@@ -256,7 +259,10 @@ class _WalletPageState extends ConsumerState<WalletPage> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
+            SnackBar(
+                content: Text(
+                    'Failed: ${e.toString().replaceAll("Exception: ", "")}'),
+                backgroundColor: Colors.red),
           );
         }
       } finally {

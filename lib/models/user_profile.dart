@@ -90,6 +90,9 @@ class UserProfile {
   /// Stripe Customer ID linked to the user.
   final String? stripeCustomerId;
 
+  /// Whether to use university-specific branding colors.
+  final bool useUniversityTheme;
+
   UserProfile({
     required this.userId,
     this.universityId,
@@ -121,6 +124,7 @@ class UserProfile {
     this.matchSimilarity,
     this.tutorFeeAgreedAt,
     this.stripeCustomerId,
+    this.useUniversityTheme = true,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -181,6 +185,7 @@ class UserProfile {
           ? DateTime.tryParse(json['tutor_fee_agreed_at'])
           : null,
       stripeCustomerId: json['stripe_customer_id'],
+      useUniversityTheme: json['use_university_theme'] ?? true,
     );
   }
 
@@ -216,6 +221,7 @@ class UserProfile {
       if (tutorFeeAgreedAt != null)
         'tutor_fee_agreed_at': tutorFeeAgreedAt!.toIso8601String(),
       if (stripeCustomerId != null) 'stripe_customer_id': stripeCustomerId,
+      'use_university_theme': useUniversityTheme,
     };
   }
 
@@ -248,6 +254,7 @@ class UserProfile {
     double? studyStyleTemporal,
     DateTime? tutorFeeAgreedAt,
     String? stripeCustomerId,
+    bool? useUniversityTheme,
   }) {
     return UserProfile(
       userId: userId ?? this.userId,
@@ -280,6 +287,7 @@ class UserProfile {
       studyStyleTemporal: studyStyleTemporal ?? this.studyStyleTemporal,
       tutorFeeAgreedAt: tutorFeeAgreedAt ?? this.tutorFeeAgreedAt,
       stripeCustomerId: stripeCustomerId ?? this.stripeCustomerId,
+      useUniversityTheme: useUniversityTheme ?? this.useUniversityTheme,
     );
   }
 }

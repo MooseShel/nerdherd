@@ -4,6 +4,7 @@ import '../services/university_service.dart';
 import '../models/university.dart';
 import '../models/course.dart';
 import 'auth_provider.dart';
+import 'user_profile_provider.dart';
 
 part 'university_provider.g.dart';
 
@@ -46,3 +47,21 @@ final availableSubjectsProvider = FutureProvider<List<String>>((ref) async {
   final List<dynamic> data = response as List<dynamic>;
   return data.map((e) => e['subject'] as String).toList();
 });
+
+// 6. Get University by ID
+@riverpod
+Future<University?> universityById(Ref ref, String id) async {
+  final service = ref.watch(universityServiceProvider);
+  return service.getUniversityById(id);
+}
+
+// 7. My Selected University (Reactive)
+@riverpod
+Future<University?> myUniversity(Ref ref) async {
+  final profile = ref.watch(myProfileProvider).value;
+  if (profile?.universityId == null) return null;
+
+  // Directly use the service to get the latest data
+  final service = ref.watch(universityServiceProvider);
+  return service.getUniversityById(profile!.universityId!);
+}

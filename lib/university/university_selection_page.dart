@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/university_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/user_profile_provider.dart';
 import 'course_import_page.dart';
 import '../services/haptic_service.dart';
 
@@ -23,6 +24,8 @@ class _UniversitySelectionPageState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final resultsAsync = ref.watch(searchUniversitiesProvider(_query));
+    final myProfile = ref.watch(myProfileProvider).value;
+    final useUniTheme = myProfile?.useUniversityTheme ?? true;
 
     return Scaffold(
       appBar: AppBar(
@@ -138,8 +141,9 @@ class _UniversitySelectionPageState
                           fit: StackFit.expand,
                           children: [
                             // Full background image
-                            if (uni.logoUrl != null)
-                              uni.logoUrl!.startsWith('http')
+                            if (uni.logoUrl != null ||
+                                uni.assetLogoPath.isNotEmpty)
+                              (uni.logoUrl?.startsWith('http') ?? false)
                                   ? CachedNetworkImage(
                                       imageUrl: uni.logoUrl!,
                                       fit: BoxFit.cover,
@@ -158,7 +162,7 @@ class _UniversitySelectionPageState
                                       ),
                                     )
                                   : Image.asset(
-                                      uni.logoUrl!,
+                                      uni.logoUrl ?? uni.assetLogoPath,
                                       fit: BoxFit.cover,
                                       errorBuilder:
                                           (context, error, stackTrace) =>
@@ -171,10 +175,17 @@ class _UniversitySelectionPageState
                                     )
                             else
                               Container(
-                                color:
-                                    theme.primaryColor.withValues(alpha: 0.1),
+                                color: (useUniTheme &&
+                                        uni.primaryColorInt != null)
+                                    ? Color(uni.primaryColorInt!)
+                                        .withValues(alpha: 0.2)
+                                    : theme.primaryColor.withValues(alpha: 0.1),
                                 child: Icon(Icons.school,
-                                    size: 50, color: theme.primaryColor),
+                                    size: 50,
+                                    color: (useUniTheme &&
+                                            uni.primaryColorInt != null)
+                                        ? Color(uni.primaryColorInt!)
+                                        : theme.primaryColor),
                               ),
 
                             // Gradient Overlay
@@ -186,10 +197,18 @@ class _UniversitySelectionPageState
                                     end: Alignment.bottomCenter,
                                     colors: [
                                       Colors.transparent,
-                                      Colors.black.withValues(alpha: 0.0),
-                                      Colors.black.withValues(alpha: 0.8),
+                                      (useUniTheme &&
+                                                  uni.primaryColorInt != null
+                                              ? Color(uni.primaryColorInt!)
+                                              : Colors.black)
+                                          .withValues(alpha: 0.2),
+                                      (useUniTheme &&
+                                                  uni.primaryColorInt != null
+                                              ? Color(uni.primaryColorInt!)
+                                              : Colors.black)
+                                          .withValues(alpha: 0.9),
                                     ],
-                                    stops: const [0.0, 0.5, 1.0],
+                                    stops: const [0.0, 0.4, 1.0],
                                   ),
                                 ),
                               ),

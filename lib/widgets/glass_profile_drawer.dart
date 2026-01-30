@@ -2,27 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'ui_components.dart';
-import '../models/user_profile.dart';
-import '../services/logger_service.dart';
-import '../services/haptic_service.dart';
-import '../business/business_dashboard_page.dart';
-import '../profile_page.dart';
-import '../chat_page.dart';
-import 'rating_dialog.dart';
-import 'booking_dialog.dart';
-import 'reviews_list_dialog.dart';
+import 'package:nerd_herd/widgets/ui_components.dart';
+import 'package:nerd_herd/models/user_profile.dart';
+import 'package:nerd_herd/services/logger_service.dart';
+import 'package:nerd_herd/services/haptic_service.dart';
+import 'package:nerd_herd/business/business_dashboard_page.dart';
+import 'package:nerd_herd/profile_page.dart';
+import 'package:nerd_herd/chat_page.dart';
+import 'package:nerd_herd/widgets/rating_dialog.dart';
+import 'package:nerd_herd/widgets/booking_dialog.dart';
+import 'package:nerd_herd/widgets/reviews_list_dialog.dart';
 
-class GlassProfileDrawer extends StatefulWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nerd_herd/providers/auth_provider.dart';
+import 'package:nerd_herd/providers/user_profile_provider.dart';
+import 'package:nerd_herd/providers/university_provider.dart';
+
+class GlassProfileDrawer extends ConsumerStatefulWidget {
   final UserProfile profile;
 
   const GlassProfileDrawer({super.key, required this.profile});
 
   @override
-  State<GlassProfileDrawer> createState() => _GlassProfileDrawerState();
+  ConsumerState<GlassProfileDrawer> createState() => _GlassProfileDrawerState();
 }
 
-class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
+class _GlassProfileDrawerState extends ConsumerState<GlassProfileDrawer> {
   bool _isLoading = false;
   String? _fetchedUniversityName;
   bool _requestSent = false;
@@ -310,8 +315,26 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
 
   @override
   Widget build(BuildContext context) {
-    final isMe = currentUser?.id == widget.profile.userId;
+    final currentUser = ref.watch(authStateProvider).value;
+    final myProfile = ref.watch(myProfileProvider).value;
+
     final theme = Theme.of(context);
+
+    final useUniTheme = myProfile?.useUniversityTheme ?? true;
+    final myClasses = myProfile?.currentClasses ?? [];
+    final commonClasses =
+        widget.profile.currentClasses.toSet().intersection(myClasses.toSet());
+
+    // Fetch university details for branding
+    final uniAsync = widget.profile.universityId != null
+        ? ref.watch(universityByIdProvider(widget.profile.universityId!))
+        : const AsyncValue.data(null);
+    final uni = uniAsync.value;
+    final uniColor = (useUniTheme && uni?.primaryColorInt != null)
+        ? Color(uni!.primaryColorInt!)
+        : theme.primaryColor;
+
+    final isMe = currentUser?.id == widget.profile.userId;
     final isDark = theme.brightness == Brightness.dark;
 
     return PointerInterceptor(
@@ -437,17 +460,18 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                                 const SizedBox(height: 2),
                                 Row(
                                   children: [
-                                    const Icon(Icons.school,
-                                        size: 14, color: Colors.grey),
+                                    Icon(Icons.school,
+                                        size: 14,
+                                        color: uniColor.withValues(alpha: 0.7)),
                                     const SizedBox(width: 4),
                                     Expanded(
                                       child: Text(
                                         widget.profile.universityName ??
                                             _fetchedUniversityName!,
                                         style: TextStyle(
-                                            color: theme
-                                                .textTheme.bodySmall?.color
-                                                ?.withValues(alpha: 0.7),
+                                            color:
+                                                uniColor.withValues(alpha: 0.8),
+                                            fontWeight: FontWeight.bold,
                                             fontSize: 13),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
@@ -607,7 +631,41 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                       ),
 
                     if (!widget.profile.isBusinessOwner) ...[
-                      const SectionHeader(title: "Current Classes"),
+                      Row(
+                        children: [
+                          const Expanded(
+                              child: SectionHeader(title: "Current Classes")),
+                          if (commonClasses.isNotEmpty && useUniTheme)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color:
+                                    theme.primaryColor.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                    color: theme.primaryColor
+                                        .withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.people_alt_rounded,
+                                      size: 12, color: theme.primaryColor),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    "Classmate",
+                                    style: TextStyle(
+                                      color: theme.primaryColor,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
                       const SizedBox(height: 12),
                       if (widget.profile.currentClasses.isEmpty)
                         Text("No classes listed",
@@ -620,20 +678,44 @@ class _GlassProfileDrawerState extends State<GlassProfileDrawer> {
                       runSpacing: 12,
                       children:
                           widget.profile.currentClasses.map<Widget>((cls) {
+                        final isCommon = commonClasses.contains(cls);
+                        final showHighlight = isCommon && useUniTheme;
                         return GlassContainer(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 10),
                           borderRadius: BorderRadius.circular(20),
-                          color: theme.cardColor.withValues(alpha: 0.5),
+                          color: showHighlight
+                              ? theme.primaryColor.withValues(alpha: 0.15)
+                              : theme.cardColor.withValues(alpha: 0.5),
+                          border: showHighlight
+                              ? Border.all(
+                                  color:
+                                      theme.primaryColor.withValues(alpha: 0.4),
+                                  width: 1.5)
+                              : null,
                           child: ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 300),
-                            // Constraint prevents massive chip overflow
-                            child: Text(
-                              cls,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (showHighlight) ...[
+                                  Icon(Icons.check_circle_rounded,
+                                      size: 14, color: theme.primaryColor),
+                                  const SizedBox(width: 6),
+                                ],
+                                Text(
+                                  cls,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: showHighlight
+                                        ? FontWeight.bold
+                                        : FontWeight.w600,
+                                    color: showHighlight
+                                        ? theme.primaryColor
+                                        : null,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
                             ),
                           ),
                         );

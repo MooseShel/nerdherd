@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/user_profile_provider.dart';
 import '../services/logger_service.dart';
+import 'university_discovery_banner.dart';
 
 class UniversityCheck extends ConsumerStatefulWidget {
   final Widget child;
@@ -26,9 +27,23 @@ class _UniversityCheckState extends ConsumerState<UniversityCheck> {
 
     return profileAsync.when(
       data: (profile) {
-        // REMOVED: Mandatory check
-        // User requested to remove forced selection after login.
-        // It is now managed only via Settings.
+        // Soft prompt: If no university, show discovery banner over the child.
+        if (profile?.universityId == null) {
+          return Stack(
+            children: [
+              widget.child,
+              const Positioned(
+                top: 60, // Below potential app bar
+                left: 0,
+                right: 0,
+                child: Material(
+                  color: Colors.transparent,
+                  child: UniversityDiscoveryBanner(),
+                ),
+              ),
+            ],
+          );
+        }
 
         // Has university -> Show App
         return widget.child;

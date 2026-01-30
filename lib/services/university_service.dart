@@ -10,6 +10,23 @@ class UniversityService {
 
   // --- Fetching ---
 
+  Future<University?> findUniversityByEmail(String email) async {
+    try {
+      final domain = email.split('@').last.toLowerCase();
+      final data = await _supabase
+          .from('universities')
+          .select()
+          .eq('domain', domain)
+          .maybeSingle();
+
+      if (data == null) return null;
+      return University.fromJson(data);
+    } catch (e) {
+      logger.error("Error finding university by email", error: e);
+      return null;
+    }
+  }
+
   Future<List<University>> searchUniversities(String query) async {
     try {
       var queryBuilder = _supabase.from('universities').select();

@@ -239,6 +239,28 @@ class MatchingService {
     }
   }
 
+  /// Find classmates in the same courses
+  Future<List<Map<String, dynamic>>> findClassmates({
+    required String universityId,
+    int matchCount = 10,
+  }) async {
+    try {
+      final currentUserId = _supabase.auth.currentUser?.id;
+      if (currentUserId == null) return [];
+
+      final response = await _supabase.rpc('match_classmates', params: {
+        'target_user_id': currentUserId,
+        'target_university_id': universityId,
+        'match_count': matchCount,
+      });
+
+      return List<Map<String, dynamic>>.from(response as List);
+    } catch (e) {
+      logger.error('Error finding classmates', error: e);
+      return [];
+    }
+  }
+
   /// Update user's study style preferences
   Future<bool> updateStudyStyle({
     required double social,
