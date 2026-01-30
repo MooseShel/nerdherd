@@ -20,22 +20,6 @@ class WalletPage extends ConsumerStatefulWidget {
 class _WalletPageState extends ConsumerState<WalletPage> {
   bool _isActionLoading = false;
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('WALLET LOADED: v2.1.7 (Full Error Logging Ready)'),
-            backgroundColor: Colors.blueAccent,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-    });
-  }
-
   Future<void> _handleTopUp() async {
     final profileAsync = ref.read(myProfileProvider);
     final UserProfile? profile = profileAsync.value;
@@ -281,25 +265,9 @@ class _WalletPageState extends ConsumerState<WalletPage> {
   }
 
   Future<void> _handleManageCards() async {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Starting Stripe Manage Cards (v2.1.5)...'),
-          duration: Duration(seconds: 1),
-        ),
-      );
-    }
     setState(() => _isActionLoading = true);
     try {
       await ref.read(paymentControllerProvider.notifier).manageCards();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Manage Cards Call Finished'),
-            duration: Duration(seconds: 1),
-          ),
-        );
-      }
     } catch (e) {
       _showErrorDialog('Manage Cards Failed', e);
     } finally {
@@ -331,18 +299,8 @@ class _WalletPageState extends ConsumerState<WalletPage> {
               icon: const Icon(Icons.arrow_back_ios_new),
               onPressed: () => Navigator.pop(context),
             ),
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('My Wallet',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                Text('Build v2.1.13 - Grey Screen Fix',
-                    style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.white.withValues(alpha: 0.5))),
-              ],
-            ),
+            title: const Text('My Wallet',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ),
           SliverPadding(
             padding: const EdgeInsets.all(20),
