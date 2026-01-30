@@ -51,11 +51,16 @@ class AppConfig {
     return dotenv.env['TEST_USER_PASSWORD'];
   }
 
+  // Hardcoded fallback for production resilience (Stripe PK is safe to expose)
+  static const String _kFallBackStripeKey =
+      'pk_live_51StKjGIGVw8ZsVOV5QaVMtdk0Op7VLS5NrwzWVaf4LqspvOatT64VJYapCYLq7P2iiIt2PcIGQpir3V7IVBGtkis00bgnfZp9r';
+
   /// Stripe Publishable Key
   String get stripePublishableKey {
     final key = dotenv.env['STRIPE_PUBLISHABLE_KEY'];
     if (key == null || key.isEmpty) {
-      return ''; // Allow empty for now, but should ideally throw if required
+      // Use fallback if env var is missing/empty
+      return _kFallBackStripeKey;
     }
     return key;
   }

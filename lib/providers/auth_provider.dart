@@ -29,7 +29,7 @@ class AuthState extends _$AuthState {
         logger.debug("AuthProvider: User is signed out");
       }
       return user;
-    });
+    }).distinct((prev, next) => prev?.id == next?.id);
   }
 
   // Helper method to sign out
