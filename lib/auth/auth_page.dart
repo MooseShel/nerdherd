@@ -138,10 +138,13 @@ class _AuthPageState extends State<AuthPage> {
                     )
                   ],
                 ),
-                child: Icon(
-                  Icons.hub_rounded,
-                  size: 80,
-                  color: theme.primaryColor,
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/images/icon.jpg',
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
