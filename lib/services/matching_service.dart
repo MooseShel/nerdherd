@@ -1,4 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert';
+import 'dart:math' as math;
 import '../models/serendipity_match.dart';
 import 'logger_service.dart';
 import '../models/user_profile.dart';
@@ -232,11 +234,52 @@ class MatchingService {
         'target_university_id': universityId,
       });
 
-      return (response as List).map((e) => UserProfile.fromJson(e)).toList();
+      final currentUserId = _supabase.auth.currentUser?.id;
+
+      // Parse and refine results
+      final List<UserProfile> matches = [];
+      for (final item in response as List) {
+        // 1. Exclude current user (Self-match fix)
+        if (item['user_id'] == currentUserId) continue;
+
+        // 2. Ensure similarity score exists (Score display fix)
+        // If RPC doesn't return 'similarity', calculate it client-side
+        if (item['similarity'] == null && item['bio_embedding'] != null) {
+          final userEmbedding = (item['bio_embedding'] is String
+                  ? List<dynamic>.from(jsonDecode(item['bio_embedding']))
+                  : item['bio_embedding'] as List)
+              .map((e) => (e as num).toDouble())
+              .toList();
+
+          final score =
+              _calculateCosineSimilarity(queryEmbedding, userEmbedding);
+          item['similarity'] = score;
+        }
+
+        matches.add(UserProfile.fromJson(item));
+      }
+
+      return matches;
     } catch (e) {
       logger.error('Error finding nerd matches', error: e);
       return [];
     }
+  }
+
+  double _calculateCosineSimilarity(List<double> vecA, List<double> vecB) {
+    if (vecA.length != vecB.length) return 0.0;
+    double dotProduct = 0.0;
+    double normA = 0.0;
+    double normB = 0.0;
+
+    for (int i = 0; i < vecA.length; i++) {
+      dotProduct += vecA[i] * vecB[i];
+      normA += vecA[i] * vecA[i];
+      normB += vecB[i] * vecB[i];
+    }
+
+    if (normA == 0 || normB == 0) return 0.0;
+    return dotProduct / (math.sqrt(normA) * math.sqrt(normB));
   }
 
   /// Find classmates in the same courses
