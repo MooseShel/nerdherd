@@ -16,7 +16,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   final List<Map<String, dynamic>> _pages = [
     {
-      'title': 'Welcome to Nerd Herd 2.0',
+      'title': 'Welcome to Nerd Herd',
       'description':
           'Reimagined with intelligence. Experience the ultimate campus companion, now smarter than ever.',
       'icon': Icons.rocket_launch_rounded,
