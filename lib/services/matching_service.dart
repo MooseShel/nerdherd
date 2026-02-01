@@ -297,7 +297,10 @@ class MatchingService {
         'match_count': matchCount,
       });
 
-      return List<Map<String, dynamic>>.from(response as List);
+      final results = List<Map<String, dynamic>>.from(response as List);
+
+      // Filter out self
+      return results.where((m) => m['user_id'] != currentUserId).toList();
     } catch (e) {
       logger.error('Error finding classmates', error: e);
       return [];
