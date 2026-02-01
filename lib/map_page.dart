@@ -656,8 +656,10 @@ class _MapPageState extends ConsumerState<MapPage> {
         // 1. Fetch Spots
         _fetchStudySpots(radius: 2000);
 
-        // 2. Spawn Bots
-        _generateSimulation(pos);
+        // 2. Spawn Bots (Debug Only)
+        if (kDebugMode) {
+          _generateSimulation(pos);
+        }
       } else {
         // Respawn bots if we move far (e.g. > 1km) from their center
         // For simplicity, we can just respawn them occasionally or keep them static for now.
@@ -672,7 +674,9 @@ class _MapPageState extends ConsumerState<MapPage> {
               pos.longitude);
           if (dist > 1000) {
             // 1km
-            _generateSimulation(pos);
+            if (kDebugMode) {
+              _generateSimulation(pos);
+            }
           }
         }
       }

@@ -68,16 +68,23 @@ class CourseScraper:
         """Add common courses for UH departments (manual data)"""
         common_courses = {
             'COSC': [
-                ('1301', 'Introduction to Computing', 3),
+                ('1306', 'Computer Science and Programming', 3),
                 ('1336', 'Programming Fundamentals I', 3),
-                ('1437', 'Programming Fundamentals II', 4),
-                ('2336', 'Programming Fundamentals III', 3),
+                ('1437', 'Introduction to Programming', 4),
+                ('2436', 'Programming and Data Structures', 4),
                 ('2425', 'Computer Organization', 4),
-                ('3320', 'Data Structures', 3),
+                ('3320', 'Algorithms and Data Structures', 3),
                 ('3340', 'Introduction to Automata and Computability Theory', 3),
+                ('3360', 'Fundamentals of Operating Systems', 3),
                 ('3380', 'Database Systems', 3),
-                ('4315', 'Programming Languages and Paradigms', 3),
-                ('4353', 'Algorithm Design and Analysis', 3),
+                ('4351', 'Fundamentals of Software Engineering', 3),
+                ('4353', 'Software Design', 3),
+                ('4354', 'Software Development Practices', 3),
+                ('4355', 'Introduction to Ubiquitous Computing', 3),
+                ('3337', 'Data Science I', 3),
+                ('4337', 'Data Science II', 3),
+                ('4358', 'Introduction to Interactive Game Development', 3),
+                ('4359', 'Intermediate Interactive Game Development', 3),
             ],
             'MATH': [
                 ('1310', 'College Algebra', 3),
@@ -200,15 +207,18 @@ class CourseScraper:
             except Exception as e:
                 print(f"  Error scraping {dept_code}: {e}")
         
-        print(f"Scraped {len([c for c in self.courses if c['university'] == 'HCC'])} HCC courses")
+        print(f"Scraped {len([c for c in self.courses if c['university'] == 'HCCS'])} HCC courses")
     
     def _add_common_hcc_courses(self, dept_code: str, dept_name: str):
         """Add common courses for HCC departments (manual data)"""
         common_courses = {
             'COSC': [
                 ('1301', 'Introduction to Computing', 3),
-                ('1336', 'Programming Fundamentals I', 3),
+                ('1420', 'C Programming', 4),
+                ('1436', 'Programming Fundamentals I', 4),
                 ('1437', 'Programming Fundamentals II', 4),
+                ('2425', 'Computer Organization', 4),
+                ('2436', 'Programming Fundamentals III', 4),
             ],
             'MATH': [
                 ('0308', 'Foundations of Mathematics', 3),
@@ -293,7 +303,7 @@ class CourseScraper:
         if dept_code in common_courses:
             for course_num, title, credits in common_courses[dept_code]:
                 self.courses.append({
-                    'university': 'HCC',
+                    'university': 'HCCS',
                     'university_name': 'Houston Community College',
                     'department_code': dept_code,
                     'department_name': dept_name,
@@ -329,7 +339,7 @@ class CourseScraper:
     def print_summary(self):
         """Print summary statistics"""
         uh_count = len([c for c in self.courses if c['university'] == 'UH'])
-        hcc_count = len([c for c in self.courses if c['university'] == 'HCC'])
+        hcc_count = len([c for c in self.courses if c['university'] == 'HCCS'])
         
         print("\n" + "="*60)
         print("COURSE SCRAPING SUMMARY")

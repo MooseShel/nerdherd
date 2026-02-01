@@ -59,7 +59,8 @@ class UniversityService {
     }
   }
 
-  Future<List<Course>> getCourses(String universityId, {String? query}) async {
+  Future<List<Course>> getCourses(String universityId,
+      {String? query, int limit = 50, int offset = 0}) async {
     try {
       var queryBuilder = _supabase
           .from('courses')
@@ -73,8 +74,10 @@ class UniversityService {
             queryBuilder.or('course_code.ilike.%$query%,title.ilike.%$query%');
       }
 
-      final data =
-          await queryBuilder.order('course_code', ascending: true).limit(100);
+      final data = await queryBuilder
+          .order('course_code', ascending: true)
+          .range(offset, offset + limit - 1);
+
       return (data as List).map((e) => Course.fromJson(e)).toList();
     } catch (e) {
       logger.error("Error fetching courses", error: e);

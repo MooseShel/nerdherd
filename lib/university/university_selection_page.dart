@@ -28,29 +28,41 @@ class _UniversitySelectionPageState
     final useUniTheme = myProfile?.useUniversityTheme ?? true;
 
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text("Select School",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.transparent,
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            color: theme.dividerColor.withValues(alpha: 0.2),
+            height: 1.0,
+          ),
+        ),
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: TextField(
               controller: _searchController,
+              textAlignVertical: TextAlignVertical.center,
               decoration: InputDecoration(
-                hintText: "Search your school...",
-                prefixIcon: const Icon(Icons.search),
+                hintText: "Search",
+                prefixIcon: Icon(Icons.search,
+                    color: theme.hintColor.withValues(alpha: 0.7)),
                 filled: true,
                 fillColor: theme.cardColor,
+                // iOS style grey background usually, but cardColor works for adaptability
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                isDense: true,
               ),
               onChanged: (val) {
                 setState(() => _query = val);
@@ -67,23 +79,26 @@ class _UniversitySelectionPageState
                       children: [
                         Icon(Icons.school_outlined,
                             size: 64,
-                            color: theme.textTheme.bodySmall?.color
-                                ?.withValues(alpha: 0.5)),
+                            color: theme.disabledColor.withValues(alpha: 0.3)),
                         const SizedBox(height: 16),
                         Text(
                           _query.isEmpty
                               ? "No universities found"
                               : "No schools found",
                           style: TextStyle(
-                              color: theme.textTheme.bodySmall?.color
-                                  ?.withValues(alpha: 0.5)),
+                              color: theme.disabledColor,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500),
                         ),
                         if (_query.isNotEmpty)
                           Padding(
-                            padding: const EdgeInsets.only(top: 16.0),
+                            padding: const EdgeInsets.only(top: 24.0),
                             child: TextButton(
                                 onPressed: () {},
-                                child: const Text("Request School Addition")),
+                                child: Text("Request Addition",
+                                    style: TextStyle(
+                                        color: theme.primaryColor,
+                                        fontWeight: FontWeight.w600))),
                           )
                       ],
                     ),
@@ -96,11 +111,17 @@ class _UniversitySelectionPageState
                     crossAxisCount: 2,
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
-                    childAspectRatio: 0.85, // Taller cards
+                    childAspectRatio: 0.8, // Slightly taller for better layout
                   ),
                   itemCount: universities.length,
                   itemBuilder: (context, index) {
                     final uni = universities[index];
+                    // Calculate a subtle background color for the logo area
+                    final primaryColor =
+                        (useUniTheme && uni.primaryColorInt != null)
+                            ? Color(uni.primaryColorInt!)
+                            : theme.primaryColor;
+
                     return InkWell(
                       onTap: () async {
                         hapticService.mediumImpact();
@@ -127,127 +148,108 @@ class _UniversitySelectionPageState
                       child: Container(
                         decoration: BoxDecoration(
                           color: theme.cardColor,
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 15,
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 10,
                               offset: const Offset(0, 4),
                             )
                           ],
+                          border: Border.all(
+                            color: theme.dividerColor.withValues(alpha: 0.1),
+                            width: 1,
+                          ),
                         ),
                         clipBehavior: Clip.antiAlias,
-                        child: Stack(
-                          fit: StackFit.expand,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // Full background image
-                            if (uni.logoUrl != null ||
-                                uni.assetLogoPath.isNotEmpty)
-                              (uni.logoUrl?.startsWith('http') ?? false)
-                                  ? CachedNetworkImage(
-                                      imageUrl: uni.logoUrl!,
-                                      fit: BoxFit.cover,
-                                      placeholder: (context, url) => Container(
-                                        color: theme.disabledColor
-                                            .withValues(alpha: 0.1),
-                                        child: const Center(
-                                            child: CircularProgressIndicator()),
-                                      ),
-                                      errorWidget: (context, url, error) =>
-                                          Container(
-                                        color: theme.disabledColor
-                                            .withValues(alpha: 0.1),
-                                        child:
-                                            const Icon(Icons.school, size: 40),
-                                      ),
-                                    )
-                                  : Image.asset(
-                                      uni.logoUrl ?? uni.assetLogoPath,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) =>
-                                              Container(
-                                        color: theme.disabledColor
-                                            .withValues(alpha: 0.1),
-                                        child:
-                                            const Icon(Icons.school, size: 40),
-                                      ),
-                                    )
-                            else
-                              Container(
-                                color: (useUniTheme &&
-                                        uni.primaryColorInt != null)
-                                    ? Color(uni.primaryColorInt!)
-                                        .withValues(alpha: 0.2)
-                                    : theme.primaryColor.withValues(alpha: 0.1),
-                                child: Icon(Icons.school,
-                                    size: 50,
-                                    color: (useUniTheme &&
-                                            uni.primaryColorInt != null)
-                                        ? Color(uni.primaryColorInt!)
-                                        : theme.primaryColor),
-                              ),
-
-                            // Gradient Overlay
-                            Positioned.fill(
-                              child: DecoratedBox(
+                            // Logo Area
+                            Expanded(
+                              flex: 3,
+                              child: Container(
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     begin: Alignment.topCenter,
                                     end: Alignment.bottomCenter,
                                     colors: [
-                                      Colors.transparent,
-                                      (useUniTheme &&
-                                                  uni.primaryColorInt != null
-                                              ? Color(uni.primaryColorInt!)
-                                              : Colors.black)
-                                          .withValues(alpha: 0.2),
-                                      (useUniTheme &&
-                                                  uni.primaryColorInt != null
-                                              ? Color(uni.primaryColorInt!)
-                                              : Colors.black)
-                                          .withValues(alpha: 0.9),
+                                      primaryColor.withValues(alpha: 0.05),
+                                      primaryColor.withValues(alpha: 0.15),
                                     ],
-                                    stops: const [0.0, 0.4, 1.0],
                                   ),
+                                ),
+                                padding: const EdgeInsets.all(24),
+                                child: Center(
+                                  child: (uni.logoUrl != null ||
+                                          uni.assetLogoPath.isNotEmpty)
+                                      ? Hero(
+                                          tag: 'uni_logo_${uni.id}',
+                                          child: (uni.logoUrl
+                                                      ?.startsWith('http') ??
+                                                  false)
+                                              ? CachedNetworkImage(
+                                                  imageUrl: uni.logoUrl!,
+                                                  fit: BoxFit.contain,
+                                                  placeholder: (context, url) =>
+                                                      const Center(
+                                                          child:
+                                                              CircularProgressIndicator(
+                                                                  strokeWidth:
+                                                                      2)),
+                                                  errorWidget: (context, url,
+                                                          error) =>
+                                                      Icon(Icons.school,
+                                                          size: 40,
+                                                          color: primaryColor
+                                                              .withValues(
+                                                                  alpha: 0.5)),
+                                                )
+                                              : Image.asset(
+                                                  uni.logoUrl ??
+                                                      uni.assetLogoPath,
+                                                  fit: BoxFit.contain,
+                                                ),
+                                        )
+                                      : Icon(Icons.school,
+                                          size: 48,
+                                          color: primaryColor.withValues(
+                                              alpha: 0.5)),
                                 ),
                               ),
                             ),
-
-                            // Text Content at Bottom
-                            Positioned(
-                              left: 12,
-                              right: 12,
-                              bottom: 12,
+                            // Text Area
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              color: theme.cardColor,
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
                                     uni.name,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
+                                    style: TextStyle(
+                                      color: theme.textTheme.bodyLarge?.color,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
                                       height: 1.2,
                                     ),
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                  if (uni.location != null)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 4),
-                                      child: Text(
-                                        uni.location!,
-                                        style: TextStyle(
-                                          color: Colors.white
-                                              .withValues(alpha: 0.8),
-                                          fontSize: 12,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                  if (uni.location != null) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      uni.location!,
+                                      style: TextStyle(
+                                        color: theme.textTheme.bodySmall?.color,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
                                       ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
+                                  ],
                                 ],
                               ),
                             ),

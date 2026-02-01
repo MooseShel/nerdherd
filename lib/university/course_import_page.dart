@@ -97,11 +97,35 @@ class _CourseImportPageState extends ConsumerState<CourseImportPage> {
     }
   }
 
+  final _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      // Load more when near bottom
+      final params = (universityId: widget.university.id, query: _query);
+      ref.read(paginatedCourseProvider(params).notifier).loadMore();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final catalogAsync = ref.watch(courseCatalogProvider(
-        universityId: widget.university.id, query: _query));
+    final params = (universityId: widget.university.id, query: _query);
+    final paginatedState = ref.watch(paginatedCourseProvider(params));
+
     final myEnrollmentsAsync = ref.watch(myEnrollmentsProvider);
 
     return Scaffold(
@@ -130,43 +154,53 @@ class _CourseImportPageState extends ConsumerState<CourseImportPage> {
       body: myEnrollmentsAsync.when(
         data: (myCourses) {
           final enrolledIds = myCourses.map((c) => c.id).toSet();
+          final courses = paginatedState.courses;
 
-          return catalogAsync.when(
-            data: (courses) {
-              if (courses.isEmpty) {
-                return const Center(
-                    child: Text("No courses found matching your search."));
+          if (courses.isEmpty && paginatedState.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (courses.isEmpty && !paginatedState.isLoading) {
+            return const Center(
+                child: Text("No courses found matching your search."));
+          }
+
+          if (paginatedState.error != null && courses.isEmpty) {
+            return Center(child: Text("Error: ${paginatedState.error}"));
+          }
+
+          return ListView.builder(
+            controller: _scrollController,
+            itemCount: courses.length + (paginatedState.hasMore ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index == courses.length) {
+                // Bottom loading indicator
+                return const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Center(child: CircularProgressIndicator()),
+                );
               }
-              return ListView.builder(
-                itemCount: courses.length,
-                itemBuilder: (context, index) {
-                  final course = courses[index];
-                  final isOriginallyEnrolled = enrolledIds.contains(course.id);
 
-                  // Determine current state based on pending actions
-                  bool showEnrolled = isOriginallyEnrolled;
-                  if (isOriginallyEnrolled &&
-                      _pendingRemove.contains(course.id)) {
-                    showEnrolled = false; // Marked for removal
-                  }
-                  if (!isOriginallyEnrolled &&
-                      _pendingAdd.contains(course.id)) {
-                    showEnrolled = true; // Marked for addition
-                  }
+              final course = courses[index];
+              final isOriginallyEnrolled = enrolledIds.contains(course.id);
 
-                  return ListTile(
-                    title: Text(course.courseCode,
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(course.title),
-                    trailing:
-                        _buildStatusIcon(isOriginallyEnrolled, showEnrolled),
-                    onTap: () => _toggleCourse(course.id, isOriginallyEnrolled),
-                  );
-                },
+              // Determine current state based on pending actions
+              bool showEnrolled = isOriginallyEnrolled;
+              if (isOriginallyEnrolled && _pendingRemove.contains(course.id)) {
+                showEnrolled = false; // Marked for removal
+              }
+              if (!isOriginallyEnrolled && _pendingAdd.contains(course.id)) {
+                showEnrolled = true; // Marked for addition
+              }
+
+              return ListTile(
+                title: Text(course.courseCode,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(course.title),
+                trailing: _buildStatusIcon(isOriginallyEnrolled, showEnrolled),
+                onTap: () => _toggleCourse(course.id, isOriginallyEnrolled),
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, st) => Center(child: Text("Error: $err")),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),

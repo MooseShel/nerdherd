@@ -165,11 +165,11 @@ BEGIN
 
   IF EXISTS (SELECT 1 FROM universities WHERE name = 'Houston Community College') THEN
     UPDATE universities 
-    SET short_name = 'HCC', location = 'Houston, TX', website_url = 'https://www.hccs.edu'
+    SET short_name = 'HCCS', location = 'Houston, TX', website_url = 'https://www.hccs.edu'
     WHERE name = 'Houston Community College';
   ELSE
     INSERT INTO universities (name, short_name, location, website_url) 
-    VALUES ('Houston Community College', 'HCC', 'Houston, TX', 'https://www.hccs.edu');
+    VALUES ('Houston Community College', 'HCCS', 'Houston, TX', 'https://www.hccs.edu');
   END IF;
 END $$;
 
