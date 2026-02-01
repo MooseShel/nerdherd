@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import '../models/study_spot.dart';
 import 'logger_service.dart';
 
@@ -62,10 +63,15 @@ class PlacesService {
       }
     }
 
-    // ALL ENDPOINTS FAILED: Return Synthetic Spots for SIMULATION
-    logger.error(
-        "❌ All OSM endpoints failed. Generating synthetic spots for simulation...");
-    return _generateSyntheticSpots(lat, lon, radius: radius);
+    // ALL ENDPOINTS FAILED
+    if (kDebugMode) {
+      logger.error(
+          "❌ All OSM endpoints failed. Generating synthetic spots for simulation (DEBUG ONLY)...");
+      return _generateSyntheticSpots(lat, lon, radius: radius);
+    }
+
+    logger.error("❌ All OSM endpoints failed.");
+    return [];
   }
 
   List<StudySpot> _generateSyntheticSpots(double lat, double lon,
