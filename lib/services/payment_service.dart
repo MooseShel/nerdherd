@@ -294,8 +294,8 @@ class PaymentService {
   }
 
   /// Process a sponsorship payment for a study spot.
-  Future<bool> paySponsorship(
-      String spotId, double amount, String description) async {
+  Future<bool> paySponsorship(String spotId, double amount, String description,
+      {bool autoRenew = false}) async {
     try {
       final user = _supabase.auth.currentUser;
       if (user == null) throw Exception('User not logged in');
@@ -303,13 +303,26 @@ class PaymentService {
       // Call the Database Function (RPC)
       await _supabase.rpc('pay_sponsorship', params: {
         'p_user_id': user.id,
+        'p_spot_id': spotId,
         'p_amount': amount,
         'p_description': description,
+        'p_auto_renew': autoRenew, // Added param
       });
 
       return true;
     } catch (e) {
       throw Exception('Sponsorship payment failed: ${e.toString()}');
+    }
+  }
+
+  /// Toggle auto-renew status for a spot
+  Future<void> toggleAutoRenew(String spotId, bool isActive) async {
+    try {
+      await _supabase
+          .from('study_spots')
+          .update({'auto_renew': isActive}).eq('id', spotId);
+    } catch (e) {
+      throw Exception('Failed to update auto-renew: $e');
     }
   }
 

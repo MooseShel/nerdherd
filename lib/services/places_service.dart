@@ -103,6 +103,7 @@ class PlacesService {
         latitude: lat + latOffset,
         longitude: lon + lonOffset,
         isVerified: false,
+        isSponsored: false, // Synthetic spots are not sponsored
         source: 'osm',
         imageUrl: StudySpot.getOSMImageUrl(type, id),
       ));

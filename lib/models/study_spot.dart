@@ -11,6 +11,8 @@ class StudySpot {
   final String type; // 'cafe', 'library', 'restaurant', 'other'
   final String? ownerId; // NEW
   final bool isSponsored; // NEW
+  final bool autoRenew; // NEW
+  final DateTime? sponsorshipExpiry; // NEW
   final String? promotionalText; // NEW
   final int occupancyPercent; // NEW: 0 to 100
   final int noiseLevel; // NEW: 1 to 5
@@ -29,13 +31,18 @@ class StudySpot {
     this.source = 'supabase',
     this.type = 'other',
     this.ownerId, // NEW
-    this.isSponsored = false, // NEW
+    required bool
+        isSponsored, // Changed to required param but logic handles it below
+    this.autoRenew = false, // NEW
+    this.sponsorshipExpiry, // NEW
     this.promotionalText, // NEW
     this.occupancyPercent = 0, // NEW
     this.noiseLevel = 1, // NEW
     this.vibeSummary, // NEW
     this.aiTags = const [], // NEW
-  });
+  }) : isSponsored = isSponsored &&
+            (sponsorshipExpiry == null ||
+                sponsorshipExpiry.isAfter(DateTime.now()));
 
   factory StudySpot.fromJson(Map<String, dynamic> json) {
     return StudySpot(
@@ -51,6 +58,10 @@ class StudySpot {
       type: json['type'] ?? 'other',
       ownerId: json['owner_id'], // NEW
       isSponsored: json['is_sponsored'] ?? false, // NEW
+      autoRenew: json['auto_renew'] ?? false, // NEW
+      sponsorshipExpiry: json['sponsorship_expiry'] != null
+          ? DateTime.tryParse(json['sponsorship_expiry'])
+          : null, // NEW
       promotionalText: json['promotional_text'], // NEW
       occupancyPercent: json['occupancy_percent'] ?? 0, // NEW
       noiseLevel: json['noise_level'] ?? 1, // NEW
@@ -85,6 +96,7 @@ class StudySpot {
       latitude: lat,
       longitude: lon,
       isVerified: false,
+      isSponsored: false, // Default to false for OSM spots
       source: 'osm',
       type: json['tags']?['amenity'] ?? 'other',
       imageUrl: json['tags']?['image'] ??

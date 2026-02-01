@@ -48,58 +48,90 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
 
   Future<void> _handleSponsorship(StudySpot spot) async {
     const double sponsorshipCost = 20.00;
+    bool autoRenew = false; // Default to false
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Sponsor this Spot? 🌟"),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("Upgrade to a Gold Marker and stand out on the map!"),
-            SizedBox(height: 16),
-            Text(
-              "Monthly Subscription",
-              style: TextStyle(fontWeight: FontWeight.bold),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          return AlertDialog(
+            title: const Text("Sponsor this Spot? 🌟"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                    "Upgrade to a Gold Marker and stand out on the map!"),
+                const SizedBox(height: 16),
+                const Text(
+                  "Monthly Subscription (30 Days)",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const Text(
+                  "\$20.00 / 30 days",
+                  style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.amber),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Pass auto-expires in 30 days. Auto-renewal is optional.",
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 16),
+                // Auto-Renew Toggle
+                Row(
+                  children: [
+                    Switch(
+                      value: autoRenew,
+                      activeTrackColor: Colors.amber,
+                      activeThumbColor: Colors.white,
+                      onChanged: (val) {
+                        setStateDialog(() => autoRenew = val);
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    const Text("Auto-renew monthly"),
+                  ],
+                ),
+                if (autoRenew)
+                  const Padding(
+                    padding: EdgeInsets.only(left: 8.0, top: 4),
+                    child: Text(
+                      "We'll deduct \$20 from your wallet every 30 days.",
+                      style: TextStyle(fontSize: 10, color: Colors.grey),
+                    ),
+                  ),
+              ],
             ),
-            Text(
-              "\$20.00 / month",
-              style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.amber),
-            ),
-            SizedBox(height: 8),
-            Text(
-              "This amount will be deducted from your wallet immediately.",
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber,
-              foregroundColor: Colors.black,
-            ),
-            child: const Text("Pay \$20.00"),
-          ),
-        ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text("Cancel"),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber,
+                  foregroundColor: Colors.black,
+                ),
+                child: const Text("Purchase Pass"),
+              ),
+            ],
+          );
+        },
       ),
     );
 
     if (confirmed == true) {
-      await _processSponsorshipPayment(spot, sponsorshipCost);
+      await _processSponsorshipPayment(spot, sponsorshipCost,
+          autoRenew: autoRenew);
     }
   }
 
-  Future<void> _processSponsorshipPayment(StudySpot spot, double amount) async {
+  Future<void> _processSponsorshipPayment(StudySpot spot, double amount,
+      {required bool autoRenew}) async {
     final user = _supabase.auth.currentUser;
     if (user == null) return;
 
@@ -121,14 +153,10 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
             spot.id,
             amount,
             'Gold Sponsorship for ${spot.name}',
+            autoRenew: autoRenew,
           );
 
-      // Update spot status locally and in DB
-      await _supabase.from('study_spots').update({
-        'is_sponsored': true,
-        'sponsorship_expiry':
-            DateTime.now().add(const Duration(days: 30)).toIso8601String(),
-      }).eq('id', spot.id);
+      // RPC handles the update atomically. Just refresh.
 
       // Refresh
       _fetchMySpots();
@@ -138,7 +166,7 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text("Spot Upgraded to Sponsored! 🌟"),
+              content: Text("Spot Upgraded! 🌟 Subscription Active"),
               backgroundColor: Colors.amber),
         );
       }
@@ -147,6 +175,25 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  // Toggle Auto-Renew for existing sponsored spots
+  Future<void> _toggleAutoRenew(StudySpot spot, bool targetValue) async {
+    try {
+      await ref
+          .read(paymentServiceProvider)
+          .toggleAutoRenew(spot.id, targetValue);
+      // Refresh local state without full reload if possible, but safer to validation fetch
+      _fetchMySpots();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text("Failed to update auto-renew: $e"),
+              backgroundColor: Colors.red),
         );
       }
     }
@@ -756,19 +803,63 @@ class _BusinessDashboardPageState extends ConsumerState<BusinessDashboardPage> {
                                 else
                                   SizedBox(
                                     width: double.infinity,
-                                    child: OutlinedButton.icon(
-                                      onPressed: () =>
-                                          _showEditPromoDialog(spot),
-                                      icon: const Icon(Icons.edit_outlined),
-                                      label: const Text("Update Offer / Info"),
-                                      style: OutlinedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 16),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
+                                    child: Column(
+                                      children: [
+                                        // Auto-Renew Toggle for Existing Sponsors
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                              bottom: 12.0),
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.autorenew,
+                                                    size: 16,
+                                                    color: spot.autoRenew
+                                                        ? Colors.green
+                                                        : Colors.grey,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    "Auto-Renew",
+                                                    style: TextStyle(
+                                                        color: spot.autoRenew
+                                                            ? Colors.green
+                                                            : Colors.grey,
+                                                        fontWeight:
+                                                            FontWeight.bold),
+                                                  ),
+                                                ],
+                                              ),
+                                              Switch(
+                                                value: spot.autoRenew,
+                                                activeTrackColor: Colors.green,
+                                                activeThumbColor: Colors.white,
+                                                onChanged: (val) =>
+                                                    _toggleAutoRenew(spot, val),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                      ),
+                                        OutlinedButton.icon(
+                                          onPressed: () =>
+                                              _showEditPromoDialog(spot),
+                                          icon: const Icon(Icons.edit_outlined),
+                                          label:
+                                              const Text("Update Offer / Info"),
+                                          style: OutlinedButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 16),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                               ],
