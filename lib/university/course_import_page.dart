@@ -153,27 +153,46 @@ class _CourseImportPageState extends ConsumerState<CourseImportPage> {
       ),
       body: myEnrollmentsAsync.when(
         data: (myCourses) {
-          final enrolledIds = myCourses.map((c) => c.id).toSet();
-          final courses = paginatedState.courses;
+          // 1. Get enrolled courses for THIS university matches query
+          final enrolledForThisUni = myCourses.where((c) {
+            final matchesUni = c.universityId == widget.university.id;
+            if (!matchesUni) return false;
 
-          if (courses.isEmpty && paginatedState.isLoading) {
+            if (_query.isEmpty) return true;
+            final q = _query.toLowerCase();
+            return c.courseCode.toLowerCase().contains(q) ||
+                c.title.toLowerCase().contains(q);
+          }).toList();
+
+          final enrolledIds = enrolledForThisUni.map((c) => c.id).toSet();
+
+          // 2. Get paginated courses, EXCLUDING those already in the top list
+          final paginatedCourses = paginatedState.courses
+              .where((c) => !enrolledIds.contains(c.id))
+              .toList();
+
+          final displayCourses = [...enrolledForThisUni, ...paginatedCourses];
+
+          if (displayCourses.isEmpty && paginatedState.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (courses.isEmpty && !paginatedState.isLoading) {
+          if (displayCourses.isEmpty && !paginatedState.isLoading) {
             return const Center(
                 child: Text("No courses found matching your search."));
           }
 
-          if (paginatedState.error != null && courses.isEmpty) {
+          // Note: Error handling might need adjustment if we have local results but remote error
+          if (paginatedState.error != null && displayCourses.isEmpty) {
             return Center(child: Text("Error: ${paginatedState.error}"));
           }
 
           return ListView.builder(
             controller: _scrollController,
-            itemCount: courses.length + (paginatedState.hasMore ? 1 : 0),
+            // Add +1 for loader only if there is more content remotely
+            itemCount: displayCourses.length + (paginatedState.hasMore ? 1 : 0),
             itemBuilder: (context, index) {
-              if (index == courses.length) {
+              if (index == displayCourses.length) {
                 // Bottom loading indicator
                 return const Padding(
                   padding: EdgeInsets.all(16.0),
@@ -181,8 +200,11 @@ class _CourseImportPageState extends ConsumerState<CourseImportPage> {
                 );
               }
 
-              final course = courses[index];
-              final isOriginallyEnrolled = enrolledIds.contains(course.id);
+              final course = displayCourses[index];
+              // We need to check against ALL enrollments for the icon status,
+              // not just the filtered list for this uni
+              final isOriginallyEnrolled =
+                  myCourses.any((c) => c.id == course.id);
 
               // Determine current state based on pending actions
               bool showEnrolled = isOriginallyEnrolled;

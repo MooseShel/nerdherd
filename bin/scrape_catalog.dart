@@ -199,10 +199,11 @@ class CatalogScraper {
         print(htmlSample.replaceAll('\n', ' ').replaceAll('\r', ' '));
         print("--- END SAMPLE ---");
 
-        if (page > 1)
+        if (page > 1) {
           hasMore = false;
-        else
+        } else {
           break;
+        }
       }
 
       int newCourses = 0;
@@ -253,7 +254,7 @@ class CatalogScraper {
         // Simple heuristic: just increment until empty
         if (page > 100) hasMore = false;
         page++;
-        sleep(Duration(milliseconds: 200));
+        sleep(const Duration(milliseconds: 200));
       }
     }
   }
