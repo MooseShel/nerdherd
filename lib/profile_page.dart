@@ -674,7 +674,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         controller: _intentController,
                         hint: 'e.g. Studying Calculus'),
                     const SizedBox(height: 20),
-
                     _buildLabel(context, 'Current Classes'),
                     Row(
                       children: [
@@ -704,21 +703,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
-
-                    // Avatar URL (Hidden or Optional Manual Input)
-                    ExpansionTile(
-                      title: Text("Advanced: Manual Avatar URL",
-                          style: theme.textTheme.bodySmall),
-                      children: [
-                        _buildTextField(context,
-                            controller: _avatarController,
-                            hint: 'https://...',
-                            onChanged: (val) => setState(() {})),
-                      ],
-                    ),
                     const SizedBox(height: 24),
-
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -742,7 +727,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       style: theme.textTheme.bodySmall,
                     ),
                     const SizedBox(height: 24),
-
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -765,7 +749,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       ],
                     ),
                     const SizedBox(height: 20),
-
                     if (_isTutor) ...[
                       const SizedBox(height: 20),
                       _buildLabel(context, 'Hourly Rate (\$/hr)'),

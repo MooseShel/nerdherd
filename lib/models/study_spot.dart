@@ -18,6 +18,7 @@ class StudySpot {
   final int noiseLevel; // NEW: 1 to 5
   final String? vibeSummary; // NEW: AI-generated summary
   final List<String> aiTags; // NEW: AI-distilled review tags
+  final DateTime? adminDeletionScheduledAt; // NEW
 
   StudySpot({
     required this.id,
@@ -40,6 +41,7 @@ class StudySpot {
     this.noiseLevel = 1, // NEW
     this.vibeSummary, // NEW
     this.aiTags = const [], // NEW
+    this.adminDeletionScheduledAt, // NEW
   }) : isSponsored = isSponsored &&
             (sponsorshipExpiry == null ||
                 sponsorshipExpiry.isAfter(DateTime.now()));
@@ -69,6 +71,9 @@ class StudySpot {
       aiTags: json['ai_tags'] != null
           ? List<String>.from(json['ai_tags'])
           : [], // NEW
+      adminDeletionScheduledAt: json['admin_deletion_scheduled_at'] != null
+          ? DateTime.tryParse(json['admin_deletion_scheduled_at'])
+          : null, // NEW
     );
   }
 

@@ -44,6 +44,31 @@ class _UserManagementPageState extends State<UserManagementPage> {
     }
   }
 
+  Future<void> _toggleActiveStatus(UserProfile user) async {
+    try {
+      final newStatus = !user.isActive;
+      await supabase
+          .from('profiles')
+          .update({'is_active': newStatus}).eq('user_id', user.userId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(newStatus ? 'User activated' : 'User deactivated'),
+            backgroundColor: newStatus ? Colors.green : Colors.orange,
+          ),
+        );
+        _fetchUsers(); // Refresh list
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Future<void> _toggleBan(UserProfile user) async {
     try {
       final newStatus = !user.isBanned;
@@ -140,26 +165,49 @@ class _UserManagementPageState extends State<UserManagementPage> {
                             subtitle: Text(
                               user.isBanned
                                   ? 'BANNED'
-                                  : (user.isTutor ? 'Tutor' : 'Student'),
+                                  : (!user.isActive
+                                      ? 'INACTIVE'
+                                      : (user.isTutor ? 'Tutor' : 'Student')),
                               style: TextStyle(
                                 color: user.isBanned
                                     ? Colors.red
-                                    : theme.textTheme.bodySmall?.color,
+                                    : (!user.isActive
+                                        ? Colors.grey
+                                        : theme.textTheme.bodySmall?.color),
                                 fontWeight: user.isBanned
                                     ? FontWeight.bold
                                     : FontWeight.normal,
                               ),
                             ),
-                            trailing: IconButton(
-                              icon: Icon(
-                                user.isBanned
-                                    ? Icons.check_circle_outline
-                                    : Icons.block,
-                                color: user.isBanned
-                                    ? Colors.green
-                                    : Colors.redAccent,
-                              ),
-                              onPressed: () => _toggleBan(user),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: Icon(
+                                    user.isBanned
+                                        ? Icons.check_circle_outline
+                                        : Icons.block,
+                                    color: user.isBanned
+                                        ? Colors.green
+                                        : Colors.redAccent,
+                                  ),
+                                  onPressed: () => _toggleBan(user),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    user.isActive
+                                        ? Icons.person
+                                        : Icons.person_off_outlined,
+                                    color: user.isActive
+                                        ? Colors.blueAccent
+                                        : Colors.grey,
+                                  ),
+                                  tooltip: user.isActive
+                                      ? 'Deactivate User'
+                                      : 'Activate User',
+                                  onPressed: () => _toggleActiveStatus(user),
+                                ),
+                              ],
                             ),
                           ),
                         );

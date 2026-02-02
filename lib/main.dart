@@ -25,7 +25,18 @@ Future<void> main() async {
     WidgetsFlutterBinding.ensureInitialized();
 
     // Initialize logger first to catch startup errors
-    logger.initialize();
+    // Initialize logger first with remote sink placeholder (will be set fully later, or use immediate forwarding if instance usually works)
+    // Actually, we can just init remote logger here as a variable, but Supabase isn't ready.
+    // So we init logger, and later update it? Or we make the callback forward to the global instance.
+    logger.initialize(onLog: (level, message, error, stackTrace) {
+      // Forward to remote logger if initialized
+      remoteLogger?.logRemote(
+        level: level,
+        message: message,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    });
     logger.info('🚀 Nerd Herd starting up...');
 
     // Initialize Firebase (Only on Mobile to avoid desktop/web errors)

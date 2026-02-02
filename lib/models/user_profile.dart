@@ -13,7 +13,8 @@ class UserProfile {
 
   /// Whether the user is a tutor or not.
   final bool isTutor;
-  final bool isBusinessOwner; // NEW
+  final bool isBusinessOwner;
+  final bool isActive; // NEW
 
   /// Whether the tutor is verified by admin.
   final bool isVerifiedTutor;
@@ -98,7 +99,8 @@ class UserProfile {
     this.universityId,
     this.universityName,
     this.isTutor = false,
-    this.isBusinessOwner = false, // NEW
+    this.isBusinessOwner = false,
+    this.isActive = true, // NEW
     this.isVerifiedTutor = false,
     this.currentClasses = const [],
     this.intentTag,
@@ -146,7 +148,8 @@ class UserProfile {
       universityId: json['university_id'],
       universityName: uniName,
       isTutor: json['is_tutor'] ?? false,
-      isBusinessOwner: json['is_business_owner'] ?? false, // NEW
+      isBusinessOwner: json['is_business_owner'] ?? false,
+      isActive: json['is_active'] ?? true, // NEW
       isVerifiedTutor: json['is_verified_tutor'] ?? false,
       currentClasses: List<String>.from(json['current_classes'] ?? []),
       intentTag: json['intent_tag'],
@@ -194,6 +197,8 @@ class UserProfile {
       'user_id': userId,
       'university_id': universityId,
       'is_tutor': isTutor,
+      'is_business_owner': isBusinessOwner,
+      'is_active': isActive, // NEW
       'is_verified_tutor': isVerifiedTutor,
       'current_classes': currentClasses,
       'intent_tag': intentTag,
@@ -231,6 +236,7 @@ class UserProfile {
     String? universityName,
     bool? isTutor,
     bool? isBusinessOwner,
+    bool? isActive, // NEW
     bool? isVerifiedTutor,
     List<String>? currentClasses,
     String? intentTag,
@@ -262,6 +268,7 @@ class UserProfile {
       universityName: universityName ?? this.universityName,
       isTutor: isTutor ?? this.isTutor,
       isBusinessOwner: isBusinessOwner ?? this.isBusinessOwner,
+      isActive: isActive ?? this.isActive, // NEW
       isVerifiedTutor: isVerifiedTutor ?? this.isVerifiedTutor,
       currentClasses: currentClasses ?? this.currentClasses,
       intentTag: intentTag ?? this.intentTag,

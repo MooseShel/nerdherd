@@ -10,6 +10,10 @@ class LoggerService {
 
   late final Logger _logger;
 
+  // Callback for remote logging or analytics
+  Function(String level, String message, dynamic error, StackTrace? stackTrace)?
+      _onLog;
+
   /// Initialize the logger with custom configuration.
   ///
   /// Uses [ProductionFilter] to log even in release mode (can be adjusted).
@@ -19,7 +23,11 @@ class LoggerService {
     LogPrinter? printer,
     LogOutput? output,
     Level? level,
+    Function(String level, String message, dynamic error,
+            StackTrace? stackTrace)?
+        onLog,
   }) {
+    _onLog = onLog;
     _logger = Logger(
       filter: filter ?? ProductionFilter(),
       printer: printer ??
@@ -71,6 +79,7 @@ class LoggerService {
     }
     // Pass null as error to avoid Logger inspecting the object
     _logger.e(errorMsg, error: null, stackTrace: stackTrace);
+    _onLog?.call('error', message, error, stackTrace);
   }
 
   /// Log a fatal/critical error.
@@ -86,6 +95,7 @@ class LoggerService {
       }
     }
     _logger.f(errorMsg, error: null, stackTrace: stackTrace);
+    _onLog?.call('fatal', message, error, stackTrace);
   }
 }
 

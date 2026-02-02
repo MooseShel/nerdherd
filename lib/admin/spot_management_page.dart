@@ -62,7 +62,8 @@ class _SpotManagementPageState extends State<SpotManagementPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Spot?'),
-        content: const Text('This action cannot be undone.'),
+        content: const Text(
+            'If this spot has an active sponsorship, it will be scheduled for deletion at the end of the billing period. Otherwise, it will be deleted immediately.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -78,10 +79,26 @@ class _SpotManagementPageState extends State<SpotManagementPage> {
 
     if (confirmed == true) {
       try {
-        await supabase.from('study_spots').delete().eq('id', spotId);
+        final userId = supabase.auth.currentUser?.id;
+        if (userId == null) throw Exception('User not logged in');
+
+        // Use the safe admin deletion RPC
+        final response = await supabase.rpc('admin_delete_spot', params: {
+          'p_admin_id': userId,
+          'p_spot_id': spotId,
+        });
+
         if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('Spot deleted')));
+          final data = response as Map<String, dynamic>;
+          final message = data['message'] ?? 'Action completed';
+
+          Color snackColor = Colors.green;
+          if (data['action'] == 'scheduled') {
+            snackColor = Colors.orange;
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(message), backgroundColor: snackColor));
           _fetchSpots();
         }
       } catch (e) {

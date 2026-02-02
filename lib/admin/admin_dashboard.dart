@@ -10,6 +10,7 @@ import 'announcements_page.dart';
 import 'moderation_page.dart';
 import 'ledger_page.dart';
 import 'support_page.dart';
+import 'appeal_review_page.dart'; // NEW Import
 
 import 'admin_financial_page.dart';
 
@@ -27,7 +28,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return DefaultTabController(
-      length: 11,
+      length: 12, // Increased from 11
       child: Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
@@ -51,6 +52,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
               Tab(text: "SUPPORT"),
               Tab(text: "VERIFICATION"),
               Tab(text: "ANNOUNCEMENTS"),
+              Tab(text: "APPEALS"), // New Tab
               Tab(text: "USERS"),
               Tab(text: "APPOINTMENTS"),
               Tab(text: "SPOTS"),
@@ -67,6 +69,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
             const SupportPage(),
             const TutorVerificationPage(),
             const AnnouncementsPage(),
+            const AppealReviewPage(), // New Page
             const UserManagementPage(),
             const AppointmentManagementPage(),
             const SpotManagementPage(),

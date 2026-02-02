@@ -53,9 +53,44 @@ class _AuthGateState extends ConsumerState<AuthGate> {
     return authState.when(
       data: (user) {
         if (user != null) {
+          // 1. Email Verification Check
+          // kDebugMode allows skipping if you are dev, but user requested strictness.
+          // Let's enforce it generally but maybe allow a bypass if needed or desired.
+          // Supabase user object has property emailConfirmedAt (String?)
+          if (user.emailConfirmedAt == null) {
+            return const Scaffold(
+              body: Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.mark_email_unread_outlined,
+                          size: 64, color: Colors.orange),
+                      SizedBox(height: 16),
+                      Text(
+                        'Email Verification Required',
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Please verify your email address to continue.\nCheck your inbox for the verification link.',
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 24),
+                      // Note: User can't click "Resend" easily without custom logic or just re-signing up
+                      // or clicking a button that calls auth.resendResponse
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
+
           return const AppStartupManager(
             child: BiometricGuard(
-              child: UniversityCheck(child: MapPage()),
+              child: ActiveUserGuard(child: UniversityCheck(child: MapPage())),
             ),
           );
         } else {
@@ -170,6 +205,195 @@ class _AppStartupManagerState extends State<AppStartupManager> {
 
   @override
   Widget build(BuildContext context) {
+    return widget.child;
+  }
+}
+
+class ActiveUserGuard extends ConsumerStatefulWidget {
+  final Widget child;
+  const ActiveUserGuard({super.key, required this.child});
+
+  @override
+  ConsumerState<ActiveUserGuard> createState() => _ActiveUserGuardState();
+}
+
+class _ActiveUserGuardState extends ConsumerState<ActiveUserGuard> {
+  bool _isLoading = true;
+  bool _isAllowed = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkUserStatus();
+  }
+
+  Future<void> _checkUserStatus() async {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final response = await Supabase.instance.client
+          .from('profiles')
+          .select('is_active, is_banned')
+          .eq('user_id', userId)
+          .single();
+
+      final isActive = response['is_active'] ?? true;
+      final isBanned = response['is_banned'] ?? false;
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          if (isBanned) {
+            _isAllowed = false;
+            _errorMessage = "Your account has been banned.";
+          } else if (!isActive) {
+            _isAllowed = false;
+            _errorMessage = "Your account has been deactivated.";
+          } else {
+            _isAllowed = true;
+          }
+        });
+
+        if (!_isAllowed) {
+          // Optional: Supabase.instance.client.auth.signOut();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isAllowed = true;
+        });
+        logger.error("Failed to check user active status", error: e);
+      }
+    }
+  }
+
+  Future<void> _requestReactivation() async {
+    final controller = TextEditingController();
+    final shouldSubmit = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Request Reactivation"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+                "Please explain why your account should be reactivated."),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: "Enter your message here...",
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Submit"),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldSubmit == true && controller.text.trim().isNotEmpty) {
+      try {
+        final userId = Supabase.instance.client.auth.currentUser?.id;
+        if (userId == null) return;
+
+        await Supabase.instance.client.from('activation_requests').insert({
+          'user_id': userId,
+          'message': controller.text.trim(),
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text("Request submitted successfully."),
+                backgroundColor: Colors.green),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text("Failed to submit request: $e"),
+                backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (!_isAllowed) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  _errorMessage?.contains("banned") == true
+                      ? Icons.block
+                      : Icons.person_off,
+                  size: 64,
+                  color: Colors.redAccent,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  "Access Denied",
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  _errorMessage ?? "You do not have access.",
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 32),
+                if (_errorMessage?.contains("deactivated") == true)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16.0),
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: _requestReactivation,
+                      icon: const Icon(Icons.feedback),
+                      label: const Text("Appeal Reactivation"),
+                    ),
+                  ),
+                OutlinedButton(
+                  onPressed: () {
+                    Supabase.instance.client.auth.signOut();
+                  },
+                  child: const Text("Sign Out"),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return widget.child;
   }
 }
