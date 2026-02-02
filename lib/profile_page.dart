@@ -769,6 +769,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            const Text(
+                              "To be verified, please upload one of the following:",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                                "• University Transcript (Official/Unofficial)"),
+                            const Text("• Student ID Card"),
+                            const Text("• Degree/Certification"),
+                            const SizedBox(height: 12),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [

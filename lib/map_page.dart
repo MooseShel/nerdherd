@@ -1283,10 +1283,15 @@ class _MapPageState extends ConsumerState<MapPage> {
         double opacity = 1.0;
 
         // --- FILTERS ---
-        // 1. Tutors
-        if (peer.isTutor && !_filters.showTutors) continue;
-        // 2. Students
-        if (!peer.isTutor && !_filters.showStudents) continue;
+        // 1. Tutors (Only show if Verified)
+        if (peer.isTutor && peer.isVerifiedTutor && !_filters.showTutors) {
+          continue;
+        }
+        // 2. Students (Include Unverified Tutors)
+        if ((!peer.isTutor || !peer.isVerifiedTutor) &&
+            !_filters.showStudents) {
+          continue;
+        }
 
         // 3. Classmates (New)
         if (_filters.showClassmates) {
@@ -1324,7 +1329,9 @@ class _MapPageState extends ConsumerState<MapPage> {
           await mapController?.addSymbol(
             SymbolOptions(
               geometry: geometry,
-              iconImage: peer.isTutor ? 'marker_tutor' : 'marker_student',
+              iconImage: (peer.isTutor && peer.isVerifiedTutor)
+                  ? 'marker_tutor'
+                  : 'marker_student',
               iconSize: _getMarkerScale() * 1.1,
               iconOpacity: opacity,
               zIndex: 10, // Priority over spots
