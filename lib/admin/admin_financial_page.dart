@@ -30,7 +30,7 @@ class _AdminFinancialPageState extends State<AdminFinancialPage> {
         _isLoading = false;
       });
     } catch (e) {
-      debugPrint("Error fetching financial stats: $e");
+      // debugPrint("Error fetching financial stats: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error loading financials: $e")),

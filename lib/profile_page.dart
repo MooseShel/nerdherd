@@ -44,6 +44,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   final ImagePicker _picker = ImagePicker();
   String? _verificationDocUrl;
   String _verificationStatus = 'pending';
+  bool _docChanged = false; // Track if new doc uploaded
   DateTime? _tutorFeeAgreedAt;
   final double _averageRating = 0.0;
   final int _reviewCount = 0;
@@ -204,6 +205,23 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         'use_university_theme': _useUniversityTheme,
         'last_updated': DateTime.now().toIso8601String(),
       });
+
+      // Trigger Email Notification if new doc uploaded
+      if (_docChanged && _isTutor && _verificationDocUrl != null) {
+        try {
+          await supabase.functions.invoke('notify-admin', body: {
+            'type': 'tutor_verification',
+            'payload': {
+              'user_id': user.id,
+              'full_name': _nameController.text.trim(),
+              'verification_doc_url': _verificationDocUrl,
+            }
+          });
+          logger.info('✅ Verification email triggered');
+        } catch (e) {
+          logger.warning('⚠️ Failed to trigger verification email: $e');
+        }
+      }
 
       if (mounted) {
         _showSnack('Profile saved successfully!', isError: false);
@@ -386,6 +404,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       setState(() {
         _verificationDocUrl = docUrl;
         _verificationStatus = 'pending'; // Reset status if new doc uploaded
+        _docChanged = true;
       });
 
       if (mounted) {

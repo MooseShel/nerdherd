@@ -796,7 +796,7 @@ class _StudySpotDetailsSheetState extends ConsumerState<StudySpotDetailsSheet> {
                       }
                     }
                   } catch (e) {
-                    debugPrint("AI Summary Trigger Error: $e");
+                    // debugPrint("AI Summary Trigger Error: $e");
                   } finally {
                     if (mounted) {
                       setState(() {
