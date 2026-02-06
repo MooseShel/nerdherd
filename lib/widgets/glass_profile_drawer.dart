@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nerd_herd/providers/auth_provider.dart';
 import 'package:nerd_herd/providers/user_profile_provider.dart';
 import 'package:nerd_herd/providers/university_provider.dart';
+import 'package:nerd_herd/providers/map_provider.dart';
 
 class GlassProfileDrawer extends ConsumerStatefulWidget {
   final UserProfile profile;
@@ -612,22 +613,113 @@ class _GlassProfileDrawerState extends ConsumerState<GlassProfileDrawer> {
 
                     const SizedBox(height: 32),
 
-                    // Report Button
+                    // Action Buttons: Report & Block
                     if (!isMe)
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton.icon(
-                          onPressed: _reportUser,
-                          icon: Icon(Icons.flag_outlined,
-                              size: 18,
-                              color: theme.textTheme.bodySmall?.color
-                                  ?.withValues(alpha: 0.5)),
-                          label: Text('Report User',
-                              style: TextStyle(
-                                  color: theme.textTheme.bodySmall?.color
-                                      ?.withValues(alpha: 0.5),
-                                  fontSize: 12)),
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton.icon(
+                            onPressed: () async {
+                              // Confirm Block
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text("Block User?"),
+                                  content: Text(
+                                      "Block ${widget.profile.fullName ?? 'this user'}? You won't see them on the map or receive messages from them."),
+                                  actions: [
+                                    TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, false),
+                                        child: const Text("Cancel")),
+                                    TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, true),
+                                        style: TextButton.styleFrom(
+                                            foregroundColor: Colors.red),
+                                        child: const Text("Block")),
+                                  ],
+                                ),
+                              );
+
+                              if (confirm == true) {
+                                // Mock block for simulated users to prevent DB errors
+
+                                try {
+                                  // Use upsert or ignore error for duplicates (idempotent)
+                                  await supabase.from('blocked_users').upsert(
+                                    {
+                                      'blocker_id': currentUser!.id,
+                                      'blocked_id': widget.profile.userId,
+                                    },
+                                    onConflict:
+                                        'blocker_id, blocked_id', // Handle constraints
+                                  );
+
+                                  // REFRESH PROVIDER to update map immediately
+                                  ref.invalidate(blockedUsersProvider);
+
+                                  if (context.mounted) {
+                                    Navigator.pop(context); // Close drawer
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text("User blocked")),
+                                    );
+                                  }
+                                } on PostgrestException catch (e) {
+                                  if (e.code == '23505') {
+                                    // Duplicate: Already blocked, treat as success
+                                    ref.invalidate(blockedUsersProvider);
+                                    if (context.mounted) {
+                                      Navigator.pop(context);
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                            content:
+                                                Text("User already blocked")),
+                                      );
+                                    }
+                                  } else if (e.code == '23503') {
+                                    // Foreign key violation
+                                    ref.invalidate(blockedUsersProvider);
+                                    if (context.mounted) {
+                                      Navigator.pop(context);
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                            content: Text("User blocked")),
+                                      );
+                                    }
+                                  } else {
+                                    rethrow;
+                                  }
+                                }
+                              }
+                            },
+                            icon: Icon(Icons.block,
+                                size: 18,
+                                color: theme.colorScheme.error
+                                    .withValues(alpha: 0.7)),
+                            label: Text('Block',
+                                style: TextStyle(
+                                    color: theme.colorScheme.error
+                                        .withValues(alpha: 0.7),
+                                    fontSize: 12)),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton.icon(
+                            onPressed: _reportUser,
+                            icon: Icon(Icons.flag_outlined,
+                                size: 18,
+                                color: theme.textTheme.bodySmall?.color
+                                    ?.withOpacity(0.5)),
+                            label: Text('Report',
+                                style: TextStyle(
+                                    color: theme.textTheme.bodySmall?.color
+                                        ?.withOpacity(0.5),
+                                    fontSize: 12)),
+                          ),
+                        ],
                       ),
 
                     if (!widget.profile.isBusinessOwner) ...[

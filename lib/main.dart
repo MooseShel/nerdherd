@@ -165,13 +165,31 @@ class _NerdHerdAppState extends ConsumerState<NerdHerdApp>
   Future<void> _refreshSessionSafe() async {
     try {
       final session = Supabase.instance.client.auth.currentSession;
-      if (session != null) {
-        logger.debug("🔄 Attempting to refresh session on resume...");
+      if (session == null) return;
+
+      // Only refresh if token will expire in next 5 minutes
+      // This prevents unnecessary refresh calls that could fail and invalidate session
+      final expiresAt = session.expiresAt;
+      if (expiresAt != null) {
+        final expiryTime =
+            DateTime.fromMillisecondsSinceEpoch(expiresAt * 1000);
+        final now = DateTime.now();
+        final timeUntilExpiry = expiryTime.difference(now);
+
+        // Only refresh if expiring within 5 minutes
+        if (timeUntilExpiry.inMinutes > 5) {
+          logger.debug(
+              "🔒 Session still valid for ${timeUntilExpiry.inMinutes} min, skipping refresh");
+          return;
+        }
+
+        logger.debug("🔄 Session expiring soon, refreshing...");
         await Supabase.instance.client.auth.refreshSession();
         logger.debug("✅ Session refreshed successfully");
       }
     } catch (e) {
       // Only warn, don't crash - often network issues or already valid
+      // IMPORTANT: Do NOT sign out on refresh failure - session may still be valid
       logger.warning("⚠️ Failed to refresh session on resume (non-fatal)",
           error: e);
     }

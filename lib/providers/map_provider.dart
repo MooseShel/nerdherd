@@ -74,8 +74,40 @@ class StudySpots extends _$StudySpots {
 }
 
 // 4. Peers Provider
+// 4. Blocked Users Provider
 @Riverpod(keepAlive: true)
-Stream<List<UserProfile>> peers(Ref ref) {
+class BlockedUsers extends _$BlockedUsers {
+  @override
+  Future<Set<String>> build() async {
+    final service = ref.watch(mapServiceProvider);
+    return service.getBlockedUserIds();
+  }
+
+  Future<void> refresh() async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      final service = ref.read(mapServiceProvider);
+      return service.getBlockedUserIds();
+    });
+  }
+}
+
+// 5. Peers Provider (Reactive to Blocking)
+@Riverpod(keepAlive: true)
+Stream<List<UserProfile>> peers(Ref ref) async* {
   final service = ref.watch(mapServiceProvider);
-  return service.getPeersStream();
+  final blockedAsync = ref.watch(blockedUsersProvider);
+
+  // Default to empty set if loading/error, but ideally we wait or handle it.
+  // For smooth UI, we can start with empty set.
+  final blockedIds = blockedAsync.value ?? <String>{};
+
+  // We yield a transformed stream that filters based on the *current* blocked list.
+  // Note: If blockedIds changes, this provider rebuilds, restarting the stream.
+  // This is acceptable for blocking actions (rare).
+  // Ideally, we'd combine streams, but restarting is simpler and robust.
+
+  yield* service.getPeersStream().map((list) {
+    return list.where((u) => !blockedIds.contains(u.userId)).toList();
+  });
 }

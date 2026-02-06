@@ -38,7 +38,7 @@ final userLocationProvider = StreamProvider<LatLng>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef UserLocationRef = StreamProviderRef<LatLng>;
-String _$peersHash() => r'1d29047137def50dfca4ce67fa02fd7ce5360bb0';
+String _$peersHash() => r'a97cb26f36b91a84a9deee1793f74772536bc484';
 
 /// See also [peers].
 @ProviderFor(peers)
@@ -69,5 +69,20 @@ final studySpotsProvider =
 );
 
 typedef _$StudySpots = AsyncNotifier<List<StudySpot>>;
+String _$blockedUsersHash() => r'3b266be12321aab96aa686151038ac50a18ebb87';
+
+/// See also [BlockedUsers].
+@ProviderFor(BlockedUsers)
+final blockedUsersProvider =
+    AsyncNotifierProvider<BlockedUsers, Set<String>>.internal(
+  BlockedUsers.new,
+  name: r'blockedUsersProvider',
+  debugGetCreateSourceHash:
+      const bool.fromEnvironment('dart.vm.product') ? null : _$blockedUsersHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+typedef _$BlockedUsers = AsyncNotifier<Set<String>>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

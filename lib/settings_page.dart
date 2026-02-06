@@ -11,6 +11,7 @@ import 'providers/theme_provider.dart';
 import 'legal_page.dart';
 
 import 'providers/ghost_mode_provider.dart';
+import 'providers/map_provider.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -247,6 +248,117 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     });
   }
 
+  Future<void> _deleteAccount() async {
+    hapticService.heavyImpact();
+    // 1. Confirm dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete Account?'),
+          content: const Text(
+              'This action is irreversible. All your data (matches, chats, profile) will be permanently erased immediately.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('DELETE PERMANENTLY',
+                  style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    // 2. Execute RPC
+    try {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Deleting account... Goodbye! 👋')),
+        );
+      }
+
+      await supabase.rpc('delete_own_account');
+
+      // 3. Sign Out (should happen automatically if auth user is deleted, but good to force clear local state)
+      await supabase.auth.signOut();
+
+      if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error deleting account: $e'),
+              backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _showBlockedUsers(BuildContext context) async {
+    // Determine the current user ID - if null, we can't fetch blocks
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return FutureBuilder<List<Map<String, dynamic>>>(
+          future: supabase
+              .from('blocked_users')
+              .select(
+                  'id, blocked_id, profiles:blocked_id(full_name, avatar_url)')
+              .match({'blocker_id': userId}),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData)
+              return const Center(child: CircularProgressIndicator());
+            final blocks = snapshot.data!;
+            if (blocks.isEmpty) {
+              return const Center(child: Text("No blocked users 🧘"));
+            }
+
+            return ListView.builder(
+              itemCount: blocks.length,
+              itemBuilder: (context, index) {
+                final blockEntry = blocks[index];
+                final profile = blockEntry['profiles'] as Map<String, dynamic>?;
+                final name = profile?['full_name'] ?? 'Unknown User';
+
+                return ListTile(
+                  title: Text(name),
+                  trailing: TextButton(
+                    child: const Text("Unblock"),
+                    onPressed: () async {
+                      await supabase
+                          .from('blocked_users')
+                          .delete()
+                          .eq('id', blockEntry['id']);
+
+                      // Refresh map to show unblocked user
+                      ref.invalidate(blockedUsersProvider);
+
+                      if (context.mounted)
+                        Navigator.pop(
+                            context); // Close for simplicity to refresh or separate setState
+                    },
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -349,6 +461,22 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             titleColor: theme.colorScheme.error,
             iconColor: theme.colorScheme.error,
             onTap: _signOut,
+          ),
+          SettingsTile(
+            icon: Icons.block,
+            title: 'Blocked Users',
+            onTap: () {
+              // Navigation to Blocked Users Page (Inline for now or new file)
+              // For simplicity, we can show a dialog or bottom sheet
+              _showBlockedUsers(context);
+            },
+          ),
+          SettingsTile(
+            icon: Icons.delete_forever,
+            title: 'Delete Account',
+            titleColor: theme.colorScheme.error,
+            iconColor: theme.colorScheme.error,
+            onTap: _deleteAccount,
           ),
           const SizedBox(height: 24),
           Center(

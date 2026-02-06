@@ -15,7 +15,6 @@ import 'chat_page.dart';
 import 'services/logger_service.dart';
 import 'services/haptic_service.dart';
 import 'package:flutter/foundation.dart'; // For kIsWeb
-import 'services/simulation_service.dart'; // NEW
 
 import 'widgets/map_filter_widget.dart';
 import 'notifications_page.dart';
@@ -187,9 +186,9 @@ class _MapPageState extends ConsumerState<MapPage> {
     }
   }
 
-  final SimulationService _simulationService = SimulationService();
+  // final SimulationService _simulationService = SimulationService(); // REMOVED
   List<StudySpot> _studySpots = []; // NEW
-  Map<String, UserProfile> _simulatedPeers = {}; // NEW
+  // Map<String, UserProfile> _simulatedPeers = {}; // REMOVED
 
   Future<void> _fetchStudySpots(
       {bool userTriggered = false, double radius = 2000}) async {
@@ -649,36 +648,10 @@ class _MapPageState extends ConsumerState<MapPage> {
       setState(() => _currentLocation = pos);
       _updateMapMarkers();
 
-      // Simulation & Initial Fetch: Auto-fetch spots and bots on first valid location
+      // Initial Fetch: Auto-fetch spots on first valid location
       if (!_initialSpotsFetched && mounted) {
         _initialSpotsFetched = true;
-
-        // 1. Fetch Spots
         _fetchStudySpots(radius: 2000);
-
-        // 2. Spawn Bots (Debug Only)
-        if (kDebugMode) {
-          _generateSimulation(pos);
-        }
-      } else {
-        // Respawn bots if we move far (e.g. > 1km) from their center
-        // For simplicity, we can just respawn them occasionally or keep them static for now.
-        // User requested: "if the user moves... they should re-appear close"
-        // Let's check distance from first bot center?
-        // Or simpler: just respawn if we moved > 500m from last generation.
-        if (_lastSimulationCenter != null) {
-          final dist = Geolocator.distanceBetween(
-              _lastSimulationCenter!.latitude,
-              _lastSimulationCenter!.longitude,
-              pos.latitude,
-              pos.longitude);
-          if (dist > 1000) {
-            // 1km
-            if (kDebugMode) {
-              _generateSimulation(pos);
-            }
-          }
-        }
       }
 
       // Reactive Broadcast
@@ -688,23 +661,7 @@ class _MapPageState extends ConsumerState<MapPage> {
     }
   }
 
-  LatLng? _lastSimulationCenter;
-
-  void _generateSimulation(LatLng center) {
-    logger.info("🤖 Generating simulation around $center");
-    final bots = _simulationService.generateBots(
-      center: center,
-      studentCount: 3,
-      tutorCount: 3,
-    );
-
-    setState(() {
-      _lastSimulationCenter = center;
-      _simulatedPeers = {for (var b in bots) b.userId: b};
-    });
-
-    _updateMapMarkers();
-  }
+  // Simulation methods removed
 
   Future<void> _broadcastLocationThrottle(LatLng pos) async {
     final user = supabase.auth.currentUser;
@@ -1226,7 +1183,7 @@ class _MapPageState extends ConsumerState<MapPage> {
         }
       }
 
-      for (var peer in {..._peers, ..._simulatedPeers}.values) {
+      for (var peer in _peers.values) {
         final geometry = peer.location;
         if (geometry == null) {
           continue;
@@ -1432,9 +1389,9 @@ class _MapPageState extends ConsumerState<MapPage> {
     }
 
     if (data['is_me'] == true) {
-      final myId = supabase.auth.currentUser?.id;
-      if (myId != null && _peers.containsKey(myId)) {
-        _showProfileDrawer(_peers[myId]!.toJson());
+      final myProfile = ref.read(myProfileProvider).value;
+      if (myProfile != null) {
+        _showProfileDrawer(myProfile.toJson());
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Syncing profile... please wait.")),
@@ -1820,23 +1777,25 @@ class _MapPageState extends ConsumerState<MapPage> {
                       // Settings handled by provider
                     });
                   },
-                  child:
-                      (_peers[supabase.auth.currentUser?.id]?.avatarUrl != null)
-                          ? CircleAvatar(
-                              backgroundImage:
-                                  _peers[supabase.auth.currentUser!.id]!
-                                          .avatarUrl!
-                                          .startsWith('assets/')
-                                      ? AssetImage(
-                                          _peers[supabase.auth.currentUser!.id]!
-                                              .avatarUrl!) as ImageProvider
-                                      : CachedNetworkImageProvider(
-                                          _peers[supabase.auth.currentUser!.id]!
-                                              .avatarUrl!),
-                              radius: 18,
-                            )
-                          : Icon(Icons.person,
-                              color: isDark ? Colors.white : Colors.black87),
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      final myProfile = ref.watch(myProfileProvider).value;
+                      if (myProfile?.avatarUrl != null) {
+                        return CircleAvatar(
+                          backgroundImage:
+                              myProfile!.avatarUrl!.startsWith('assets/')
+                                  ? AssetImage(myProfile.avatarUrl!)
+                                      as ImageProvider
+                                  : CachedNetworkImageProvider(
+                                      myProfile.avatarUrl!),
+                          radius: 18,
+                        );
+                      } else {
+                        return Icon(Icons.person,
+                            color: isDark ? Colors.white : Colors.black87);
+                      }
+                    },
+                  ),
                 ),
                 const SizedBox(height: 12),
                 // Chat Button (NEW)

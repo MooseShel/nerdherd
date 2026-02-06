@@ -38,15 +38,35 @@ class MapService {
     }
   }
 
-  // 2. Subscribe to Peers
-  Stream<List<UserProfile>> getPeersStream() {
-    return _supabase
-        .from('profiles')
-        .stream(primaryKey: ['user_id'])
-        .order('last_updated', ascending: false)
-        .map((data) {
-          return data.map((e) => UserProfile.fromJson(e)).toList();
-        });
+  // 2. Subscribe to Peers with Blocking Filter
+  Stream<List<UserProfile>> getPeersStream() async* {
+    final myId = _supabase.auth.currentUser?.id;
+
+    // Initial blocked list fetch
+    final blockedListWrapper = {'ids': <String>{}};
+    if (myId != null) {
+      final blocked = await _supabase
+          .from('blocked_users')
+          .select('blocked_id')
+          .eq('blocker_id', myId);
+      blockedListWrapper['ids'] =
+          (blocked as List).map((e) => e['blocked_id'] as String).toSet();
+    }
+
+    // Stream profiles
+    final stream = _supabase.from('profiles').stream(
+        primaryKey: ['user_id']).order('last_updated', ascending: false);
+
+    await for (final data in stream) {
+      // Re-fetch blocks occasionally? For now, we rely on local state or simplified flow.
+      // Ideally, we'd combine streams, but for MVP:
+      final blockedIds = blockedListWrapper['ids']!;
+
+      yield data
+          .map((e) => UserProfile.fromJson(e))
+          .where((u) => u.userId != myId && !blockedIds.contains(u.userId))
+          .toList();
+    }
   }
 
   // 3. Update Location
@@ -76,6 +96,23 @@ class MapService {
     } catch (e) {
       logger.error("Failed to go ghost", error: e);
       rethrow;
+    }
+  }
+
+  Future<Set<String>> getBlockedUserIds() async {
+    final myId = _supabase.auth.currentUser?.id;
+    if (myId == null) return {};
+
+    try {
+      final response = await _supabase
+          .from('blocked_users')
+          .select('blocked_id')
+          .eq('blocker_id', myId);
+
+      return (response as List).map((e) => e['blocked_id'] as String).toSet();
+    } catch (e) {
+      logger.error("Error fetching blocked users", error: e);
+      return {};
     }
   }
 }
