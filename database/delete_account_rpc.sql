@@ -15,27 +15,69 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
-  -- 1. Explicitly delete from all related tables
-  -- Note: Reference tables where user is either the main actor or the target/peer.
+  -- Delete from each table, ignoring errors if table/column doesn't exist
+  -- This makes the function resilient to schema differences
   
-  DELETE FROM public.struggle_signals WHERE user_id = current_user_id;
-  DELETE FROM public.user_skills WHERE user_id = current_user_id;
-  DELETE FROM public.spot_reviews WHERE user_id = current_user_id;
-  DELETE FROM public.activation_requests WHERE user_id = current_user_id;
-  DELETE FROM public.notifications WHERE user_id = current_user_id;
+  BEGIN
+    DELETE FROM public.struggle_signals WHERE user_id = current_user_id;
+  EXCEPTION WHEN undefined_table OR undefined_column THEN NULL;
+  END;
+  
+  BEGIN
+    DELETE FROM public.user_skills WHERE user_id = current_user_id;
+  EXCEPTION WHEN undefined_table OR undefined_column THEN NULL;
+  END;
+  
+  BEGIN
+    DELETE FROM public.spot_reviews WHERE user_id = current_user_id;
+  EXCEPTION WHEN undefined_table OR undefined_column THEN NULL;
+  END;
+  
+  BEGIN
+    DELETE FROM public.activation_requests WHERE user_id = current_user_id;
+  EXCEPTION WHEN undefined_table OR undefined_column THEN NULL;
+  END;
+  
+  BEGIN
+    DELETE FROM public.notifications WHERE user_id = current_user_id;
+  EXCEPTION WHEN undefined_table OR undefined_column THEN NULL;
+  END;
   
   -- Bi-directional tables (delete if user is EITHER party)
-  DELETE FROM public.connections WHERE user_id_1 = current_user_id OR user_id_2 = current_user_id;
-  DELETE FROM public.serendipity_matches WHERE user_id_1 = current_user_id OR user_id_2 = current_user_id;
-  DELETE FROM public.collab_requests WHERE sender_id = current_user_id OR receiver_id = current_user_id;
-  DELETE FROM public.messages WHERE sender_id = current_user_id OR receiver_id = current_user_id;
-  DELETE FROM public.appointments WHERE student_id = current_user_id OR tutor_id = current_user_id;
-  DELETE FROM public.blocked_users WHERE blocker_id = current_user_id OR blocked_id = current_user_id;
+  BEGIN
+    DELETE FROM public.connections WHERE user_id_1 = current_user_id OR user_id_2 = current_user_id;
+  EXCEPTION WHEN undefined_table OR undefined_column THEN NULL;
+  END;
+  
+  BEGIN
+    DELETE FROM public.serendipity_matches WHERE user_id_1 = current_user_id OR user_id_2 = current_user_id;
+  EXCEPTION WHEN undefined_table OR undefined_column THEN NULL;
+  END;
+  
+  BEGIN
+    DELETE FROM public.collab_requests WHERE sender_id = current_user_id OR receiver_id = current_user_id;
+  EXCEPTION WHEN undefined_table OR undefined_column THEN NULL;
+  END;
+  
+  BEGIN
+    DELETE FROM public.messages WHERE sender_id = current_user_id OR receiver_id = current_user_id;
+  EXCEPTION WHEN undefined_table OR undefined_column THEN NULL;
+  END;
+  
+  BEGIN
+    DELETE FROM public.appointments WHERE student_id = current_user_id OR tutor_id = current_user_id;
+  EXCEPTION WHEN undefined_table OR undefined_column THEN NULL;
+  END;
+  
+  BEGIN
+    DELETE FROM public.blocked_users WHERE blocker_id = current_user_id OR blocked_id = current_user_id;
+  EXCEPTION WHEN undefined_table OR undefined_column THEN NULL;
+  END;
 
-  -- 2. Delete from public.profiles
+  -- Delete from public.profiles (required)
   DELETE FROM public.profiles WHERE user_id = current_user_id;
   
-  -- 3. Delete from auth.users
+  -- Delete from auth.users (required)
   DELETE FROM auth.users WHERE id = current_user_id;
 END;
 $$;
