@@ -247,20 +247,9 @@ class _StruggleStatusWidgetState extends ConsumerState<StruggleStatusWidget>
 
     final subjectController = TextEditingController();
     int confidence = 3;
-    double radiusMiles = 1.0;
+    double radiusMiles = 5.0;
 
-    final List<double> radiusSteps = [
-      0.0,
-      0.25,
-      0.5,
-      1.0,
-      2.0,
-      3.0,
-      4.0,
-      5.0,
-      10.0,
-      30.0
-    ];
+    final List<double> radiusSteps = [5.0, 10.0, 15.0, 20.0, 25.0, 30.0];
 
     showDialog(
       context: context,

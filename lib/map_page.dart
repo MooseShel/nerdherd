@@ -395,6 +395,7 @@ class _MapPageState extends ConsumerState<MapPage> {
       iconImage: iconImage,
       iconSize: _getMarkerScale(), // USE DYNAMIC SCALE
       iconOpacity: 1.0,
+      zIndex: 5, // Explicit zIndex to ensure valid number for sorting
     );
   }
 
@@ -1310,8 +1311,8 @@ class _MapPageState extends ConsumerState<MapPage> {
                   circleColor: '#00FF00',
                   circleOpacity: 0.3,
                   circleRadius: kIsWeb
-                      ? 35
-                      : 55, // 50px/90px diam -> 25/45 rad -> 35/55 halo
+                      ? 35.0
+                      : 55.0, // 50px/90px diam -> 25/45 rad -> 35/55 halo
                   circleStrokeWidth: 2,
                   circleStrokeColor: '#00FF00',
                   circleBlur: 0.6,
