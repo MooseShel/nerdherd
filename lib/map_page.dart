@@ -1142,8 +1142,10 @@ class _MapPageState extends ConsumerState<MapPage> {
       }
 
       // 0. Draw Study Spots (Bottom Layer)
-      // Determine theme for marker colors
       if (!mounted) return;
+
+      final List<SymbolOptions> spotOptions = [];
+      final List<Map<String, dynamic>> spotData = [];
 
       // Sort: Sponsored LAST to render on top
       final sortedSpots = List<StudySpot>.from(_studySpots);
@@ -1159,14 +1161,10 @@ class _MapPageState extends ConsumerState<MapPage> {
         if (!spot.isSponsored && !_filters.showRegularSpots) continue;
 
         // COLLISION AVOIDANCE: If spot is under me, DO NOT DRAW IT.
-        // This ensures the "Me" marker (drawn later) has no competition.
         if (_currentLocation != null) {
           final dist = Geolocator.distanceBetween(_currentLocation!.latitude,
               _currentLocation!.longitude, spot.latitude, spot.longitude);
           if (dist < 20) {
-            // 20 meters radius
-            logger.debug(
-                "👻 Hiding spot ${spot.name} due to User Overlap (${dist.toStringAsFixed(1)}m)");
             continue;
           }
         }
@@ -1180,19 +1178,24 @@ class _MapPageState extends ConsumerState<MapPage> {
             continue;
           }
 
-          await mapController?.addSymbol(
-            style,
-            {
-              'is_study_spot': true,
-              'spot_id': spot.id,
-              'is_verified': spot.isVerified,
-              'is_sponsored': spot.isSponsored,
-            },
-          );
+          spotOptions.add(style);
+          spotData.add({
+            'is_study_spot': true,
+            'spot_id': spot.id,
+            'is_verified': spot.isVerified,
+            'is_sponsored': spot.isSponsored,
+          });
         } catch (e) {
-          logger.warning("Failed to draw study spot ${spot.name}", error: e);
+          logger.warning("Failed to prepare study spot ${spot.name}", error: e);
         }
       }
+
+      if (spotOptions.isNotEmpty) {
+        await mapController?.addSymbols(spotOptions, spotData);
+      }
+
+      final List<SymbolOptions> peerOptions = [];
+      final List<Map<String, dynamic>> peerDataList = [];
 
       for (var peer in _peers.values) {
         final geometry = peer.location;
@@ -1200,16 +1203,12 @@ class _MapPageState extends ConsumerState<MapPage> {
           continue;
         }
 
-        // SKIP MYSELF: I am already drawn as the "Me" circle with pulse
+        // SKIP MYSELF
         if (peer.userId == supabase.auth.currentUser?.id) {
           continue;
         }
 
         // --- VISIBILITY & LIVE STATUS ---
-        // Logic:
-        // 1. Online OR Recent (<10m) -> Visible
-        // 2. Stale (>10m) -> HIDDEN (Strict)
-
         bool isOnline = _onlineUserIds.contains(peer.userId);
         bool isRecent = false;
         int minutesAgo = 9999;
@@ -1228,24 +1227,10 @@ class _MapPageState extends ConsumerState<MapPage> {
           }
         }
 
-        // STRICT FILTER: If not online and not recent, hide them.
+        // STRICT FILTER
         if (!isOnline && !isRecent) {
           continue;
         }
-
-        // Only skip if NO LOCATION at all
-        if (peer.location == null) {
-          logger.debug("⚠️ Skipping peer ${peer.userId} due to NULL location");
-          continue;
-        }
-
-        // DOUBLE CHECK: Ensure coordinates are valid numbers
-        try {
-          // Access private properties if possible, or just rely on the fact that geometry isn't null
-          // But maplibre might still fail if the internal points are null.
-          // We can't easily inspect MapLibre Geometry object deeply without overhead,
-          // so we rely on the try-catch block below.
-        } catch (_) {}
 
         // Opacity is always 1.0 since we only show active users
         double opacity = 1.0;
@@ -1266,11 +1251,8 @@ class _MapPageState extends ConsumerState<MapPage> {
           if (myProfile == null) {
             continue; // Can't filter if we don't know who I am
           }
-
           final myClasses = myProfile.currentClasses;
           final peerClasses = peer.currentClasses;
-
-          // Check intersection
           final common = myClasses.toSet().intersection(peerClasses.toSet());
           if (common.isEmpty) continue;
         }
@@ -1283,32 +1265,36 @@ class _MapPageState extends ConsumerState<MapPage> {
         }
 
         try {
-          if (!mounted) break; // STOP if the widget is disposed
+          if (!mounted) break;
 
           // DEFENSIVE: Ensure geometry is valid
           if (!geometry.latitude.isFinite || !geometry.longitude.isFinite) {
             continue;
           }
 
-          // SANITIZE DATA: Remove large fields not needed for map interaction to prevent serialization errors
-          final peerData = peer.toJson();
-          peerData.remove('bio_embedding'); // Heavy vector data
-          peerData.remove('verification_document_url'); // Unnecessary string
-          await mapController?.addSymbol(
-            SymbolOptions(
-              geometry: geometry,
-              iconImage: (peer.isTutor && peer.isVerifiedTutor)
-                  ? 'marker_tutor'
-                  : 'marker_student',
-              iconSize: _getMarkerScale() * 1.1,
-              iconOpacity: opacity,
-              zIndex: 10, // Priority over spots
-            ),
-            peerData,
-          );
+          // SANITIZE DATA
+          final pData = peer.toJson();
+          pData.remove('bio_embedding');
+          pData.remove('verification_document_url');
+
+          peerOptions.add(SymbolOptions(
+            geometry: geometry,
+            iconImage: (peer.isTutor && peer.isVerifiedTutor)
+                ? 'marker_tutor'
+                : 'marker_student',
+            iconSize: _getMarkerScale() * 1.1,
+            iconOpacity: opacity,
+            zIndex: 10,
+          ));
+          peerDataList.add(pData);
         } catch (e) {
-          logger.warning("⚠️ Failed to add symbol: ${e.toString()}", error: e);
+          logger.warning("⚠️ Failed to prepare symbol: ${e.toString()}",
+              error: e);
         }
+      }
+
+      if (peerOptions.isNotEmpty) {
+        await mapController?.addSymbols(peerOptions, peerDataList);
       }
 
       // 1. Draw "Me" (Local Loopback - Instant) - DRAW LAST (On Top)
