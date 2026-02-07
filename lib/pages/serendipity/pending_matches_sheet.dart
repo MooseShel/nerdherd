@@ -261,6 +261,14 @@ class PendingMatchesSheet extends ConsumerWidget {
                                 : FontWeight.w500,
                             fontSize: 16),
                       ),
+                      if (match.score != null)
+                        Text(
+                          "${(match.score! * 100).toInt()}% Match ✨",
+                          style: const TextStyle(
+                              color: Colors.green,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold),
+                        ),
                       if (isInterested)
                         const Text(
                           "Wants to study with you!",

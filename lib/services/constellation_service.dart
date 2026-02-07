@@ -4,6 +4,7 @@ import '../models/struggle_signal.dart';
 import '../models/user_profile.dart';
 import '../services/logger_service.dart';
 import '../services/matching_service.dart';
+import '../services/blocking_service.dart';
 import 'dart:math';
 
 class ConstellationService {
@@ -20,16 +21,22 @@ class ConstellationService {
       logger.info(
           '✨ Constellation: Scanning for matches for "${signal.subject}" within ${radiusMeters}m... (Signal Loc: ${signal.latitude}, ${signal.longitude})');
 
-      // 1. Fetch Candidates (Nearby Profiles)
-      // Note: In a real prod app, use PostGIS 'ST_DWithin'.
-      // For now, we fetch all profiles with location and filter client-side or use a simple bounding box if possible.
-      // To keep it efficient for this prototype, we'll fetch profiles that have updated location recently.
+      // 0. Fetch blocked user IDs to exclude
+      final blockedIds = await blockingService.getBlockedUserIds();
+      logger.debug('   -> Excluding ${blockedIds.length} blocked users');
 
+      // 1. Calculate staleness cutoff (24 hours ago)
+      final staleCutoff =
+          DateTime.now().subtract(const Duration(hours: 24)).toIso8601String();
+
+      // 2. Fetch Candidates (Nearby Profiles) with filters
       final response = await _supabase
           .from('profiles')
           .select('*, location:location_geom') // Alias for UserProfile parsing
           .not('location_geom', 'is', null) // Must have location
-          .neq('user_id', signal.userId); // Exclude self
+          .neq('user_id', signal.userId) // Exclude self
+          .eq('is_active', true) // Only active users
+          .gte('last_updated', staleCutoff); // Location updated within 24h
 
       final candidates = (response as List).map((json) {
         // Manual Parsing of Location to ensure we get coordinates
@@ -79,6 +86,12 @@ class ConstellationService {
       List<Map<String, dynamic>> scoredCandidates = [];
 
       for (final candidate in candidates) {
+        // Skip blocked users
+        if (blockedIds.contains(candidate.userId)) {
+          logger.debug("   -> Skipping blocked user: ${candidate.fullName}");
+          continue;
+        }
+
         if (candidate.location == null) {
           logger.warning(
               "⚠️ Candidate ${candidate.userId} has NO LOCATION after parsing.");
@@ -101,8 +114,8 @@ class ConstellationService {
         logger.debug(
             '   -> Candidate ${candidate.fullName} (${dist.toInt()}m): Score ${score.toStringAsFixed(2)}');
 
-        // RELAXED THRESHOLD for testing (0.5 -> 0.1)
-        if (score >= 0.1) {
+        // Production threshold (raised from 0.1 to 0.3)
+        if (score >= 0.3) {
           scoredCandidates.add({
             'candidate': candidate,
             'score': score,
@@ -131,6 +144,7 @@ class ConstellationService {
           await matchingService.suggestMatch(
             otherUserId: candidate.userId,
             matchType: 'constellation',
+            score: score,
           );
         }
       } else {

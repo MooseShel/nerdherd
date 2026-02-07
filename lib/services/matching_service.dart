@@ -17,6 +17,7 @@ class MatchingService {
     required String otherUserId,
     required String matchType, // 'proximity', 'constellation', 'temporal'
     String? message,
+    double? score,
   }) async {
     try {
       final currentUserId = _supabase.auth.currentUser?.id;
@@ -32,6 +33,7 @@ class MatchingService {
         'target_user_id': otherUserId,
         'match_type': matchType,
         'message': message,
+        'match_score': score,
       });
 
       logger.info('RPC Response: $response');
