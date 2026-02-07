@@ -624,7 +624,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                                                     color: colorScheme.outline
                                                         .withValues(
                                                             alpha: 0.2)),
-                                                boxShadow: [
+                                                boxShadow: const [
                                                   BoxShadow(
                                                       color: Colors.black12,
                                                       blurRadius: 4)

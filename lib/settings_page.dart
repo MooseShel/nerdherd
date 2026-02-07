@@ -318,8 +318,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   'id, blocked_id, profiles:blocked_id(full_name, avatar_url)')
               .match({'blocker_id': userId}),
           builder: (context, snapshot) {
-            if (!snapshot.hasData)
+            if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
+            }
             final blocks = snapshot.data!;
             if (blocks.isEmpty) {
               return const Center(child: Text("No blocked users 🧘"));
@@ -345,9 +346,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       // Refresh map to show unblocked user
                       ref.invalidate(blockedUsersProvider);
 
-                      if (context.mounted)
+                      if (context.mounted) {
                         Navigator.pop(
                             context); // Close for simplicity to refresh or separate setState
+                      }
                     },
                   ),
                 );
