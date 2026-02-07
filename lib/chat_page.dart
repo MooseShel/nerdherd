@@ -32,6 +32,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
   bool _isConnected = false;
   bool _isCheckingConnection = true;
+  Map<String, dynamic>? _replyingTo; // State for reply
 
   @override
   void initState() {
@@ -81,8 +82,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   void _onScroll() {
-    // Determine if we are near the "end" (which is actually the top/start in reverse mode)
-    // maxScrollExtent in reverse list is the top of the content
     if (_scrollController.hasClients &&
         _scrollController.position.pixels >=
             _scrollController.position.maxScrollExtent * 0.9 &&
@@ -92,7 +91,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   Future<void> _loadMoreMessages() async {
-    // Check if we have data to load more
     final messagesState =
         ref.read(chatNotifierProvider(widget.otherUser.userId));
     if (!messagesState.hasValue || messagesState.value!.isEmpty) return;
@@ -136,12 +134,14 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             content.isEmpty ? '📷 Image' : content,
             type: imageUrl != null ? 'image' : 'text',
             mediaUrl: imageUrl,
+            replyToId: _replyingTo?['id'],
           );
 
       if (!mounted) return;
 
       _messageController.clear();
       _updateTypingStatus(false);
+      setState(() => _replyingTo = null);
 
       // Keep focus on input field for rapid messaging
       _focusNode.requestFocus();
@@ -437,104 +437,214 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                               final timeStr = TimeOfDay.fromDateTime(timestamp)
                                   .format(context);
 
+                              final reactions =
+                                  (msg['message_reactions'] as List?) ?? [];
+                              final hasReaction = reactions.isNotEmpty;
+
                               return Align(
                                 alignment: isMine
                                     ? Alignment.centerRight
                                     : Alignment.centerLeft,
-                                child: Container(
-                                  margin: const EdgeInsets.only(bottom: 12),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 10),
-                                  constraints: BoxConstraints(
-                                    maxWidth: min(
-                                        600,
-                                        MediaQuery.of(context).size.width *
-                                            0.7),
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isMine
-                                        ? colorScheme.primary
-                                        : colorScheme.surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: isMine
-                                        ? CrossAxisAlignment.end
-                                        : CrossAxisAlignment.start,
-                                    children: [
-                                      // Image if present
-                                      if (messageType == 'image' &&
-                                          mediaUrl != null) ...[
-                                        ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          child: CachedNetworkImage(
-                                            imageUrl: mediaUrl,
-                                            width: 200,
-                                            fit: BoxFit.cover,
-                                            placeholder: (context, url) =>
-                                                Container(
-                                              width: 200,
-                                              height: 150,
-                                              color: colorScheme.surface
-                                                  .withValues(alpha: 0.1),
-                                              child: const Center(
-                                                  child:
-                                                      CircularProgressIndicator()),
-                                            ),
-                                            errorWidget:
-                                                (context, url, error) => Icon(
-                                              Icons.broken_image,
-                                              color: colorScheme.error,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                      ],
-                                      // Text content
-                                      if ((msg['content'] ?? '').isNotEmpty)
-                                        Text(
-                                          msg['content'] ?? '',
-                                          style: TextStyle(
+                                child: GestureDetector(
+                                  onDoubleTap: () =>
+                                      _handleMessageDoubleTap(msg),
+                                  onLongPress: () =>
+                                      _handleMessageLongPress(msg),
+                                  child: Container(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    constraints: BoxConstraints(
+                                      maxWidth: min(
+                                          600,
+                                          MediaQuery.of(context).size.width *
+                                              0.7),
+                                    ),
+                                    child: Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 16, vertical: 10),
+                                          decoration: BoxDecoration(
                                             color: isMine
-                                                ? colorScheme.onPrimary
-                                                : colorScheme.onSurface,
-                                            fontSize: 15,
+                                                ? colorScheme.primary
+                                                : colorScheme
+                                                    .surfaceContainerHighest,
+                                            borderRadius:
+                                                BorderRadius.circular(16),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment: isMine
+                                                ? CrossAxisAlignment.end
+                                                : CrossAxisAlignment.start,
+                                            children: [
+                                              // Reply Indicator (Simple)
+                                              if (msg['reply_to_id'] != null)
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                          bottom: 4),
+                                                  child: Opacity(
+                                                    opacity: 0.7,
+                                                    child: Container(
+                                                      padding:
+                                                          const EdgeInsets.only(
+                                                              left: 8),
+                                                      decoration: BoxDecoration(
+                                                          border: Border(
+                                                              left: BorderSide(
+                                                                  color: isMine
+                                                                      ? colorScheme
+                                                                          .onPrimary
+                                                                      : colorScheme
+                                                                          .onSurface,
+                                                                  width: 2))),
+                                                      child: const Text(
+                                                          "Replying...",
+                                                          style: TextStyle(
+                                                              fontSize: 10)),
+                                                    ),
+                                                  ),
+                                                ),
+
+                                              // Image if present
+                                              if (messageType == 'image' &&
+                                                  mediaUrl != null) ...[
+                                                GestureDetector(
+                                                  onTap: () {
+                                                    Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (_) =>
+                                                            FullScreenImageViewer(
+                                                                imageUrl:
+                                                                    mediaUrl),
+                                                      ),
+                                                    );
+                                                  },
+                                                  child: ClipRRect(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8),
+                                                    child: CachedNetworkImage(
+                                                      imageUrl: mediaUrl,
+                                                      width: 200,
+                                                      fit: BoxFit.cover,
+                                                      placeholder:
+                                                          (context, url) =>
+                                                              Container(
+                                                        width: 200,
+                                                        height: 150,
+                                                        color: colorScheme
+                                                            .surface
+                                                            .withValues(
+                                                                alpha: 0.1),
+                                                        child: const Center(
+                                                            child:
+                                                                CircularProgressIndicator()),
+                                                      ),
+                                                      errorWidget: (context,
+                                                              url, error) =>
+                                                          Icon(
+                                                        Icons.broken_image,
+                                                        color:
+                                                            colorScheme.error,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 8),
+                                              ],
+                                              // Text content
+                                              if ((msg['content'] ?? '')
+                                                  .isNotEmpty)
+                                                Text(
+                                                  msg['content'] ?? '',
+                                                  style: TextStyle(
+                                                    color: isMine
+                                                        ? colorScheme.onPrimary
+                                                        : colorScheme.onSurface,
+                                                    fontSize: 15,
+                                                  ),
+                                                ),
+                                              const SizedBox(height: 4),
+                                              // Timestamp and read receipt
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(
+                                                    timeStr,
+                                                    style: TextStyle(
+                                                      color: isMine
+                                                          ? colorScheme
+                                                              .onPrimaryContainer
+                                                              .withValues(
+                                                                  alpha: 0.6)
+                                                          : colorScheme
+                                                              .onSurfaceVariant,
+                                                      fontSize: 11,
+                                                    ),
+                                                  ),
+                                                  if (isMine) ...[
+                                                    const SizedBox(width: 4),
+                                                    Icon(
+                                                      readAt != null
+                                                          ? Icons.done_all
+                                                          : Icons.done,
+                                                      size: 14,
+                                                      color: readAt != null
+                                                          ? Colors.cyanAccent
+                                                          : colorScheme
+                                                              .onPrimary
+                                                              .withValues(
+                                                                  alpha: 0.6),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                      const SizedBox(height: 4),
-                                      // Timestamp and read receipt
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            timeStr,
-                                            style: TextStyle(
-                                              color: isMine
-                                                  ? colorScheme
-                                                      .onPrimaryContainer
-                                                      .withValues(alpha: 0.6)
-                                                  : colorScheme
-                                                      .onSurfaceVariant,
-                                              fontSize: 11,
+                                        // Reactions Bubble
+                                        if (hasReaction)
+                                          Positioned(
+                                            bottom: -10,
+                                            right: isMine ? null : -10,
+                                            left: isMine ? -10 : null,
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 6,
+                                                      vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: colorScheme
+                                                    .surfaceContainer,
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                                border: Border.all(
+                                                    color: colorScheme.outline
+                                                        .withValues(
+                                                            alpha: 0.2)),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                      color: Colors.black12,
+                                                      blurRadius: 4)
+                                                ],
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: reactions
+                                                    .take(3)
+                                                    .map<Widget>((r) => Text(
+                                                        r['reaction_type'] ??
+                                                            '❤️',
+                                                        style: const TextStyle(
+                                                            fontSize: 10)))
+                                                    .toList(),
+                                              ),
                                             ),
                                           ),
-                                          if (isMine) ...[
-                                            const SizedBox(width: 4),
-                                            Icon(
-                                              readAt != null
-                                                  ? Icons.done_all
-                                                  : Icons.done,
-                                              size: 14,
-                                              color: readAt != null
-                                                  ? Colors.cyanAccent
-                                                  : colorScheme.onPrimary
-                                                      .withValues(alpha: 0.6),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
                               );
@@ -687,6 +797,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                         minHeight: 2,
                       ),
                     ),
+                  _buildReplyPreview(),
                   Row(
                     children: [
                       // Image picker button
@@ -736,6 +847,112 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildReplyPreview() {
+    if (_replyingTo == null) return const SizedBox.shrink();
+    final isImage = _replyingTo!['message_type'] == 'image';
+    return Container(
+      padding: const EdgeInsets.all(8),
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context)
+            .colorScheme
+            .surfaceContainerHighest
+            .withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border(
+          left: BorderSide(
+              color: Theme.of(context).colorScheme.primary, width: 4),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.reply,
+              size: 16, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Replying to ${widget.otherUser.fullName}", // Ideally use sender name from msg if available
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                Text(
+                  isImage ? "📷 Image" : (_replyingTo!['content'] ?? ''),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 16),
+            onPressed: () => setState(() => _replyingTo = null),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleMessageDoubleTap(Map<String, dynamic> msg) {
+    final myId = ref.read(authStateProvider).value?.id;
+    if (myId == null) return;
+    HapticFeedback.lightImpact();
+    ref
+        .read(chatNotifierProvider(widget.otherUser.userId).notifier)
+        .toggleReaction(msg['id'], '❤️');
+  }
+
+  void _handleMessageLongPress(Map<String, dynamic> msg) {
+    HapticFeedback.mediumImpact();
+    // Show bottom sheet
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.reply),
+              title: const Text("Reply"),
+              onTap: () {
+                Navigator.pop(context);
+                setState(() => _replyingTo = msg);
+                _focusNode.requestFocus();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy),
+              title: const Text("Copy Text"),
+              onTap: () {
+                Navigator.pop(context);
+                Clipboard.setData(ClipboardData(text: msg['content'] ?? ''));
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(const SnackBar(content: Text("Copied!")));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.flag, color: Colors.red),
+              title: const Text("Report Message",
+                  style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(context);
+                _showReportDialog();
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

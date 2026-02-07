@@ -45,6 +45,7 @@ class MapPage extends ConsumerStatefulWidget {
 }
 
 class _MapPageState extends ConsumerState<MapPage> {
+  Timer? _heartbeatTimer;
   MapLibreMapController? mapController;
   final supabase = Supabase.instance.client;
 
@@ -102,6 +103,13 @@ class _MapPageState extends ConsumerState<MapPage> {
     // _mapService = ...
 
     // _loadSettings(); // REMOVED: Managed by ghostModeProvider
+    // Heartbeat: Force location update every 2 minutes to keep "last_updated" fresh
+    _heartbeatTimer = Timer.periodic(const Duration(minutes: 2), (_) {
+      if (_currentLocation != null && _isStudyMode) {
+        _broadcastLocationThrottle(_currentLocation!, force: true);
+      }
+    });
+
     _loadInitialLocation(); // Fast load
 
     _checkLocationPermissions();
@@ -191,7 +199,7 @@ class _MapPageState extends ConsumerState<MapPage> {
   // Map<String, UserProfile> _simulatedPeers = {}; // REMOVED
 
   Future<void> _fetchStudySpots(
-      {bool userTriggered = false, double radius = 2000}) async {
+      {bool userTriggered = false, double radius = 20000}) async {
     if (_isFetchingSpots) return;
 
     // Determine target location: Camera Center (if manual) or Current Location (auto)
@@ -632,6 +640,7 @@ class _MapPageState extends ConsumerState<MapPage> {
     _notificationsChannel?.unsubscribe();
     // _messagesChannel?.unsubscribe();
     _presenceChannel?.unsubscribe();
+    _heartbeatTimer?.cancel();
 
     super.dispose();
   }
@@ -651,7 +660,7 @@ class _MapPageState extends ConsumerState<MapPage> {
       // Initial Fetch: Auto-fetch spots on first valid location
       if (!_initialSpotsFetched && mounted) {
         _initialSpotsFetched = true;
-        _fetchStudySpots(radius: 2000);
+        _fetchStudySpots(radius: 20000);
       }
 
       // Reactive Broadcast
@@ -663,15 +672,17 @@ class _MapPageState extends ConsumerState<MapPage> {
 
   // Simulation methods removed
 
-  Future<void> _broadcastLocationThrottle(LatLng pos) async {
+  Future<void> _broadcastLocationThrottle(LatLng pos,
+      {bool force = false}) async {
     final user = supabase.auth.currentUser;
     if (user == null) return;
 
     final now = DateTime.now();
     bool shouldUpdate = false;
 
-    // 1. Time Check (Heartbeat every 30s - User requested)
-    if (_lastBroadcastTime == null ||
+    // 1. Time Check (Heartbeat every 30s - User requested or Forced)
+    if (force ||
+        _lastBroadcastTime == null ||
         now.difference(_lastBroadcastTime!).inSeconds >= 30) {
       shouldUpdate = true;
     }
@@ -1212,7 +1223,7 @@ class _MapPageState extends ConsumerState<MapPage> {
           final diff = nowUtc.difference(lastUpdateUtc);
           minutesAgo = diff.inMinutes.abs();
 
-          if (minutesAgo <= 10) {
+          if (minutesAgo <= 30) {
             isRecent = true;
           }
         }
@@ -1736,7 +1747,7 @@ class _MapPageState extends ConsumerState<MapPage> {
 
           // "Recenter" Button (Bottom Right)
           Positioned(
-            bottom: 40,
+            bottom: 100,
             right: 20,
             child: _buildGlassControl(
               onPressed: _checkLocationPermissions,

@@ -104,31 +104,11 @@ class NotificationService {
   /// Initialize Firebase Cloud Messaging
   Future<void> _initFCM() async {
     try {
-      // Check Preference
-      // We use SharedPreferences directly here to ensure single source of truth
-      // without circular dependency on Riverpod or passing params around deeply.
-      // (Though cleaner to pass it in, this is a singleton service).
-      // Note: We need SharedPreferences instance.
-      // Using a quick creating instance here is fine for occasional calls.
-      try {
-        // Dynamic import workaround or just use package (it is imported in settings, not here yet... wait, not imported here)
-        // We need to import shared_preferences.
-        // Since I cannot add imports easily with multi_replace without breaking line numbers if I am not careful with top of file,
-        // I will rely on the caller `updatePushPermission` to handle the heavy lifting,
-        // and here I will just default to TRUE for initialization if I can't check easily,
-        // OR better: I will add the import.
-      } catch (e) {
-        // ignore
-      }
-
-      // Guard: If Firebase didn't initialize (e.g. on Desktop), skip FCM
-
       if (Firebase.apps.isEmpty) {
         logger.warning('Skipping FCM: No Firebase App initialized');
         return;
       }
 
-      // Lazy access - will throw here if Firebase.initializeApp failed, but we catch it.
       final messaging = FirebaseMessaging.instance;
 
       // 1. Request Permission
@@ -142,7 +122,6 @@ class NotificationService {
       logger.info('User granted permission: ${settings.authorizationStatus}');
 
       // 2. Get Token
-      // On iOS, we need to wait for APNs token first
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
         String? apnsToken = await messaging.getAPNSToken();
         if (apnsToken == null) {
@@ -158,48 +137,45 @@ class NotificationService {
         await _saveTokenToDatabase(fcmToken);
       }
 
-      // 3. Listen for token refreshes
-      messaging.onTokenRefresh.listen((newToken) {
-        _saveTokenToDatabase(newToken);
-      });
+      // 3. Terminated State
+      final RemoteMessage? initialMessage =
+          await FirebaseMessaging.instance.getInitialMessage();
 
-      // 4. Foreground Message Handler
+      if (initialMessage != null) {
+        logger.info(
+            "📱 App opened from TERMINATED state: ${initialMessage.messageId}");
+        Future.delayed(const Duration(milliseconds: 1500), () {
+          _handleNavigation(initialMessage.data);
+        });
+      }
+
+      // 4. Foreground State
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        logger.info('Got a message whilst in the foreground!');
-        logger.info('Message data: ${message.data}');
+        logger.debug("foreground notification: ${message.notification?.title}");
 
-        if (message.notification != null) {
-          logger.info(
-              'Message also contained a notification: ${message.notification}');
+        final type = message.data['type'] ?? 'message';
 
-          // Show local notification using existing logic
-          // We assume the payload 'type' is passed in data for navigation
-          final type = message.data['type'] ?? 'message';
-
-          _showNotification(
-            message.messageId ?? DateTime.now().toString(),
-            type,
-            message.notification!.title ?? 'New Notification',
-            message.notification!.body ?? '',
-            message.data,
-          );
-        }
+        _showNotification(
+          message.messageId ?? DateTime.now().toString(),
+          type,
+          message.notification?.title ?? 'New Notification',
+          message.notification?.body ?? '',
+          message.data,
+        );
       });
 
-      // 5. Background Application Opened Handler (When clicking a notification while app is backgrounded/terminated)
+      // 5. Background/Resumed State
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        logger.info('A new onMessageOpenedApp event was published!');
-
-        // This is THE handler for "Push Notification Click" from background
+        logger
+            .info("📱 App opened from BACKGROUND state: ${message.messageId}");
         _handleNavigation(message.data);
       });
 
-      // Set background handler (needs to be static or top-level)
+      // 6. Background Handler
       FirebaseMessaging.onBackgroundMessage(
           _firebaseMessagingBackgroundHandler);
     } catch (e) {
-      logger.warning(
-          'FCM not initialized (Expected if missing firebase_options.dart or on Web/Windows without config). Notification features will be local-only.');
+      logger.warning('FCM not initialized: $e');
     }
   }
 
@@ -353,21 +329,29 @@ class NotificationService {
     final type = data['type'];
     logger.info('🧭 Handling navigation for type: $type');
 
+    // Wait for navigator to be ready if needed
     if (navigatorKey.currentState == null) {
-      logger.warning(
-          '⚠️ Navigator key not attached to context - cannot navigate');
-      return;
+      logger.warning('⚠️ Navigator key not attached yet. Waiting 1s...');
+      await Future.delayed(const Duration(seconds: 1));
+      if (navigatorKey.currentState == null) {
+        logger.error('❌ Navigator still not ready. Aborting navigation.');
+        return;
+      }
     }
 
     try {
-      if (type == 'chat_message') {
-        final senderId = data['sender_id']; // from data payload
-        if (senderId != null) {
+      if (type == 'chat_message' ||
+          type == 'friend_sos' ||
+          type == 'match_accepted' ||
+          type == 'match_confirmed') {
+        final targetUserId = data['sender_id'] ?? data['accepter_id'];
+
+        if (targetUserId != null) {
           // Fetch profile to navigate
           final profileData = await supabase
               .from('profiles')
               .select()
-              .eq('user_id', senderId)
+              .eq('user_id', targetUserId)
               .maybeSingle();
 
           if (profileData != null) {
@@ -386,45 +370,6 @@ class NotificationService {
             builder: (context) => const RequestsPage(),
           ),
         );
-      } else if (type == 'friend_sos') {
-        // Auto-Connected Friend SOS -> Go straight to Chat
-        final senderId = data['sender_id'];
-        if (senderId != null) {
-          final profileData = await supabase
-              .from('profiles')
-              .select()
-              .eq('user_id', senderId)
-              .maybeSingle();
-
-          if (profileData != null) {
-            final profile = UserProfile.fromJson(profileData);
-            navigatorKey.currentState?.push(
-              MaterialPageRoute(
-                builder: (context) => ChatPage(otherUser: profile),
-              ),
-            );
-          }
-        }
-      } else if (type == 'match_accepted' || type == 'match_confirmed') {
-        // Maybe go to Chat or Connections?
-        // For now, let's go to Connections page or Chat
-        final accepterId = data['accepter_id'];
-        if (accepterId != null) {
-          final profileData = await supabase
-              .from('profiles')
-              .select()
-              .eq('user_id', accepterId)
-              .maybeSingle();
-
-          if (profileData != null) {
-            final profile = UserProfile.fromJson(profileData);
-            navigatorKey.currentState?.push(
-              MaterialPageRoute(
-                builder: (context) => ChatPage(otherUser: profile),
-              ),
-            );
-          }
-        }
       }
     } catch (e) {
       logger.error('Error handling navigation', error: e);

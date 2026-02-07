@@ -13,7 +13,7 @@ class ChatService {
     try {
       final data = await _supabase
           .from('messages')
-          .select()
+          .select('*, message_reactions(user_id, reaction_type)')
           .or('and(sender_id.eq.$myId,receiver_id.eq.$otherId),and(sender_id.eq.$otherId,receiver_id.eq.$myId)')
           .order('created_at', ascending: false) // Newest first
           .range(offset, offset + limit - 1);
@@ -31,16 +31,16 @@ class ChatService {
     String content, {
     String type = 'text',
     String? mediaUrl,
+    String? replyToId,
   }) async {
     try {
       await _supabase.from('messages').insert({
         'sender_id': senderId,
         'receiver_id': receiverId,
         'content': content,
-        'message_type':
-            type, // Schema uses 'message_type' based on ChatPage analysis
+        'message_type': type,
         'media_url': mediaUrl,
-        // 'is_read': false, // REMOVED: Schema uses read_at timestamp instead
+        'reply_to_id': replyToId,
       });
       // logger.debug("📨 Message sent to $receiverId");
     } catch (e) {
@@ -60,6 +60,41 @@ class ChatService {
           .isFilter('read_at', null);
     } catch (e) {
       // logger.warning("Failed to mark messages as read", error: e);
+    }
+  }
+
+  // 3.5 Toggle Reaction
+  Future<void> toggleReaction(
+      String messageId, String userId, String reactionType) async {
+    try {
+      // Check if exists
+      final existing = await _supabase
+          .from('message_reactions')
+          .select()
+          .match({'message_id': messageId, 'user_id': userId}).maybeSingle();
+
+      if (existing != null) {
+        if (existing['reaction_type'] == reactionType) {
+          // Remove if same
+          await _supabase
+              .from('message_reactions')
+              .delete()
+              .match({'id': existing['id']});
+        } else {
+          // Update if different
+          await _supabase.from('message_reactions').update(
+              {'reaction_type': reactionType}).match({'id': existing['id']});
+        }
+      } else {
+        // Insert
+        await _supabase.from('message_reactions').insert({
+          'message_id': messageId,
+          'user_id': userId,
+          'reaction_type': reactionType
+        });
+      }
+    } catch (e) {
+      logger.error("Error toggling reaction", error: e);
     }
   }
 
@@ -115,6 +150,19 @@ class ChatService {
               .all, // Listen for insert and update (for upsert)
           schema: 'public',
           table: 'typing_status',
+          callback: callback,
+        )
+        .subscribe();
+  }
+
+  RealtimeChannel subscribeToReactions(
+      void Function(PostgresChangePayload) callback) {
+    return _supabase
+        .channel('reactions')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'message_reactions',
           callback: callback,
         )
         .subscribe();

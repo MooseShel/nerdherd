@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
+import 'package:maplibre_gl/maplibre_gl.dart'; // For LatLng
+import 'package:geolocator/geolocator.dart'; // For distance calculation
 import '../../models/user_profile.dart';
 import '../../config/theme.dart';
 import '../../services/matching_service.dart';
@@ -8,12 +10,14 @@ import '../../services/matching_service.dart';
 class MatchListSheet extends ConsumerStatefulWidget {
   final List<UserProfile> matches;
   final String subject;
+  final LatLng? myLocation;
   final Function() onClose;
 
   const MatchListSheet({
     super.key,
     required this.matches,
     required this.subject,
+    this.myLocation,
     required this.onClose,
   });
 
@@ -24,6 +28,37 @@ class MatchListSheet extends ConsumerStatefulWidget {
 class _MatchListSheetState extends ConsumerState<MatchListSheet> {
   // Track sent requests locally for UI feedback
   final Set<String> _sentRequests = {};
+  late List<UserProfile> _sortedMatches;
+
+  @override
+  void initState() {
+    super.initState();
+    _initialSort();
+  }
+
+  void _initialSort() {
+    _sortedMatches = List.from(widget.matches);
+    if (widget.myLocation != null) {
+      _sortedMatches.sort((a, b) {
+        if (a.location == null) return 1;
+        if (b.location == null) return -1;
+
+        final distA = Geolocator.distanceBetween(
+          widget.myLocation!.latitude,
+          widget.myLocation!.longitude,
+          a.location!.latitude,
+          a.location!.longitude,
+        );
+        final distB = Geolocator.distanceBetween(
+          widget.myLocation!.latitude,
+          widget.myLocation!.longitude,
+          b.location!.latitude,
+          b.location!.longitude,
+        );
+        return distA.compareTo(distB);
+      });
+    }
+  }
 
   void _handleConnect(UserProfile user) {
     final msgController = TextEditingController();
@@ -123,6 +158,14 @@ class _MatchListSheetState extends ConsumerState<MatchListSheet> {
                             color: Colors.grey,
                           ),
                     ),
+                    if (widget.myLocation != null)
+                      Text(
+                        'Sorted by distance',
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelSmall
+                            ?.copyWith(color: Colors.grey),
+                      ),
                   ],
                 ),
                 IconButton(
@@ -135,21 +178,32 @@ class _MatchListSheetState extends ConsumerState<MatchListSheet> {
 
             // List
             Expanded(
-              child: widget.matches.isEmpty
+              child: _sortedMatches.isEmpty
                   ? const Center(child: Text('No matches found nearby yet.'))
                   : ListView.separated(
-                      itemCount: widget.matches.length,
+                      itemCount: _sortedMatches.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
-                        final user = widget.matches[index];
+                        final user = _sortedMatches[index];
                         final isSent = _sentRequests.contains(user.userId);
 
-                        // Simple similarity calc (mock/demo or real if passed)
-                        // Since we don't have per-user similarity score passed in the List<UserProfile> directly
-                        // (unless we wrap it), we'll simulate or hide it.
-                        // Actually, the `findNerdMatches` returns pure `UserProfile`.
-                        // Ideally we should return a wrapper with the score.
-                        // For now, let's just show the card.
+                        // Calculate distance if possible
+                        String? distString;
+                        if (widget.myLocation != null &&
+                            user.location != null) {
+                          final d = Geolocator.distanceBetween(
+                            widget.myLocation!.latitude,
+                            widget.myLocation!.longitude,
+                            user.location!.latitude,
+                            user.location!.longitude,
+                          );
+                          if (d < 1000) {
+                            distString = '${d.toStringAsFixed(0)}m away';
+                          } else {
+                            distString =
+                                '${(d / 1000).toStringAsFixed(1)}km away';
+                          }
+                        }
 
                         return Card(
                           elevation: 2,
@@ -177,11 +231,25 @@ class _MatchListSheetState extends ConsumerState<MatchListSheet> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        user.fullName ?? 'Unknown User',
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            user.fullName ?? 'Unknown User',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16),
+                                          ),
+                                          if (distString != null) ...[
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              '($distString)',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.grey.shade600,
+                                              ),
+                                            ),
+                                          ]
+                                        ],
                                       ),
                                       if (user.matchSimilarity != null)
                                         Padding(

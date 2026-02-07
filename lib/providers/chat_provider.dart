@@ -16,6 +16,7 @@ ChatService chatService(Ref ref) {
 @Riverpod(keepAlive: true)
 class ChatNotifier extends _$ChatNotifier {
   RealtimeChannel? _subscription;
+  RealtimeChannel? _reactionSubscription;
 
   @override
   Future<List<Map<String, dynamic>>> build(String otherUserId) async {
@@ -24,7 +25,7 @@ class ChatNotifier extends _$ChatNotifier {
 
     final service = ref.read(chatServiceProvider);
 
-    // Setup Realtime Subscription
+    // 1. Messages Subscription
     _subscription = service.subscribeToMessages(myId, otherUserId, (payload) {
       if (state.value == null) return;
       final currentList = List<Map<String, dynamic>>.from(state.value!);
@@ -42,12 +43,20 @@ class ChatNotifier extends _$ChatNotifier {
 
         // Check if already exists
         if (!currentList.any((m) => m['id'] == newMsg['id'])) {
+          // Initialize reactions
+          newMsg['message_reactions'] = [];
           state = AsyncValue.data([newMsg, ...currentList]);
         }
       } else if (payload.eventType == PostgresChangeEvent.update) {
         final newMsg = payload.newRecord;
         final index = currentList.indexWhere((m) => m['id'] == newMsg['id']);
         if (index != -1) {
+          // Preserve reactions/joins if not returned in payload (payload only has columns)
+          // Actually payload only has the columns of the table. Joins are separate.
+          // We might lose reactions if we just replace.
+          final oldReactions = currentList[index]['message_reactions'];
+          newMsg['message_reactions'] = oldReactions;
+
           currentList[index] = newMsg;
           state = AsyncValue.data(currentList);
         }
@@ -60,14 +69,47 @@ class ChatNotifier extends _$ChatNotifier {
       }
     });
 
+    // 2. Reactions Subscription
+    _reactionSubscription = service.subscribeToReactions((payload) {
+      if (state.value == null) return;
+      final currentList = List<Map<String, dynamic>>.from(state.value!);
+
+      // Reaction payload has: id, message_id, user_id, reaction_type
+      final rec =
+          payload.newRecord.isNotEmpty ? payload.newRecord : payload.oldRecord;
+      final messageId = rec['message_id'];
+
+      // Find message
+      final index = currentList.indexWhere((m) => m['id'] == messageId);
+      if (index == -1) return; // Not in our list (maybe different chat)
+
+      final message = Map<String, dynamic>.from(currentList[index]);
+      final reactions = List<dynamic>.from(message['message_reactions'] ?? []);
+
+      if (payload.eventType == PostgresChangeEvent.insert) {
+        reactions.add(payload.newRecord);
+      } else if (payload.eventType == PostgresChangeEvent.delete) {
+        reactions.removeWhere((r) => r['id'] == payload.oldRecord['id']);
+      } else if (payload.eventType == PostgresChangeEvent.update) {
+        final rIndex =
+            reactions.indexWhere((r) => r['id'] == payload.newRecord['id']);
+        if (rIndex != -1) {
+          reactions[rIndex] = payload.newRecord;
+        }
+      }
+
+      message['message_reactions'] = reactions;
+      currentList[index] = message;
+      state = AsyncValue.data(currentList);
+    });
+
     ref.onDispose(() {
       _subscription?.unsubscribe();
+      _reactionSubscription?.unsubscribe();
     });
 
     // Initial Fetch (20 items)
     final messages = await service.fetchMessages(myId, otherUserId, 20, 0);
-    // Service returns Newest First.
-    // We want Newest First for Reversed ListView.
     return messages;
   }
 
@@ -83,22 +125,27 @@ class ChatNotifier extends _$ChatNotifier {
       final olderMessages =
           await service.fetchMessages(myId, otherUserId, 20, offset);
       if (olderMessages.isNotEmpty) {
-        // Older messages are Newest -> Oldest in that page.
-        // We append them to the end of the list (which is the top of the reversed ListView)
         state = AsyncValue.data([...currentList, ...olderMessages]);
       }
     } catch (e) {
-      // Handle error (maybe toast via callback or separate error state)
+      // Handle error
     }
   }
 
   Future<void> sendMessage(String content,
-      {String? type = 'text', String? mediaUrl}) async {
+      {String? type = 'text', String? mediaUrl, String? replyToId}) async {
     final myId = ref.read(authStateProvider).value?.id;
     if (myId == null) return;
     final service = ref.read(chatServiceProvider);
     await service.sendMessage(myId, otherUserId, content,
-        type: type ?? 'text', mediaUrl: mediaUrl);
+        type: type ?? 'text', mediaUrl: mediaUrl, replyToId: replyToId);
+  }
+
+  Future<void> toggleReaction(String messageId, String reactionType) async {
+    final myId = ref.read(authStateProvider).value?.id;
+    if (myId == null) return;
+    final service = ref.read(chatServiceProvider);
+    await service.toggleReaction(messageId, myId, reactionType);
   }
 
   Future<void> markAsRead() async {

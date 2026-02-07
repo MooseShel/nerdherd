@@ -249,7 +249,18 @@ class _StruggleStatusWidgetState extends ConsumerState<StruggleStatusWidget>
     int confidence = 3;
     double radiusMiles = 1.0;
 
-    final List<double> radiusSteps = [0.0, 0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0];
+    final List<double> radiusSteps = [
+      0.0,
+      0.25,
+      0.5,
+      1.0,
+      2.0,
+      3.0,
+      4.0,
+      5.0,
+      10.0,
+      30.0
+    ];
 
     showDialog(
       context: context,
@@ -465,6 +476,7 @@ class _StruggleStatusWidgetState extends ConsumerState<StruggleStatusWidget>
       builder: (context) => MatchListSheet(
         matches: matches,
         subject: subject,
+        myLocation: widget.currentLocation,
         onClose: () => Navigator.pop(context),
       ),
     ).then((_) {
