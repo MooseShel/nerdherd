@@ -21,9 +21,12 @@ class ConstellationService {
       logger.info(
           '✨ Constellation: Scanning for matches for "${signal.subject}" within ${radiusMeters}m... (Signal Loc: ${signal.latitude}, ${signal.longitude})');
 
-      // 0. Fetch blocked user IDs to exclude
+      // 0. Fetch blocked user IDs to exclude (bidirectional)
       final blockedIds = await blockingService.getBlockedUserIds();
-      logger.debug('   -> Excluding ${blockedIds.length} blocked users');
+      final blockedByIds = await blockingService.getBlockedByUserIds();
+      final allBlockedIds = {...blockedIds, ...blockedByIds};
+      logger.debug(
+          '   -> Excluding ${allBlockedIds.length} blocked users (bidirectional)');
 
       // 1. Calculate staleness cutoff (24 hours ago)
       final staleCutoff =
@@ -86,8 +89,8 @@ class ConstellationService {
       List<Map<String, dynamic>> scoredCandidates = [];
 
       for (final candidate in candidates) {
-        // Skip blocked users
-        if (blockedIds.contains(candidate.userId)) {
+        // Skip blocked users (bidirectional)
+        if (allBlockedIds.contains(candidate.userId)) {
           logger.debug("   -> Skipping blocked user: ${candidate.fullName}");
           continue;
         }

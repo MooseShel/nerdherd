@@ -66,6 +66,27 @@ class BlockingService {
       return [];
     }
   }
+
+  /// Fetches the list of user IDs that have blocked the current user.
+  Future<List<String>> getBlockedByUserIds() async {
+    try {
+      final myUserId = _supabase.auth.currentUser?.id;
+      if (myUserId == null) return [];
+
+      final response = await _supabase
+          .from('blocked_users')
+          .select('blocker_id')
+          .eq('blocked_id', myUserId);
+
+      final ids =
+          (response as List).map((e) => e['blocker_id'] as String).toList();
+
+      return ids;
+    } catch (e) {
+      logger.error('Error fetching users who blocked me', error: e);
+      return [];
+    }
+  }
 }
 
 // Global instance (can be replaced by Riverpod provider)
