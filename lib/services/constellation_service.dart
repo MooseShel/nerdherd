@@ -28,6 +28,14 @@ class ConstellationService {
       logger.debug(
           '   -> Excluding ${allBlockedIds.length} blocked users (bidirectional)');
 
+      // 0.5 Fetch Current User Profile (for Vibe Check)
+      final currentUserResponse = await _supabase
+          .from('profiles')
+          .select()
+          .eq('user_id', signal.userId)
+          .single();
+      final currentUserProfile = UserProfile.fromJson(currentUserResponse);
+
       // 1. Calculate staleness cutoff (24 hours ago)
       final staleCutoff =
           DateTime.now().subtract(const Duration(hours: 24)).toIso8601String();
@@ -111,8 +119,8 @@ class ConstellationService {
         }
 
         // Score this candidate
-        final score =
-            _calculateCompatibilityScore(signal, candidate, dist, radiusMeters);
+        final score = _calculateCompatibilityScore(
+            signal, currentUserProfile, candidate, dist, radiusMeters);
 
         logger.debug(
             '   -> Candidate ${candidate.fullName} (${dist.toInt()}m): Score ${score.toStringAsFixed(2)}');
@@ -159,7 +167,7 @@ class ConstellationService {
   }
 
   /// Calculates a 0.0 - 1.0 score based on compatibility
-  double _calculateCompatibilityScore(StruggleSignal signal,
+  double _calculateCompatibilityScore(StruggleSignal signal, UserProfile user,
       UserProfile candidate, double distance, int radius) {
     double score = 0.0;
 
@@ -215,10 +223,17 @@ class ConstellationService {
       score += (0.15 * proximityFactor);
     }
 
-    // 5. Study Style Compatibility (+0.05) - Tie-breaker
-    // (Future: Use social/temporal preferences)
-    // For now, simple check: active users are better
-    score += 0.05;
+    // 5. Study Style Compatibility (+0.05) - VIBE CHECK
+    // Compare Social (Quiet vs Chatty) and Temporal (Early vs Night)
+    // 1.0 = Match, 0.0 = Opposite
+    final double socialMatch =
+        1.0 - (user.studyStyleSocial - candidate.studyStyleSocial).abs();
+    final double temporalMatch =
+        1.0 - (user.studyStyleTemporal - candidate.studyStyleTemporal).abs();
+    final double vibeScore = (socialMatch + temporalMatch) / 2;
+
+    // Apply weight (Max 0.05)
+    score += (vibeScore * 0.05);
 
     logger.debug('''
     🧩 Score Breakdown for ${candidate.fullName}:
@@ -226,7 +241,7 @@ class ConstellationService {
     - Role (+0.25): ${candidate.isTutor ? '✅' : '❌'}
     - Skill Match (+0.25): ${skillMatch ? '✅' : '❌'} (Keywords: $signalKeywords)
     - Proximity (+0.15 max): ${(0.15 * (1.0 - (distance / radius))).clamp(0.0, 0.15).toStringAsFixed(2)}
-    - Style (+0.05): ✅
+    - Style (+0.05 max): ${vibeScore.toStringAsFixed(2)} (Social: ${(socialMatch * 100).toInt()}%, Temporal: ${(temporalMatch * 100).toInt()}%)
     - Total: ${score.toStringAsFixed(2)}
     ''');
 
