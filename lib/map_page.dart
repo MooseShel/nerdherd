@@ -1283,7 +1283,7 @@ class _MapPageState extends ConsumerState<MapPage> {
             iconImage: (peer.isTutor && peer.isVerifiedTutor)
                 ? 'marker_tutor'
                 : 'marker_student',
-            iconSize: _getMarkerScale() * 1.1,
+            iconSize: _getMarkerScale() * 1.375,
             iconOpacity: opacity,
             zIndex: 10,
           ));
@@ -1310,9 +1310,8 @@ class _MapPageState extends ConsumerState<MapPage> {
                   geometry: _currentLocation!,
                   circleColor: '#00FF00',
                   circleOpacity: 0.3,
-                  circleRadius: kIsWeb
-                      ? 35.0
-                      : 55.0, // 50px/90px diam -> 25/45 rad -> 35/55 halo
+                  circleRadius:
+                      kIsWeb ? 18.0 : 28.0, // Reduced by half from 35/55
                   circleStrokeWidth: 2,
                   circleStrokeColor: '#00FF00',
                   circleBlur: 0.6,
@@ -1340,7 +1339,7 @@ class _MapPageState extends ConsumerState<MapPage> {
             SymbolOptions(
               geometry: _currentLocation!,
               iconImage: myIcon,
-              iconSize: _getMarkerScale(),
+              iconSize: _getMarkerScale() * 1.25,
               iconOpacity: 1.0,
               zIndex: 999, // Force "Me" to be on top and win collisions
               // Note: We can't force 'icon-allow-overlap' in addSymbol easily,
@@ -1732,10 +1731,10 @@ class _MapPageState extends ConsumerState<MapPage> {
               ),
             ),
 
-          // "Recenter" Button (Bottom Right)
+          // "Recenter" Button (Bottom Left - Below SOS)
           Positioned(
-            bottom: 100,
-            right: 20,
+            bottom: 40,
+            left: 20,
             child: _buildGlassControl(
               onPressed: _checkLocationPermissions,
               child: Icon(Icons.my_location,
@@ -1744,10 +1743,10 @@ class _MapPageState extends ConsumerState<MapPage> {
             ),
           ),
 
-          // Serendipity SOS Button (Bottom Left)
+          // Serendipity SOS Button (Bottom Left - Above Recenter)
           // Always visible - Serendipity is now a core feature
           Positioned(
-            bottom: 40,
+            bottom: 110,
             left: 20,
             child: PointerInterceptor(
               child: StruggleStatusWidget(
@@ -1795,7 +1794,7 @@ class _MapPageState extends ConsumerState<MapPage> {
                     },
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 // Chat Button (NEW)
                 Stack(
                   clipBehavior: Clip.none,
@@ -1843,7 +1842,7 @@ class _MapPageState extends ConsumerState<MapPage> {
                       ),
                   ],
                 ),
-
+                const SizedBox(height: 16),
                 // Notifications Bell
                 Stack(
                   clipBehavior: Clip.none,
@@ -1891,7 +1890,7 @@ class _MapPageState extends ConsumerState<MapPage> {
                       ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 // Live/Ghost Mode Toggle
                 _buildGlassControl(
                   isMini: true,
@@ -1912,7 +1911,7 @@ class _MapPageState extends ConsumerState<MapPage> {
                   tooltip: _isStudyMode ? "LIVE Mode" : "GHOST Mode",
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
 
                 // Map Filter Widget (Moved here for equal spacing)
                 PointerInterceptor(
