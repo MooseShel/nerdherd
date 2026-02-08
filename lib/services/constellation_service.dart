@@ -163,63 +163,168 @@ class ConstellationService {
       UserProfile candidate, double distance, int radius) {
     double score = 0.0;
 
-    // 1. Role Score (+0.5 for Tutors)
-    if (candidate.isTutor) {
-      score += 0.5;
+    // 1. Exact Class Match (+0.30) - STRONGEST SIGNAL
+    // If the candidate is in the EXACT class the user is struggling with
+    bool classMatch = false;
+    final signalCourseCode = _extractCourseCode(signal.subject);
+    if (signalCourseCode != null) {
+      for (final cls in candidate.currentClasses) {
+        if (_cleanString(cls).contains(signalCourseCode)) {
+          classMatch = true;
+          break;
+        }
+      }
+    }
+    if (classMatch) {
+      score += 0.30;
     }
 
-    // 2. Skill/Topic Match (+0.3)
-    // Simple keyword matching against classes and intent
+    // 2. Role Score (+0.25) - Tuned down from 0.5
+    if (candidate.isTutor) {
+      score += 0.25;
+    }
+
+    // 3. Skill/Topic Match (+0.25)
+    // Intelligent keyword matching (Fuzzy + Abbreviations)
     final signalKeywords = _extractKeywords(signal.subject);
     bool skillMatch = false;
 
     // Check Candidate Classes
     for (final cls in candidate.currentClasses) {
-      if (_matchesKeywords(cls, signalKeywords)) {
+      if (_matchesKeywordsFuzzy(cls, signalKeywords)) {
         skillMatch = true;
         break;
       }
     }
     // Check Candidate Intent
     if (!skillMatch && candidate.intentTag != null) {
-      if (_matchesKeywords(candidate.intentTag!, signalKeywords)) {
+      if (_matchesKeywordsFuzzy(candidate.intentTag!, signalKeywords)) {
         skillMatch = true;
       }
     }
 
     if (skillMatch) {
-      score += 0.3;
+      score += 0.25;
     }
 
-    // 3. Proximity Score (+0.2 max)
-    // Linear decay: 0m = +0.2, Limit = +0.0
+    // 4. Proximity Score (+0.15 max)
+    // Linear decay: 0m = +0.15, Limit = +0.0
     if (radius > 0) {
       double proximityFactor = 1.0 - (distance / radius);
       if (proximityFactor < 0) proximityFactor = 0;
-      score += (0.2 * proximityFactor);
+      score += (0.15 * proximityFactor);
     }
+
+    // 5. Study Style Compatibility (+0.05) - Tie-breaker
+    // (Future: Use social/temporal preferences)
+    // For now, simple check: active users are better
+    score += 0.05;
 
     logger.debug('''
     🧩 Score Breakdown for ${candidate.fullName}:
-    - Role (+0.5): ${candidate.isTutor ? '✅' : '❌'}
-    - Skill Match (+0.3): ${skillMatch ? '✅' : '❌'} (Keywords: $signalKeywords)
-    - Proximity (+0.2 max): ${(score - (candidate.isTutor ? 0.5 : 0) - (skillMatch ? 0.3 : 0)).toStringAsFixed(2)}
+    - Class Match (+0.30): ${classMatch ? '✅' : '❌'} ($signalCourseCode)
+    - Role (+0.25): ${candidate.isTutor ? '✅' : '❌'}
+    - Skill Match (+0.25): ${skillMatch ? '✅' : '❌'} (Keywords: $signalKeywords)
+    - Proximity (+0.15 max): ${(0.15 * (1.0 - (distance / radius))).clamp(0.0, 0.15).toStringAsFixed(2)}
+    - Style (+0.05): ✅
     - Total: ${score.toStringAsFixed(2)}
     ''');
 
-    return score;
+    return score.clamp(0.0, 1.0);
   }
 
+  /// Extracts "MATH 2413" -> "math2413" for comparison
+  String? _extractCourseCode(String text) {
+    // Regex for 3-4 letters followed by 3-4 numbers (e.g., COSC 3320, CS101)
+    final regex = RegExp(r'([a-zA-Z]{2,4})\s*(\d{3,4})');
+    final match = regex.firstMatch(text);
+    if (match != null) {
+      return '${match.group(1)}${match.group(2)}'.toLowerCase();
+    }
+    return null;
+  }
+
+  /// Intelligent Keyword Extraction
   List<String> _extractKeywords(String text) {
-    return text.toLowerCase().split(' ').where((w) => w.length > 3).toList();
+    final clean = _cleanString(text);
+    final words = clean.split(' ').where((w) => w.length > 2).toList();
+
+    // Add variations for common terms
+    final expanded = <String>{...words};
+    if (words.contains('calc') || words.contains('calculus')) {
+      expanded.addAll(['math', 'integration', 'derivative']);
+    }
+    if (words.contains('stats') || words.contains('statistics')) {
+      expanded.addAll(['math', 'probability']);
+    }
+    if (words.contains('physics')) {
+      expanded.add('phys');
+    }
+    if (words.contains('chem') || words.contains('chemistry')) {
+      expanded.add('science');
+    }
+
+    return expanded.toList();
   }
 
-  bool _matchesKeywords(String text, List<String> keywords) {
-    final lower = text.toLowerCase();
+  String _cleanString(String text) {
+    return text.toLowerCase().replaceAll(RegExp(r'[^\w\s]'), '');
+  }
+
+  /// Fuzzy Matching (Levenshtein-ish simplified)
+  bool _matchesKeywordsFuzzy(String text, List<String> keywords) {
+    final cleanText = _cleanString(text);
+    final textWords = cleanText.split(' ');
+
     for (final k in keywords) {
-      if (lower.contains(k)) return true;
+      // 1. Direct contains
+      if (cleanText.contains(k)) return true;
+
+      // 2. Fuzzy match against words
+      for (final w in textWords) {
+        if (_isFuzzyMatch(w, k)) return true;
+      }
     }
     return false;
+  }
+
+  /// Returns true if words are similar (Edit distance <= 1 or prefix match)
+  bool _isFuzzyMatch(String a, String b) {
+    if (a.isEmpty || b.isEmpty) return false;
+    if (a == b) return true;
+
+    // Prefix matching (e.g., "calc" matches "calculus")
+    if (a.length > 3 && b.length > 3) {
+      if (a.startsWith(b) || b.startsWith(a)) return true;
+    }
+
+    // Simple length check for edit distance
+    if ((a.length - b.length).abs() > 1) return false;
+
+    // Check for 1 character difference (Substitution/Insertion/Deletion)
+    int diffs = 0;
+    int i = 0, j = 0;
+    while (i < a.length && j < b.length) {
+      if (a[i] != b[j]) {
+        diffs++;
+        if (diffs > 1) return false;
+        if (a.length > b.length) {
+          i++; // Deletion
+        } else if (b.length > a.length) {
+          j++; // Insertion
+        } else {
+          i++;
+          j++; // Substitution
+        }
+      } else {
+        i++;
+        j++;
+      }
+    }
+    // Account for trailing char
+    if (i < a.length || j < b.length) diffs++;
+
+    return diffs <= 1;
   }
 
   double _calculateDistance(
