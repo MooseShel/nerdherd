@@ -171,6 +171,14 @@ class PendingMatchesSheet extends ConsumerWidget {
                         style: const TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 16),
                       ),
+                      if (match.score != null)
+                        Text(
+                          "${(match.score! * 100).toInt()}% Match ✨",
+                          style: const TextStyle(
+                              color: Colors.green,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold),
+                        ),
                       const Text(
                         "Auto-connected! Tap to chat.",
                         style: TextStyle(
